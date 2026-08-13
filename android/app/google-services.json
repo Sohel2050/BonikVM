@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "548357430334",
+    "firebase_url": "https://vpn-master-albonik-default-rtdb.firebaseio.com",
+    "project_id": "vpn-master-albonik",
+    "storage_bucket": "vpn-master-albonik.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548357430334:android:c2dcdd0dc15dc5b323856f",
+        "android_client_info": {
+          "package_name": "com.albonik.vpn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "548357430334-hti8camgrn1ttunibub4mfo6oeo4g4db.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJkPbXKK4-2fSpzs_pg8DtmC43RuvaFHE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "548357430334-hti8camgrn1ttunibub4mfo6oeo4g4db.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "548357430334-t6ar0mi81tho24hras5d90cj7kk17k6v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.albonik.vpn"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

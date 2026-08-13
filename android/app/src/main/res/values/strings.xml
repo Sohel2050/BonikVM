@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VPN MASTER</string>
+
+    <!-- Firebase Configuration -->
+    <string name="default_web_client_id">548357430334-ro82rq9m4ckus3ovg3l26jgvklkvv3f9.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId">548357430334</string>
+    <string name="google_api_key">AIzaSyDJkPbXKK4-2fSpzs_pg8DtmC43RuvaFHE</string>
+    <string name="google_app_id">1:548357430334:android:c2dcdd0dc15dc5b323856f</string>
+    <string name="google_crash_reporting_api_key">AIzaSyDJkPbXKK4-2fSpzs_pg8DtmC43RuvaFHE</string>
+    <string name="google_storage_bucket">vpn-master-albonik.firebasestorage.app</string>
+    <string name="project_id">vpn-master-albonik</string>
+
+
+    <!-- AdMob App ID -->
+    <string name="admob_app_id">ca-app-pub-9189896335015331~9603802785</string>
+
+    <!-- Test AdMob Unit IDs -->
+    <string name="admob_banner_id">ca-app-pub-9189896335015331/4982390284</string>
+    <string name="admob_interstitial_id">ca-app-pub-9189896335015331/7788158239</string>
+    <string name="admob_rewarded_id">ca-app-pub-9189896335015331/3769380969</string>
+    <string name="admob_native_id">ca-app-pub-9189896335015331/4890890941</string>
+    <string name="admob_app_open_id">ca-app-pub-9189896335015331/8538491914</string>
+</resources>

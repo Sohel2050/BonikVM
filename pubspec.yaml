@@ -1,0 +1,146 @@
+name: vpn_master
+description: "vpn master fast and secure vpn proxy server."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+version: 1.1.4+21
+
+environment:
+  sdk: ^3.10.0
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter_launcher_icons: ^0.14.4
+  change_app_package_name: ^1.5.0
+  rename_app: ^1.6.6
+  flutter:
+    sdk: flutter
+
+  # Core dependencies
+  cupertino_icons: ^1.0.9
+  go_router: ^17.2.3
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # UI & Animation
+  lottie: ^3.1.2
+  animate_do: ^4.2.0
+  flutter_staggered_animations: ^1.1.1
+  shimmer: ^3.0.0
+
+  # VPN & Network
+  axevpn_flutter:
+    git:
+      url: https://github.com/Arsl143/axevpn_flutter
+      ref: main
+  network_info_plus: ^7.0.0
+  flutter_local_notifications: ^17.2.3
+  connectivity_plus: ^7.0.0
+  permission_handler: ^12.0.1
+  http: ^1.1.0
+
+  # AdMob & Monetization
+  google_mobile_ads: ^7.0.0
+  # Unity LevelPlay (IronSource) Mediation
+  ironsource_mediation: ^3.1.2
+  in_app_purchase: ^3.2.3
+  in_app_purchase_android: ^0.4.0+4
+  in_app_purchase_storekit: ^0.4.4
+  in_app_review: ^2.0.9
+
+  # Payment Processing
+  stripe_platform_interface: ^11.5.0
+  flutter_stripe: ^11.5.0
+  paypal_checkout: 0.0.4
+  uuid: ^4.4.0
+  crypto: ^3.0.3
+
+  # Receipt & PDF Generation
+  pdf: ^3.10.8
+  # printing: ^5.12.0  # Heavy dependency - consider alternatives
+  open_file: ^3.3.2
+  share_plus: ^12.0.1
+
+  # Firebase
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.1.1
+  firebase_analytics: ^12.1.1
+  firebase_auth: ^6.1.4
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.4
+
+  # HTTP & Storage
+  dio: ^5.4.3+1
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+  shared_preferences: ^2.2.3
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Utilities
+  package_info_plus: ^9.0.0
+  device_info_plus: ^12.3.0
+  url_launcher: ^6.3.0
+  image_picker: ^1.0.7
+  webview_flutter: ^4.4.4
+  # flutter_launcher_icons: ^0.13.1  # Development only
+  path_provider: ^2.1.3
+  in_app_update: ^4.2.3
+
+  # Localization & Environment
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  flutter_dotenv: ^6.0.0
+
+dev_dependencies:
+  onesignal_flutter: ^5.5.4
+  flutter_test:
+    sdk: flutter
+
+  # Code generation
+  freezed: ^2.5.2
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.12
+  hive_generator: ^2.0.1
+  json_serializable: ^6.8.0
+
+  # Linting
+  flutter_lints: ^6.0.0
+  change_app_package_name: any
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  # The following line ensures that the Material Icons font is
+  uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/images/app_trn.png
+    - assets/images/bg2.png
+    - assets/images/
+    - assets/images//
+    - assets/images/icon/icon.png
+    - assets/images/app_icon.png
+    - assets/animations/
+    - assets/flags/
+    - assets/certs/
+    - .env
+
+# Flutter Launcher Icons
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_trn.png"
+  min_sdk_android: 21

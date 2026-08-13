@@ -1,0 +1,8 @@
+# key.properties.example
+# Copy this file to key.properties and fill in your own values.
+# NEVER commit key.properties to version control.
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+storeFile=cert/YOUR_KEYSTORE_FILE.jks

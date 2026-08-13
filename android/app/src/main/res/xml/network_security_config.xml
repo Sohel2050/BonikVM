@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow clear text traffic for development and specific domains -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Your API domain -->
+        <domain includeSubdomains="true">vpn.albonik.com</domain>
+        <domain includeSubdomains="true">vpn.albonik.com/api</domain>
+        
+        <!-- Trust system certificates for HTTPS -->
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- Base configuration for all other domains -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificates -->
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Debug configuration (only active in debug builds) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
