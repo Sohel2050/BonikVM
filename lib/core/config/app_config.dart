@@ -3,11 +3,57 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppConfig {
   // API Configuration
   static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'https://vpn.albonik.com'; // Default to local server for development
+      dotenv.env['API_BASE_URL'] ?? 'https://your-domain.com'; // Default to local server for development
   static String get baseUrl => apiBaseUrl; // Alias for compatibility
   static String get apiVersion => 'v1'; // API version
-  static String get apiKey =>
-      dotenv.env['API_TOKEN_MOBILE'] ?? 'BpBzjBRRUVkhpsYsdySna';
+  // No hardcoded fallback — set API_TOKEN_MOBILE in .env (see .env.example).
+  // A bundled default here would ship as a plaintext string in the compiled
+  // app binary, defeating the purpose of keeping it out of source control.
+  static String get apiKey => dotenv.env['API_TOKEN_MOBILE'] ?? '';
+
+  // Google OAuth client ID used only on Windows (see
+  // windows_google_auth.dart) since google_sign_in has no Windows
+  // implementation. A real "Desktop app" client ID is required — Google
+  // exempts Desktop clients from needing every loopback port
+  // pre-registered, unlike a Web client type which requires each exact
+  // redirect URI to be allow-listed.
+  //
+  // Managed dynamically from the admin panel (App Config → Social Login →
+  // "Google Client ID (Windows Desktop App)"), fetched at startup by
+  // GoogleLoginConfigService and cached here via [setRemoteGoogleDesktopClientId].
+  // Falls back to .env (GOOGLE_DESKTOP_CLIENT_ID / GOOGLE_CLIENT_ID_WEB) so
+  // this still works before the first successful fetch or if the backend
+  // is unreachable.
+  static String? _remoteGoogleDesktopClientId;
+
+  static void setRemoteGoogleDesktopClientId(String? clientId) {
+    if (clientId != null && clientId.isNotEmpty) {
+      _remoteGoogleDesktopClientId = clientId;
+    }
+  }
+
+  static String get googleDesktopClientId =>
+      _remoteGoogleDesktopClientId ??
+      dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ??
+      dotenv.env['GOOGLE_CLIENT_ID_WEB'] ??
+      '';
+
+  // Google requires this in the token-exchange request even for Desktop
+  // app clients ("invalid_request: client_secret is missing" otherwise) —
+  // see windows_google_auth.dart. Same admin-managed + .env-fallback
+  // pattern as the client ID above.
+  static String? _remoteGoogleDesktopClientSecret;
+
+  static void setRemoteGoogleDesktopClientSecret(String? secret) {
+    if (secret != null && secret.isNotEmpty) {
+      _remoteGoogleDesktopClientSecret = secret;
+    }
+  }
+
+  static String get googleDesktopClientSecret =>
+      _remoteGoogleDesktopClientSecret ??
+      dotenv.env['GOOGLE_DESKTOP_CLIENT_SECRET'] ??
+      '';
 
   // AdMob Configuration
   static String get admobAppIdAndroid =>
@@ -37,7 +83,7 @@ class AppConfig {
       dotenv.env['FIREBASE_PROJECT_ID'] ?? '';
 
   // App Configuration
-  static String get appVersion => dotenv.env['APP_VERSION'] ?? '8.0.0';
+  static String get appVersion => dotenv.env['APP_VERSION'] ?? '8.3.0';
   static bool get isDebugMode =>
       dotenv.env['DEBUG_MODE']?.toLowerCase() == 'false' ? false : true;
 

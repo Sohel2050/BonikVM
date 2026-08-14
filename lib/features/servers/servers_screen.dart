@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -5,15 +6,36 @@ import '../../core/api/api_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/vpn_state.dart' as multi_vpn;
 import '../../core/services/admob_service.dart';
+import '../../core/services/windows_vpn_service.dart';
 import '../../services/ads_popup_config_service.dart';
 import '../../services/premium_server_unlock_service.dart';
-
 import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../shared/widgets/loading_widget.dart';
 import '../../shared/widgets/error_widget.dart';
+import '../../shared/widgets/flag_icon.dart';
 import '../../widgets/unified_ads_popup_simple.dart';
-import '../../core/services/level_play_service.dart';
+
+/// Whether [server]'s protocol can actually be connected to on the current
+/// platform. On Windows: WireGuard and V2Ray are supported (see
+/// windows_wireguard_service.dart / windows_v2ray_service.dart); OpenVPN
+/// only works once openvpn.exe has been added to windows/vpn_bin/ (see its
+/// README); OpenConnect has no Windows backend at all. Every protocol is
+/// supported on Android/iOS via the native axevpn_flutter plugin.
+bool isServerProtocolSupportedOnPlatform(VpnServer server) {
+  if (!Platform.isWindows) return true;
+  switch (server.vpnProtocolType) {
+    case 'wireguard':
+    case 'v2ray':
+      return true;
+    case 'openconnect':
+      return false;
+    case 'openvpn':
+    default:
+      return WindowsVpnService.instance.isAvailable;
+  }
+}
+
 class ServersScreen extends ConsumerStatefulWidget {
   const ServersScreen({super.key});
 
@@ -23,10 +45,10 @@ class ServersScreen extends ConsumerStatefulWidget {
 
 // Global key to access the servers screen state from main shell
 final GlobalKey<_ServersScreenState> serversScreenKey =
-GlobalKey<_ServersScreenState>();
+    GlobalKey<_ServersScreenState>();
 
 class _ServersScreenState extends ConsumerState<ServersScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+    with TickerProviderStateMixin {
   late TabController _tabController;
   // One scroll controller per tab (Free / Premium)
   final List<ScrollController> _scrollControllers = [
@@ -42,101 +64,20 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
 
-  DateTime? _lastVpnInterstitialAt;
-  String? _pendingVpnInterstitialPlacement;
-  bool _isAppResumed = true;
-  bool _vpnInterstitialShowing = false;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     _initializeAds();
     // Initialize premium unlock service to load saved unlocks from storage
     PremiumServerUnlockService()
         .initialize()
         .then((_) {
-      debugPrint('✅ Premium unlock service initialized');
-    })
+          debugPrint('✅ Premium unlock service initialized');
+        })
         .catchError((e) {
-      debugPrint('❌ Error initializing premium unlock service: $e');
-    });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _isAppResumed = state == AppLifecycleState.resumed;
-
-    if (_isAppResumed && _pendingVpnInterstitialPlacement != null) {
-      final placement = _pendingVpnInterstitialPlacement!;
-      _pendingVpnInterstitialPlacement = null;
-      _showVpnInterstitial(placement);
-    }
-  }
-
-  Future<void> _showVpnInterstitial(String placementName) async {
-    if (!mounted) return;
-
-    final isPremiumNow = ref.read(premiumStatusProvider);
-    if (isPremiumNow) {
-      debugPrint('[VPN ADS] Premium user - skip $placementName');
-      return;
-    }
-
-    if (!_isAppResumed) {
-      debugPrint('[VPN ADS] App not resumed - queue $placementName');
-      _pendingVpnInterstitialPlacement = placementName;
-      return;
-    }
-
-    final now = DateTime.now();
-    if (_lastVpnInterstitialAt != null &&
-        now.difference(_lastVpnInterstitialAt!) <
-            const Duration(seconds: 10)) {
-      debugPrint('[VPN ADS] Cooldown active - skip $placementName');
-      return;
-    }
-
-    if (_vpnInterstitialShowing) {
-      debugPrint(
-        '[VPN ADS] Interstitial already showing - skip $placementName',
-      );
-      return;
-    }
-
-    _vpnInterstitialShowing = true;
-    _lastVpnInterstitialAt = now;
-
-    try {
-      debugPrint('[VPN ADS] Request Interstitial: $placementName');
-
-      final levelPlay = LevelPlayService.instance;
-
-      await levelPlay.refreshPremiumStatus();
-
-      if (!mounted) return;
-
-
-
-      if (!mounted || !_isAppResumed) {
-        _pendingVpnInterstitialPlacement = placementName;
-        return;
-      }
-
-      debugPrint(
-        '[VPN ADS] Showing Interstitial: $placementName',
-      );
-
-      await levelPlay.showInterstitial(
-        placementName: placementName,
-      );
-    } catch (e, stackTrace) {
-      debugPrint('[VPN ADS] Interstitial error: $e');
-      debugPrint('$stackTrace');
-    } finally {
-      _vpnInterstitialShowing = false;
-    }
+          debugPrint('❌ Error initializing premium unlock service: $e');
+        });
   }
 
   void _initializeAds() {
@@ -154,7 +95,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         ad.dispose();
       },
     );
-    //_bannerAd?.load();
+    _bannerAd?.load();
   }
 
   @override
@@ -163,7 +104,6 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     for (final sc in _scrollControllers) {
       sc.dispose();
     }
-    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _bannerAd?.dispose();
     super.dispose();
@@ -241,7 +181,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   // Public methods to trigger dialogs from AppBar
-
+  void triggerSearchDialog() {
+    _showSearchDialog();
+  }
 
   void triggerFilterDialog() {
     _showFilterDialog();
@@ -263,6 +205,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     final isPremium = ref.watch(premiumStatusProvider);
     final currentServer = ref.watch(currentServerProvider);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final themeColor = ref.watch(themeColorProvider);
 
     // Trigger TCP-connect latency measurement when server list loads/refreshes
     ref.listen<AsyncValue<List<VpnServer>>>(serversProvider, (_, next) {
@@ -271,140 +214,96 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       });
     });
 
-    // Listen to VPN state changes.
-    // Connected -> LevelPlay Interstitial
-    // Disconnected -> LevelPlay Interstitial
-    ref.listen<AsyncValue<multi_vpn.VpnState>>(
-      vpnStateProvider,
-          (previous, next) {
-        next.whenData((state) async {
-          final previousState = previous?.value;
-
-          debugPrint(
-            '🔄 VPN Stage Changed: $state (previous: $previousState)',
-          );
-
-          // Ignore duplicate notifications and initial disconnected state.
-          if (state == previousState) return;
-
-          // Always read current values.
-          final currentPremium =
-          ref.read(premiumStatusProvider);
-          final selectedServer =
-          ref.read(currentServerProvider);
-
-          // ==================================================
-          // VPN DISCONNECTED
-          // ==================================================
-          if (state == multi_vpn.VpnState.disconnected) {
-            final timerStateOnDisc =
-            ref.read(freeConnectionTimerProvider);
-
-            if (!timerStateOnDisc.timerExpired) {
+    // Listen to VPN state changes to start timer for free users
+    ref.listen<AsyncValue<multi_vpn.VpnState>>(vpnStateProvider, (
+      previous,
+      next,
+    ) {
+      next.whenData((state) {
+        if (state == multi_vpn.VpnState.disconnected) {
+          // Only reset the free timer if it was NOT an expiry-triggered disconnect.
+          // Preserving timerExpired=true prevents free users from reconnecting
+          // without watching an ad.
+          final timerStateOnDisc = ref.read(freeConnectionTimerProvider);
+          if (!timerStateOnDisc.timerExpired) {
+            ref.read(freeConnectionTimerProvider.notifier).stopTimer();
+          }
+        } else if (state == multi_vpn.VpnState.connected) {
+          // Start free connection timer when connected (only for free users on free servers)
+          if (!isPremium && currentServer != null) {
+            // Do NOT start free timer for ad-unlocked premium servers —
+            // those are tracked by PremiumServerUnlockService, not the free timer
+            final unlock = currentServer.premium
+                ? PremiumServerUnlockService().getUnlockInfo(currentServer.id)
+                : null;
+            final isAdUnlocked = unlock?.isStillUnlocked ?? false;
+            if (isAdUnlocked) {
+              // Ad-unlocked premium server — start countdown for exactly
+              // the remaining unlock duration (from admin setting)
               ref
                   .read(freeConnectionTimerProvider.notifier)
-                  .stopTimer();
-            }
-
-            debugPrint('🔌 VPN Disconnected');
-
-            if (!currentPremium) {
-              await _showVpnInterstitial(
-                'vpn_disconnected',
-              );
-            }
-
-            return;
-          }
-
-          // ==================================================
-          // VPN CONNECTED
-          // ==================================================
-          if (state == multi_vpn.VpnState.connected) {
-            debugPrint('📡 VPN Connected');
-
-            // Existing free connection timer logic.
-            if (!currentPremium &&
-                selectedServer != null) {
-              final unlock = selectedServer.premium
-                  ? PremiumServerUnlockService()
-                  .getUnlockInfo(
-                selectedServer.id,
-              )
-                  : null;
-
-              final isAdUnlocked =
-                  unlock?.isStillUnlocked ?? false;
-
-              if (isAdUnlocked) {
-                ref
-                    .read(
-                  freeConnectionTimerProvider
-                      .notifier,
-                )
-                    .startFromSeconds(
-                  selectedServer,
-                  unlock!.remainingSeconds,
-                );
-              } else {
-                ref
-                    .read(
-                  freeConnectionTimerProvider
-                      .notifier,
-                )
-                    .startTimer(
-                  selectedServer,
-                  currentPremium,
-                );
-              }
-            }
-
-            if (!currentPremium) {
-              await _showVpnInterstitial(
-                'vpn_connected',
-              );
+                  .startFromSeconds(currentServer, unlock!.remainingSeconds);
+            } else {
+              ref
+                  .read(freeConnectionTimerProvider.notifier)
+                  .startTimer(currentServer, isPremium);
             }
           }
-        });
-      },
-    );
-
-    final themeColor = ref.watch(themeColorProvider);
+        }
+      });
+    });
 
     return Container(
       color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
       child: Column(
         children: [
-          // Premium upgrade banner (non-premium users only)
-          //if (!isPremium)
-
-
-
+          // Top Banner Ad
+          if (!isPremium && _isBannerAdLoaded && _bannerAd != null)
+            Container(
+              height: 60,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            ),
+          if (Platform.isWindows) _buildWindowsProtocolBanner(isDarkMode),
           // Main Content
           Expanded(
             child: Column(
               children: [
                 // Tabs
-                Material(
-                  color: isDarkMode
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFFF8F9FA),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? const Color(0xFF1E293B) : Colors.black.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: TabBar(
                     controller: _tabController,
-                    indicatorColor: themeColor,
-                    labelColor: themeColor,
-                    unselectedLabelColor: isDarkMode
-                        ? const Color(0xFF94A3B8)
-                        : Colors.grey[600],
-                    tabs: const [
-                      Tab(
-                        icon: Icon(Icons.wifi, size: 14),
-                        text: 'FREE SERVERS',
-                      ),
-                      Tab(
-                        icon: Icon(Icons.paid, size: 14),
-                        text: 'VIP SERVERS',
-                      ),
+                    indicator: BoxDecoration(
+                      color: themeColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: themeColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: isDarkMode ? const Color(0xFF94A3B8) : Colors.black54,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    tabs: [
+                      Tab(text: AppLocalizations.of(context).freeServers),
+                      Tab(text: AppLocalizations.of(context).premiumServers),
                     ],
                   ),
                 ),
@@ -447,23 +346,6 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     },
                   ),
                 ),
-                // Bottom Banner Ad
-                if (!isPremium && _isBannerAdLoaded && _bannerAd != null)
-                  Container(
-                    height: 60,
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: AdWidget(ad: _bannerAd!),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -472,22 +354,65 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     );
   }
 
+  /// Explains to Windows users why some servers are hidden — OpenVPN needs
+  /// a manually-added binary (see windows/vpn_bin/README.md) and
+  /// OpenConnect has no Windows backend at all, while WireGuard and V2Ray
+  /// work out of the box.
+  Widget _buildWindowsProtocolBanner(bool isDarkMode) {
+    final openVpnReady = WindowsVpnService.instance.isAvailable;
+    final message = openVpnReady
+        ? 'Windows supports OpenVPN, WireGuard, and V2Ray servers. OpenConnect servers aren\'t shown.'
+        : 'Windows supports WireGuard and V2Ray servers now. OpenVPN servers are hidden until openvpn.exe is set up — see windows/vpn_bin/README.md. OpenConnect isn\'t supported.';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: (openVpnReady ? Colors.blue : Colors.amber).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (openVpnReady ? Colors.blue : Colors.amber).withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            openVpnReady ? Icons.info_outline : Icons.warning_amber_rounded,
+            size: 18,
+            color: openVpnReady ? Colors.blue : Colors.amber.shade800,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[800],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildServerList(
-      List<VpnServer> allServers,
-      bool? premiumFilter,
-      Set<String> favoriteServers,
-      bool isPremium,
-      VpnServer? currentServer,
-      bool isDarkMode, {
-        int tabIndex = 0,
-      }) {
+    List<VpnServer> allServers,
+    bool? premiumFilter,
+    Set<String> favoriteServers,
+    bool isPremium,
+    VpnServer? currentServer,
+    bool isDarkMode, {
+    int tabIndex = 0,
+  }) {
     // Filter servers
     List<VpnServer> filteredServers = allServers.where((server) {
       // Apply search filter
       bool matchesSearch =
           _searchQuery.isEmpty ||
-              server.name.toLowerCase().contains(_searchQuery) ||
-              server.country.toLowerCase().contains(_searchQuery);
+          server.name.toLowerCase().contains(_searchQuery) ||
+          server.country.toLowerCase().contains(_searchQuery);
 
       // Apply tab-level premium filter
       bool matchesPremium =
@@ -500,10 +425,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       // Ensure server supports at least one protocol (OpenVPN, WireGuard, or OneConnect)
       bool hasProtocol =
           server.supportsOpenVPN ||
-              server.supportsWireGuard ||
-              server.isOneConnect;
+          server.supportsWireGuard ||
+          server.isOneConnect;
 
-      return matchesSearch && matchesPremium && server.isActive && hasProtocol;
+      return matchesSearch &&
+          matchesPremium &&
+          server.isActive &&
+          hasProtocol &&
+          isServerProtocolSupportedOnPlatform(server);
     }).toList();
 
     // Sort: favorites first, full/at-capacity servers last, then by order
@@ -543,12 +472,6 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       );
     }
 
-    // For free servers tab, add Smart Connect as first item
-    final smartConnectOffset = tabIndex == 0 ? 1 : 0;
-    // For non-premium, add a native ad at the very top (position after smart connect)
-    final topAdOffset = (!isPremium) ? 1 : 0;
-    final totalOffset = smartConnectOffset + topAdOffset;
-
     return ListView.builder(
       key: ValueKey(
         'servers_list_${tabIndex}_${filteredServers.length}_$isPremium',
@@ -557,35 +480,18 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       padding: const EdgeInsets.all(16),
       itemCount: isPremium
           ? filteredServers.length
-          : filteredServers.length +
-          totalOffset +
-          ((filteredServers.length + 3) ~/ 4),
+          : filteredServers.length + ((filteredServers.length + 3) ~/ 4),
       itemBuilder: (context, index) {
         // Safety check for index bounds
         if (index < 0) return const SizedBox.shrink();
 
-        // Smart Connect card at position 0 for free tab
-        if (tabIndex == 0 && index == 0) {
-          return _buildSmartConnectCard(isDarkMode, currentServer);
-        }
-
-        // Top native ad for non-premium users right after smart connect (or at top for premium tab)
-        if (!isPremium && index == smartConnectOffset) {
+        // Show native ad every 4th item for non-premium users
+        if (!isPremium && (index + 1) % 4 == 0) {
           return _buildNativeAdCard(isDarkMode);
         }
 
-        // Adjust index for smart connect + top ad offsets
-        final adjustedIndex = index - totalOffset;
-
-        // Show native ad every 4th item for non-premium users (based on adjusted index)
-        if (!isPremium && (adjustedIndex + 1) % 4 == 0) {
-          return _buildNativeAdCard(isDarkMode);
-        }
-
-        // Calculate actual server index (accounting for all offsets)
-        int serverIndex = isPremium
-            ? adjustedIndex
-            : adjustedIndex - ((adjustedIndex + 1) ~/ 4);
+        // Calculate actual server index
+        int serverIndex = isPremium ? index : index - ((index + 1) ~/ 4);
 
         // Additional safety checks
         if (serverIndex < 0 || serverIndex >= filteredServers.length) {
@@ -596,10 +502,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         // Only show as connected when VPN is truly connected (not just selected)
         final vpnState =
             ref.watch(vpnStateProvider).value ??
-                multi_vpn.VpnState.disconnected;
+            multi_vpn.VpnState.disconnected;
         final isConnected =
             currentServer?.id == server.id &&
-                vpnState == multi_vpn.VpnState.connected;
+            vpnState == multi_vpn.VpnState.connected;
         final isFavorite = favoriteServers.contains(server.id);
 
         return _buildServerCard(
@@ -613,374 +519,327 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     );
   }
 
-  Widget _buildSmartConnectCard(bool isDarkMode, VpnServer? currentServer) {
-    final themeColor = ref.watch(themeColorProvider);
-    final isSelected = currentServer == null;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () {
-            ref.read(currentServerProvider.notifier).setServer(null);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSelected
-                    ? themeColor.withValues(alpha: 0.4)
-                    : (isDarkMode
-                    ? const Color(0xFF334155)
-                    : const Color(0xFFE5E7EB)),
-                width: isSelected ? 1.5 : 1.0,
-              ),
-              boxShadow: isSelected
-                  ? [
-                BoxShadow(
-                  color: themeColor.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-              ]
-                  : null,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: themeColor.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.bolt, color: themeColor, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Auto Connect',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white : Colors.black87,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Automatically connect to the fastest server',
-                        style: TextStyle(
-                          color: isDarkMode
-                              ? const Color(0xFF94A3B8)
-                              : Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Icon(Icons.check_circle, color: themeColor, size: 22)
-                else
-                  Icon(
-                    Icons.chevron_right,
-                    color: isDarkMode
-                        ? const Color(0xFF64748B)
-                        : Colors.grey[400],
-                    size: 22,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildServerCard(
-      VpnServer server,
-      bool isConnected,
-      bool isFavorite,
-      bool isPremium,
-      bool isDarkMode,
-      ) {
+    VpnServer server,
+    bool isConnected,
+    bool isFavorite,
+    bool isPremium,
+    bool isDarkMode,
+  ) {
     final themeColor = ref.watch(themeColorProvider);
     // Check if this server is temporarily unlocked via ad watch
     final unlocks = ref.watch(premiumServerUnlocksProvider);
     final isAdUnlocked =
         server.premium &&
-            (unlocks[server.id.toString()]?.isStillUnlocked ?? false);
+        (unlocks[server.id.toString()]?.isStillUnlocked ?? false);
     final canConnect = !server.premium || isPremium || isAdUnlocked;
     // Measured TCP-connect latency (null = not yet measured or unreachable)
     final latencies = ref.watch(serverLatencyProvider);
     final latencyMs = latencies[server.id];
 
+    final activeColor = isConnected
+        ? const Color(0xFF10B981)
+        : (isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB));
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isConnected
-              ? const Color(0xFF22C55E).withValues(alpha: 0.6)
-              : (isDarkMode
-              ? const Color(0xFF334155)
-              : const Color(0xFFE5E7EB)),
-          width: isConnected ? 1.5 : 1,
+              ? const Color(0xFF10B981).withOpacity(0.8)
+              : activeColor,
+          width: isConnected ? 1.8 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
             color: isConnected
-                ? const Color(0xFF22C55E).withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: isDarkMode ? 0.15 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+                ? const Color(0xFF10B981).withOpacity(0.08)
+                : Colors.black.withOpacity(isDarkMode ? 0.12 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: canConnect
-              ? () => _connectToServer(server)
-              : (server.premium && !isPremium)
-              ? () => _showPremiumUnlockDialog(server)
-              : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                // Flag
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? const Color(0xFF0F172A)
-                        : const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Text(
-                      server.flag,
-                      style: const TextStyle(fontSize: 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: canConnect
+                ? () => _connectToServer(server)
+                : (server.premium && !isPremium)
+                ? () => _showPremiumUnlockDialog(server)
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  // Flag Container
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDarkMode
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.black.withOpacity(0.03),
+                      ),
+                    ),
+                    child: Center(
+                      child: server.countryCode.trim().length == 2
+                          ? FlagIcon(countryCode: server.countryCode, size: 30)
+                          : Text(server.flag, style: const TextStyle(fontSize: 26)),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 14),
 
-                // Server Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              server.name,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isDarkMode
-                                    ? Colors.white
-                                    : const Color(0xFF111827),
+                  // Server Info details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                server.name,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode ? Colors.white : const Color(0xFF111827),
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          // Protocol badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                              (server.isOneConnect
-                                  ? const Color(0xFF8B5CF6)
-                                  : server.isV2Ray
-                                  ? const Color(0xFF9333EA)
-                                  : server.isOpenConnect
-                                  ? const Color(0xFFF97316)
-                                  : server.supportsWireGuard
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFF3B82F6))
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            server.country,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDarkMode
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF6B7280),
-                            ),
-                          ),
-                          if (latencyMs != null) ...[
                             const SizedBox(width: 8),
+                            // Protocol Badge
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 1,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: _getLatencyColor(
-                                  latencyMs,
-                                ).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
+                                color: (server.isOneConnect
+                                        ? const Color(0xFF8B5CF6)
+                                        : server.isV2Ray
+                                        ? const Color(0xFF9333EA)
+                                        : server.isOpenConnect
+                                        ? const Color(0xFFF97316)
+                                        : server.supportsWireGuard
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFF3B82F6))
+                                    .withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '${latencyMs}ms',
+                                server.isOneConnect ? 'OC' : server.protocolDisplayName,
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _getLatencyColor(latencyMs),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: server.isOneConnect
+                                      ? const Color(0xFF8B5CF6)
+                                      : server.isV2Ray
+                                      ? const Color(0xFF9333EA)
+                                      : server.isOpenConnect
+                                      ? const Color(0xFFF97316)
+                                      : server.supportsWireGuard
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFF3B82F6),
                                 ),
                               ),
                             ),
                           ],
-                          if (server.premium) ...[
-                            const SizedBox(width: 6),
-                            Consumer(
-                              builder: (context, ref, child) {
-                                final unlockedServers = ref.watch(
-                                  premiumServerUnlocksProvider,
-                                );
-                                final serverId = server.id.toString();
-                                final unlock = unlockedServers[serverId];
-                                final remainingMinutes =
-                                unlock != null && unlock.isStillUnlocked
-                                    ? (unlock.remainingTime.inSeconds / 60)
-                                    .ceil()
-                                    : 0;
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: remainingMinutes > 0
-                                        ? const Color(
-                                      0xFF22C55E,
-                                    ).withValues(alpha: 0.12)
-                                        : const Color(
-                                      0xFFFFD700,
-                                    ).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    remainingMinutes > 0
-                                        ? '${remainingMinutes}m'
-                                        : 'PRO',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: remainingMinutes > 0
-                                          ? const Color(0xFF16A34A)
-                                          : const Color(0xFFD97706),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                server.country,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (latencyMs != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getLatencyColor(latencyMs).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.signal_cellular_alt_rounded,
+                                      size: 11,
+                                      color: _getLatencyColor(latencyMs),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      // Load bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: server.load.clamp(0.0, 1.0),
-                                minHeight: 4,
-                                backgroundColor: isDarkMode
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFE5E7EB),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  _getLoadColor(server.load),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${latencyMs}ms',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: _getLatencyColor(latencyMs),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ],
+                            if (server.premium) ...[
+                              const SizedBox(width: 8),
+                              Consumer(
+                                builder: (context, ref, child) {
+                                  final unlockedServers = ref.watch(premiumServerUnlocksProvider);
+                                  final serverId = server.id.toString();
+                                  final unlock = unlockedServers[serverId];
+                                  final remainingMinutes =
+                                      unlock != null && unlock.isStillUnlocked
+                                          ? (unlock.remainingTime.inSeconds / 60).ceil()
+                                          : 0;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: remainingMinutes > 0
+                                          ? const Color(0xFF10B981).withOpacity(0.12)
+                                          : const Color(0xFFF59E0B).withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      remainingMinutes > 0 ? '${remainingMinutes}m' : 'VIP',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: remainingMinutes > 0
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFD97706),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Load Capacity Bar
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: server.load.clamp(0.0, 1.0),
+                                  minHeight: 5,
+                                  backgroundColor: isDarkMode
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE5E7EB),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    _getLoadColor(server.load),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${(server.load.clamp(0.0, 1.0) * 100).toInt()}% load',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // Actions & Favorite Status (space-saving Column layout)
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () => _toggleFavorite(server.id),
+                            child: Icon(
+                              isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                              color: isFavorite
+                                  ? const Color(0xFFF59E0B)
+                                  : (isDarkMode ? const Color(0xFF475569) : const Color(0xFF9CA3AF)),
+                              size: 20,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            '${(server.load.clamp(0.0, 1.0) * 100).toInt()}%',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: isDarkMode
-                                  ? const Color(0xFF64748B)
-                                  : const Color(0xFF9CA3AF),
+                          if (isConnected)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF10B981),
+                              size: 20,
+                            )
+                          else if (!canConnect)
+                            const Icon(
+                              Icons.lock_rounded,
+                              color: Color(0xFFD97706),
+                              size: 18,
+                            )
+                          else
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 12,
+                              color: isDarkMode ? const Color(0xFF475569) : const Color(0xFF9CA3AF),
                             ),
-                          ),
                         ],
+                      ),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => _showServerDetailsBottomSheet(server),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 10,
+                                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF6B7280),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Details',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF6B7280),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(width: 10),
-
-                // Right side actions
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (isConnected)
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: Color(0xFF22C55E),
-                        size: 22,
-                      )
-                    else if (!canConnect)
-                      const Icon(
-                        Icons.lock_rounded,
-                        color: Color(0xFFD97706),
-                        size: 20,
-                      )
-                    else
-                      Icon(
-                        Icons.radio_button_unchecked,
-                        size: 20,
-                        color: isDarkMode
-                            ? const Color(0xFF475569)
-                            : const Color(0xFFD1D5DB),
-                      ),
-
-                    GestureDetector(
-                      onTap: () => _toggleFavorite(server.id),
-                      child: Icon(
-                        isFavorite
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        color: isFavorite
-                            ? const Color(0xFFF59E0B)
-                            : (isDarkMode
-                            ? const Color(0xFF475569)
-                            : const Color(0xFFD1D5DB)),
-                        size: 22,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1173,7 +1032,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: UnifiedAdsPopupSimple(
-                adCount: 1,
+                adCount: 3,
                 title: 'Extend Free Time',
                 subtitle: 'Watch videos to continue',
                 showSubscribeButton: true,
@@ -1182,9 +1041,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     watchedAdsInThisPopup++;
                     final rewardIndex = watchedAdsInThisPopup - 1;
                     final rewardDurationSeconds =
-                    adConfigForRewards?.ads.isNotEmpty == true &&
-                        rewardIndex >= 0 &&
-                        rewardIndex < adConfigForRewards!.ads.length
+                        adConfigForRewards?.ads.isNotEmpty == true &&
+                            rewardIndex >= 0 &&
+                            rewardIndex < adConfigForRewards!.ads.length
                         ? adConfigForRewards.ads[rewardIndex].durationSeconds
                         : defaultDurations[rewardIndex.clamp(0, 2)];
 
@@ -1302,15 +1161,15 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           errorMessage = 'VPN engine initialization failed. Please try again.';
         } else if (e.toString().contains('permission denied')) {
           errorMessage =
-          'VPN permission required. Please grant permission in settings.';
+              'VPN permission required. Please grant permission in settings.';
         } else if (e.toString().contains('Premium subscription required')) {
           errorMessage = 'This server requires a premium subscription.';
         } else if (e.toString().contains('timeout')) {
           errorMessage =
-          'Connection timeout. Please check your internet connection.';
+              'Connection timeout. Please check your internet connection.';
         } else {
           errorMessage =
-          'Failed to connect: ${e.toString().replaceAll('Exception: ', '')}';
+              'Failed to connect: ${e.toString().replaceAll('Exception: ', '')}';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1368,8 +1227,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
             );
             return UnifiedAdsPopupSimple(
               customText: adsConfig.premiumUnlockText,
-              adCount: 1,
-              showSubscribeButton: false,
+              adCount: 3,
               title: 'Unlock Premium Server',
               onAction: (action) async {
                 try {
@@ -1386,7 +1244,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     final extraMinutes = adsConfig.premiumUnlockDurationMinutes;
                     // If already unlocked, extend from current expiry; otherwise from now
                     final baseTime =
-                    (existing != null && existing.isStillUnlocked)
+                        (existing != null && existing.isStillUnlocked)
                         ? existing.unlockedUntil
                         : DateTime.now();
                     final newExpiry = baseTime.add(
@@ -1396,7 +1254,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     await unlockService.unlockPremiumServer(
                       server: server,
                       durationMinutes:
-                      newExpiry.difference(DateTime.now()).inMinutes + 1,
+                          newExpiry.difference(DateTime.now()).inMinutes + 1,
                       unlockedBy: 'ad',
                     );
                     // Notify UI immediately so badge updates
@@ -1582,7 +1440,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           20,
           12,
           20,
-          MediaQuery.of(ctx).viewInsets.bottom + 28,
+          MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1608,15 +1466,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color:
-                    (server.premium
-                        ? const Color(0xFFF59E0B)
-                        : const Color(0xFF10B981))
-                        .withValues(alpha: 0.15),
+                        (server.premium
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF10B981))
+                            .withValues(alpha: 0.15),
                   ),
-                  child: Text(
-                    server.flag,
-                    style: const TextStyle(fontSize: 26),
-                  ),
+                  child: server.countryCode.trim().length == 2
+                      ? FlagIcon(countryCode: server.countryCode, size: 30)
+                      : Text(server.flag, style: const TextStyle(fontSize: 26)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1701,7 +1558,44 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
             ),
             const SizedBox(height: 16),
             // Detail rows
-
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[800] : Colors.grey[50],
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+                ),
+              ),
+              child: Column(
+                children: [
+                  _buildInfoRow(
+                    Icons.computer,
+                    'IP Address',
+                    '${server.ip}:${server.port}',
+                    isDarkMode,
+                  ),
+                  const Divider(height: 16),
+                  _buildInfoRow(
+                    Icons.security,
+                    'Protocol',
+                    server.protocol.toUpperCase(),
+                    isDarkMode,
+                  ),
+                  if (!server.premium) ...[
+                    const Divider(height: 16),
+                    _buildInfoRow(
+                      Icons.access_time,
+                      'Free Limit',
+                      server.freeConnectDuration > 0
+                          ? '${server.freeConnectDuration} min'
+                          : 'Unlimited',
+                      isDarkMode,
+                    ),
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             // Connect button
             SizedBox(
@@ -1770,11 +1664,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildInfoRow(
-      IconData icon,
-      String label,
-      String value,
-      bool isDarkMode,
-      ) {
+    IconData icon,
+    String label,
+    String value,
+    bool isDarkMode,
+  ) {
     return Row(
       children: [
         Icon(
@@ -1816,6 +1710,179 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     }
   }
 
+  void _showSearchDialog() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    _searchController.text = _searchQuery;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.search,
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    AppLocalizations.of(context).searchServers,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Icon(
+                      Icons.close,
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Enter server name or country...',
+                  hintStyle: TextStyle(
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: isDarkMode
+                          ? const Color(0xFF374151)
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: isDarkMode
+                          ? const Color(0xFF374151)
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B82F6),
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: isDarkMode
+                      ? const Color(0xFF374151)
+                      : Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[500],
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                ),
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                  fontSize: 15,
+                ),
+                controller: _searchController,
+                onChanged: (v) => setState(() => _searchQuery = v),
+                onSubmitted: (v) {
+                  setState(() => _searchQuery = v);
+                  Navigator.of(ctx).pop();
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  if (_searchController.text.isNotEmpty)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                            _searchController.clear();
+                          });
+                          Navigator.of(ctx).pop();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(AppLocalizations.of(ctx).clear),
+                      ),
+                    ),
+                  if (_searchController.text.isNotEmpty)
+                    const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() => _searchQuery = _searchController.text);
+                        Navigator.of(ctx).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3B82F6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(AppLocalizations.of(ctx).searchServers),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showFilterDialog() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -1882,11 +1949,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
               _buildFilterTile(
                 AppLocalizations.of(context).premiumOnly,
                 AppLocalizations.of(context).showOnlyPremiumServers,
-                Icons.currency_exchange,
+                Icons.workspace_premium,
                 const Color(0xFFF59E0B),
                 tempPremiumOnly,
                 isDarkMode,
-                    (v) => setSheetState(() {
+                (v) => setSheetState(() {
                   tempPremiumOnly = v!;
                   if (v) tempFreeOnly = false;
                 }),
@@ -1896,11 +1963,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
               _buildFilterTile(
                 AppLocalizations.of(context).freeServers,
                 AppLocalizations.of(context).showOnlyFreeServers,
-                Icons.wifi,
+                Icons.lock_open,
                 const Color(0xFF10B981),
                 tempFreeOnly,
                 isDarkMode,
-                    (v) => setSheetState(() {
+                (v) => setSheetState(() {
                   tempFreeOnly = v!;
                   if (v) tempPremiumOnly = false;
                 }),
@@ -1959,14 +2026,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildFilterTile(
-      String title,
-      String subtitle,
-      IconData icon,
-      Color color,
-      bool value,
-      bool isDarkMode,
-      ValueChanged<bool?> onChanged,
-      ) {
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    bool value,
+    bool isDarkMode,
+    ValueChanged<bool?> onChanged,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: value

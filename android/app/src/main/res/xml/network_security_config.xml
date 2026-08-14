@@ -3,8 +3,8 @@
     <!-- Allow clear text traffic for development and specific domains -->
     <domain-config cleartextTrafficPermitted="false">
         <!-- Your API domain -->
-        <domain includeSubdomains="true">vpn.albonik.com</domain>
-        <domain includeSubdomains="true">vpn.albonik.com/api</domain>
+        <domain includeSubdomains="true">axe.linkze.me</domain>
+        <domain includeSubdomains="true">axe.linkze.me/api</domain>
         
         <!-- Trust system certificates for HTTPS -->
         <trust-anchors>

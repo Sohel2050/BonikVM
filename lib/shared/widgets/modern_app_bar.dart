@@ -38,43 +38,71 @@ class ModernAppBar extends ConsumerWidget implements PreferredSizeWidget {
       backgroundColor: transparent
           ? Colors.transparent
           : isDarkMode
-          ? const Color(0xFF0F172A).withValues(alpha: 0.95)
-          : Colors.white.withValues(alpha: 0.95),
+          ? const Color(0xFF0F172A).withOpacity(0.9)
+          : Colors.white.withOpacity(0.9),
       foregroundColor: isDarkMode ? Colors.white : Colors.black87,
       elevation: elevation,
       shadowColor: isDarkMode
-          ? Colors.black.withValues(alpha: 0.3)
-          : Colors.grey.withValues(alpha: 0.2),
+          ? Colors.black.withOpacity(0.2)
+          : Colors.grey.withOpacity(0.1),
       centerTitle: centerTitle,
-      leading:
-          leading ??
+      leading: leading ??
           (showBackButton && Navigator.of(context).canPop()
-              ? IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: isDarkMode ? Colors.white : Colors.black87,
-                    size: 20,
+              ? Container(
+                  margin: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? Colors.white.withOpacity(0.08)
+                        : Colors.black.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDarkMode
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.black.withOpacity(0.02),
+                    ),
                   ),
-                  onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                      size: 16,
+                    ),
+                    onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                  ),
                 )
               : null),
       title: Text(
         title,
         style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
           color: isDarkMode ? Colors.white : Colors.black87,
           letterSpacing: 0.5,
         ),
       ),
       actions: actions?.map((action) {
-        // Wrap actions in theme-aware styling if they're IconButtons
         if (action is IconButton) {
-          return IconButton(
-            icon: action.icon,
-            onPressed: action.onPressed,
-            iconSize: action.iconSize ?? 24,
-            color: isDarkMode ? Colors.white70 : Colors.black54,
+          return Container(
+            margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.black.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.black.withOpacity(0.02),
+              ),
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              icon: action.icon,
+              onPressed: action.onPressed,
+              iconSize: action.iconSize ?? 20,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
           );
         }
         return action;
@@ -87,12 +115,12 @@ class ModernAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   end: Alignment.bottomCenter,
                   colors: isDarkMode
                       ? [
-                          const Color(0xFF0F172A).withValues(alpha: 0.98),
-                          const Color(0xFF1E293B).withValues(alpha: 0.95),
+                          const Color(0xFF0F172A).withOpacity(0.98),
+                          const Color(0xFF1E293B).withOpacity(0.92),
                         ]
                       : [
-                          Colors.white.withValues(alpha: 0.98),
-                          themeColor.withValues(alpha: 0.03),
+                          Colors.white.withOpacity(0.98),
+                          themeColor.withOpacity(0.02),
                         ],
                 ),
               ),
@@ -142,14 +170,33 @@ class MainAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
     return AppBar(
       backgroundColor: isDarkMode
-          ? const Color(0xFF0F172A).withValues(alpha: 0.95)
-          : Colors.white.withValues(alpha: 0.95),
+          ? const Color(0xFF0F172A).withOpacity(0.9)
+          : Colors.white.withOpacity(0.9),
       foregroundColor: isDarkMode ? Colors.white : Colors.black87,
       elevation: 0,
       shadowColor: Colors.transparent,
       centerTitle: true,
       automaticallyImplyLeading: false,
-      leading: leading,
+      leading: leading != null
+          ? Container(
+              margin: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDarkMode
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.black.withOpacity(0.02),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: leading,
+              ),
+            )
+          : null,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -158,9 +205,14 @@ class MainAppBar extends ConsumerWidget implements PreferredSizeWidget {
               borderRadius: BorderRadius.circular(10),
               child: Image.asset(
                 'assets/images/app_icon.png',
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
                 fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.shield,
+                  size: 32,
+                  color: themeColor,
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -168,7 +220,7 @@ class MainAppBar extends ConsumerWidget implements PreferredSizeWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: isDarkMode ? Colors.white : Colors.black87,
               letterSpacing: 0.5,
@@ -179,17 +231,23 @@ class MainAppBar extends ConsumerWidget implements PreferredSizeWidget {
       actions: actions?.map((action) {
         if (action is IconButton) {
           return Container(
-            margin: const EdgeInsets.only(right: 8),
+            margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
             decoration: BoxDecoration(
               color: isDarkMode
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.05),
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.black.withOpacity(0.04),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.black.withOpacity(0.02),
+              ),
             ),
             child: IconButton(
+              padding: EdgeInsets.zero,
               icon: action.icon,
               onPressed: action.onPressed,
-              iconSize: action.iconSize ?? 24,
+              iconSize: action.iconSize ?? 20,
               color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
           );
@@ -203,19 +261,19 @@ class MainAppBar extends ConsumerWidget implements PreferredSizeWidget {
             end: Alignment.bottomCenter,
             colors: isDarkMode
                 ? [
-                    const Color(0xFF0F172A).withValues(alpha: 0.98),
-                    const Color(0xFF1E293B).withValues(alpha: 0.95),
+                    const Color(0xFF0F172A).withOpacity(0.98),
+                    const Color(0xFF1E293B).withOpacity(0.92),
                   ]
                 : [
-                    Colors.white.withValues(alpha: 0.98),
-                    themeColor.withValues(alpha: 0.03),
+                    Colors.white.withOpacity(0.98),
+                    themeColor.withOpacity(0.02),
                   ],
           ),
           border: Border(
             bottom: BorderSide(
               color: isDarkMode
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.1),
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.black.withOpacity(0.05),
               width: 0.5,
             ),
           ),

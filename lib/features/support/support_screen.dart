@@ -12,8 +12,8 @@ class SupportScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final isDarkMode =
         themeMode == ThemeMode.dark ||
-            (themeMode == ThemeMode.system &&
-                MediaQuery.of(context).platformBrightness == Brightness.dark);
+        (themeMode == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
 
     return Scaffold(
       body: Container(
@@ -48,8 +48,8 @@ class SupportScreen extends ConsumerWidget {
                         ),
                         child: const Icon(
                           Icons.support_agent,
-                          size: 80,
-                          color: Colors.yellow,
+                          size: 40,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -58,7 +58,7 @@ class SupportScreen extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.green,
+                          color: isDarkMode ? Colors.white : Colors.black,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -85,7 +85,7 @@ class SupportScreen extends ConsumerWidget {
                     'Get instant help from our support team',
                     Icons.chat_bubble_outline,
                     const Color(0xFF10B981),
-                        () => _launchUrl('https://wa.me/+15059103477'),
+                    () => _launchUrl('https://wa.me/97366994798'),
                     isDarkMode,
                   ),
                 ),
@@ -93,14 +93,13 @@ class SupportScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 FadeInUp(
-                  delay: const Duration(milliseconds: 100),
+                  delay: const Duration(milliseconds: 300),
                   child: _buildContactOption(
-
                     'Email Support',
-                    'Send us an email support@albonik.com',
+                    'Send us an email and we\'ll respond within 24 hours',
                     Icons.email_outlined,
                     const Color(0xFF3B82F6),
-                        () => _launchUrl('mailto:support@albonik.com'),
+                    () => _launchUrl('mailto:info@linkze.me'),
                     isDarkMode,
                   ),
                 ),
@@ -114,14 +113,14 @@ class SupportScreen extends ConsumerWidget {
                     'Find answers to frequently asked questions',
                     Icons.help_outline,
                     const Color(0xFFF59E0B),
-                        () => _showFAQ(context, isDarkMode),
+                    () => _showFAQ(context, isDarkMode),
                     isDarkMode,
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                /*  FadeInUp(
+                FadeInUp(
                   delay: const Duration(milliseconds: 500),
                   child: _buildContactOption(
                     'Report Bug',
@@ -129,7 +128,7 @@ class SupportScreen extends ConsumerWidget {
                     Icons.bug_report_outlined,
                     const Color(0xFFEF4444),
                     () =>
-                        _launchUrl('mailto:support@albonik.com?subject=Bug Report'),
+                        _launchUrl('mailto:info@linkze.me?subject=Bug Report'),
                     isDarkMode,
                   ),
                 ),
@@ -266,7 +265,7 @@ class SupportScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-*/
+
                 const SizedBox(height: 20),
               ],
             ),
@@ -277,13 +276,13 @@ class SupportScreen extends ConsumerWidget {
   }
 
   Widget _buildContactOption(
-      String title,
-      String description,
-      IconData icon,
-      Color color,
-      VoidCallback onTap,
-      bool isDarkMode,
-      ) {
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+    bool isDarkMode,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
@@ -356,12 +355,12 @@ class SupportScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickAction(
-      String title,
-      String description,
-      IconData icon,
-      VoidCallback onTap,
-      bool isDarkMode,
-      ) {
+    String title,
+    String description,
+    IconData icon,
+    VoidCallback onTap,
+    bool isDarkMode,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
@@ -475,7 +474,7 @@ class SupportScreen extends ConsumerWidget {
                   ),
                   _buildFAQItem(
                     'Is my data really private?',
-                    'Yes, we operate under a strict no-logs policy and use  encryption to protect your data.',
+                    'Yes, we operate under a strict no-logs policy and use military-grade encryption to protect your data.',
                     isDarkMode,
                   ),
                 ],

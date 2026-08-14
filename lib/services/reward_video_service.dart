@@ -53,7 +53,7 @@ class RewardVideoService {
   static final RewardVideoService _instance = RewardVideoService._internal();
   static const String _prefsKey = 'reward_video_state';
   static const String _lastResetKey = 'reward_video_last_reset';
-  static const int _maxVideosPerDay = 5;
+  static const int _maxVideosPerDay = 3;
   static const int _minutesPerVideo = 5;
 
   late SharedPreferences _prefs;

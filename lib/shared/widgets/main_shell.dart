@@ -1,35 +1,30 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter/material.dart';
-import 'package:ironsource_mediation/ironsource_mediation.dart';
-
-
-import '../../core/services/level_play_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/servers/servers_screen.dart';
 import '../../features/settings/settings_screen.dart';
-import '../../features/privacy/privacy_policy_screen.dart';
-import '../../features/terms/terms_of_service_screen.dart';
-import '../../features/support/support_screen.dart';
+import '../../features/premium/premium_screen.dart';
+import '../../core/services/admob_service.dart';
+import '../../core/services/update_service.dart';
+import '../../core/services/vpn_state.dart';
 import '../../core/localization/app_localizations.dart';
-import '../../core/providers/vpn_provider.dart';
 import '../providers/app_providers.dart';
 import '../providers/theme_provider.dart';
-import '../../providers/auth_providers.dart';
 import 'modern_app_bar.dart';
+import 'language_selector.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final int initialIndex;
 
-  const MainShell({
-    super.key,
-    this.initialIndex = 0,
-  });
+  const MainShell({super.key, this.initialIndex = 0});
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -38,584 +33,241 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   late int _currentIndex;
   late final PageController _pageController;
-  late final ProviderSubscription _vpnSubscription;
-
-  final GlobalKey<ScaffoldState> _scaffoldKey =
-  GlobalKey<ScaffoldState>();
-
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   DateTime? _lastBackPressed;
-
   bool _hasRequestedReview = false;
+  NativeAd? _drawerNativeAd;
+  bool _isDrawerNativeAdLoaded = false;
 
-  // Prevent duplicate disconnect interstitial calls.
-  bool _disconnectAdShowingOrStarting = false;
-
-  // Prevent review usage check from running repeatedly.
-  bool _reviewUsageChecked = false;
-
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    ServersScreen(key: serversScreenKey),
-    const SettingsScreen(),
-  ];
-
-  // ============================================================
-  // INIT
-  // ============================================================
+  late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-
-    _currentIndex = widget.initialIndex.clamp(
-      0,
-      _screens.length - 1,
-    );
-
+    _screens = [
+      const HomeScreen(),
+      ServersScreen(key: serversScreenKey),
+      PremiumScreen(key: premiumScreenKey),
+      const SettingsScreen(),
+    ];
+    // Ensure initialIndex is within bounds
+    _currentIndex = widget.initialIndex.clamp(0, _screens.length - 1);
     _pageController = PageController(
       initialPage: _currentIndex,
       keepPage: true,
+      viewportFraction: 1.0,
     );
-
     _checkReviewStatus();
+    _initializeDrawerNativeAd();
 
-    // IMPORTANT:
-    // VPN listener must NOT be inside build().
-    _vpnSubscription = ref.listenManual<VpnState>(
-      vpnProvider,
-          (previous, next) {
-        _handleVpnStateChange(
-          previous,
-          next,
-        );
-      },
-    );
+    // Ask the backend whether this installed version is below the
+    // admin-configured minimum — if force_update is on, this shows a
+    // blocking dialog the user can't dismiss until they update.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        UpdateService.instance.checkForUpdates(context: context);
+      }
+    });
   }
 
-  // ============================================================
-  // VPN STATE CHANGE
-  // ============================================================
+  void _initializeDrawerNativeAd() {
+    if (ref.read(premiumStatusProvider) || _drawerNativeAd != null) {
+      return;
+    }
 
-  void _handleVpnStateChange(
-      VpnState? previous,
-      VpnState next,
-      ) {
-    debugPrint(
-      '[HOME VPN] State changed: $previous → $next',
+    _drawerNativeAd = AdMobService.instance.createNativeAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isDrawerNativeAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        ad.dispose();
+        _drawerNativeAd = null;
+        _isDrawerNativeAdLoaded = false;
+      },
     );
 
-    // ==========================================================
-    // VPN CONNECTED
-    // ==========================================================
+    _drawerNativeAd?.load();
+  }
 
-    if (previous != VpnState.connected &&
-        next == VpnState.connected) {
-      debugPrint(
-        '[HOME VPN] ✅ VPN connected',
-      );
+  void _disposeDrawerNativeAd() {
+    _drawerNativeAd?.dispose();
+    _drawerNativeAd = null;
+    _isDrawerNativeAdLoaded = false;
+  }
 
-      Future.delayed(
-        const Duration(seconds: 3),
-            () {
+  /// Check if we've already requested review from shared preferences
+  void _checkReviewStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _hasRequestedReview = prefs.getBool('has_requested_review') ?? false;
+    } catch (e) {}
+  }
+
+  /// Check app usage patterns and trigger review if appropriate
+  void _checkAndTriggerReviewByUsage() async {
+    if (_hasRequestedReview) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final launchCount = prefs.getInt('app_launch_count') ?? 0;
+      final firstLaunchDate =
+          prefs.getInt('first_launch_date') ??
+          DateTime.now().millisecondsSinceEpoch;
+
+      // Increment launch count
+      await prefs.setInt('app_launch_count', launchCount + 1);
+
+      // Set first launch date if not set
+      if (prefs.getInt('first_launch_date') == null) {
+        await prefs.setInt(
+          'first_launch_date',
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      }
+
+      final daysSinceFirstLaunch = DateTime.now()
+          .difference(DateTime.fromMillisecondsSinceEpoch(firstLaunchDate))
+          .inDays;
+
+      // Trigger review after 5 launches and at least 3 days of usage
+      if (launchCount >= 5 && daysSinceFirstLaunch >= 3) {
+        Future.delayed(const Duration(seconds: 5), () {
           if (mounted && !_hasRequestedReview) {
             _triggerInAppReview();
           }
-        },
-      );
-
-      return;
-    }
-
-    // ==========================================================
-    // VPN FULLY DISCONNECTED
-    // ==========================================================
-    //
-    // IMPORTANT:
-    //
-    // Ad ONLY triggers on:
-    //
-    // connected → disconnected
-    //
-    // It does NOT trigger on:
-    //
-    // disconnecting → disconnected
-    // unknown → disconnected
-    // connecting → disconnected
-    //
-    // ==========================================================
-
-    if (previous == VpnState.connected &&
-        next == VpnState.disconnected) {
-      debugPrint(
-        '[HOME VPN] ❌ VPN fully disconnected',
-      );
-
-      _showDisconnectInterstitial();
-
-      return;
-    }
-
-    // ==========================================================
-    // OTHER VPN STATE CHANGES
-    // ==========================================================
-
-    debugPrint(
-      '[HOME VPN] ℹ️ No disconnect ad trigger '
-          'for this transition',
-    );
+        });
+      }
+    } catch (e) {}
   }
-
-  // ============================================================
-  // LEVELPLAY INTERSTITIAL AFTER FULL DISCONNECT
-  // ============================================================
-
-  Future<void> _showDisconnectInterstitial() async {
-    if (!mounted) {
-      return;
-    }
-
-    // Prevent duplicate calls.
-    if (_disconnectAdShowingOrStarting) {
-      debugPrint(
-        '[HOME ADS] ⚠️ Disconnect interstitial '
-            'already starting/showing',
-      );
-      return;
-    }
-
-    _disconnectAdShowingOrStarting = true;
-
-    try {
-      // Give VPN state/UI time to settle.
-      await Future.delayed(
-        const Duration(milliseconds: 700),
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      final levelPlay = LevelPlayService.instance;
-
-      debugPrint(
-        '[HOME ADS] ─────────────────────────────',
-      );
-
-      debugPrint(
-        '[HOME ADS] 🔍 Checking LevelPlay '
-            'disconnect interstitial...',
-      );
-
-      debugPrint(
-        '[HOME ADS] Initialized: '
-            '${levelPlay.isInitialized}',
-      );
-
-      // ========================================================
-      // REFRESH PREMIUM STATUS
-      // ========================================================
-
-      try {
-        await levelPlay.refreshPremiumStatus();
-      } catch (e) {
-        debugPrint(
-          '[HOME ADS] ⚠️ Premium refresh error: $e',
-        );
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      // ========================================================
-      // CHECK LEVELPLAY INITIALIZATION
-      // ========================================================
-
-      if (!levelPlay.isInitialized) {
-        debugPrint(
-          '[HOME ADS] ❌ LevelPlay is NOT initialized',
-        );
-
-        return;
-      }
-
-      // ========================================================
-      // REQUEST DISCONNECT INTERSTITIAL
-      // ========================================================
-      //
-      // LevelPlayService handles:
-      //
-      // READY
-      //   → show immediately
-      //
-      // NOT READY
-      //   → load ad
-      //   → onAdLoaded()
-      //   → automatically show
-      //
-      // ========================================================
-
-      debugPrint(
-        '[HOME ADS] 🎬 Requesting disconnect '
-            'interstitial...',
-      );
-
-      await levelPlay.showDisconnectInterstitial();
-
-      debugPrint(
-        '[HOME ADS] ✅ Disconnect interstitial '
-            'request completed',
-      );
-    } catch (e, stackTrace) {
-      debugPrint(
-        '[HOME ADS] ❌ Disconnect interstitial error: $e',
-      );
-
-      debugPrint(
-        '[HOME ADS] StackTrace: $stackTrace',
-      );
-    } finally {
-      _disconnectAdShowingOrStarting = false;
-
-      debugPrint(
-        '[HOME ADS] ─────────────────────────────',
-      );
-    }
-  }
-
-  // ============================================================
-  // REVIEW STATUS
-  // ============================================================
-
-  Future<void> _checkReviewStatus() async {
-    try {
-      final prefs =
-      await SharedPreferences.getInstance();
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _hasRequestedReview =
-            prefs.getBool(
-              'has_requested_review',
-            ) ??
-                false;
-      });
-    } catch (e) {
-      debugPrint(
-        '[REVIEW] Error checking review status: $e',
-      );
-    }
-  }
-
-  // ============================================================
-  // REVIEW BY USAGE
-  // ============================================================
-
-  Future<void> _checkAndTriggerReviewByUsage() async {
-    if (_reviewUsageChecked) {
-      return;
-    }
-
-    _reviewUsageChecked = true;
-
-    if (_hasRequestedReview) {
-      return;
-    }
-
-    try {
-      final prefs =
-      await SharedPreferences.getInstance();
-
-      final launchCount =
-          prefs.getInt(
-            'app_launch_count',
-          ) ??
-              0;
-
-      final storedFirstLaunchDate =
-      prefs.getInt(
-        'first_launch_date',
-      );
-
-      final now =
-          DateTime.now().millisecondsSinceEpoch;
-
-      final firstLaunchDate =
-          storedFirstLaunchDate ?? now;
-
-      // Increment launch count.
-      await prefs.setInt(
-        'app_launch_count',
-        launchCount + 1,
-      );
-
-      // Save first launch date if missing.
-      if (storedFirstLaunchDate == null) {
-        await prefs.setInt(
-          'first_launch_date',
-          now,
-        );
-      }
-
-      final daysSinceFirstLaunch =
-          DateTime.now()
-              .difference(
-            DateTime.fromMillisecondsSinceEpoch(
-              firstLaunchDate,
-            ),
-          )
-              .inDays;
-
-      debugPrint(
-        '[REVIEW] Launch: $launchCount '
-            '| Days: $daysSinceFirstLaunch',
-      );
-
-      // Trigger after 5 launches and 3 days.
-      if (launchCount >= 5 &&
-          daysSinceFirstLaunch >= 3) {
-        Future.delayed(
-          const Duration(seconds: 5),
-              () {
-            if (mounted &&
-                !_hasRequestedReview) {
-              _triggerInAppReview();
-            }
-          },
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        '[REVIEW] Usage check error: $e',
-      );
-    }
-  }
-
-  // ============================================================
-  // TAB NAVIGATION
-  // ============================================================
 
   void _onTabTapped(int index) {
-    if (index < 0 ||
-        index >= _screens.length) {
-      return;
-    }
-
-    if (_currentIndex == index) {
-      return;
-    }
-
     setState(() {
       _currentIndex = index;
     });
-
     _pageController.animateToPage(
       index,
-      duration: const Duration(
-        milliseconds: 300,
-      ),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
 
   void _onPageChanged(int index) {
-    if (!mounted) {
-      return;
-    }
-
-    if (_currentIndex == index) {
-      return;
-    }
-
     setState(() {
       _currentIndex = index;
     });
   }
 
-  // ============================================================
-  // BACK / EXIT
-  // ============================================================
-
+  /// Handle double tap to exit functionality
   Future<bool> _onWillPop() async {
     final now = DateTime.now();
-
-    const backPressDuration =
-    Duration(seconds: 2);
+    const backPressDuration = Duration(seconds: 2);
 
     if (_lastBackPressed == null ||
-        now.difference(
-          _lastBackPressed!,
-        ) >
-            backPressDuration) {
+        now.difference(_lastBackPressed!) > backPressDuration) {
       _lastBackPressed = now;
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(
-                  Icons.exit_to_app,
-                  color: Colors.redAccent,
-                  size: 22,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Double Back To Exit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            duration: const Duration(
-              seconds: 2,
-            ),
-            behavior:
-            SnackBarBehavior.floating,
-            backgroundColor:
-            Colors.cyan,
-            shape:
-            RoundedRectangleBorder(
-              borderRadius:
-              BorderRadius.circular(8),
-            ),
-            margin:
-            const EdgeInsets.all(16),
+      // Show snackbar with icon and better styling
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.exit_to_app, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Press back again to exit VPN MASTER',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
-        );
-
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.black87,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
       return false;
     }
 
+    // Exit app
     return true;
   }
 
-  // ============================================================
-  // IN APP REVIEW
-  // ============================================================
-
-  Future<void> _triggerInAppReview() async {
-    if (_hasRequestedReview) {
-      return;
-    }
+  /// Trigger in-app review when VPN connects successfully
+  void _triggerInAppReview() async {
+    if (_hasRequestedReview) return;
 
     try {
-      final InAppReview inAppReview =
-          InAppReview.instance;
+      final InAppReview inAppReview = InAppReview.instance;
 
+      // First try system in-app review
       if (await inAppReview.isAvailable()) {
         await inAppReview.requestReview();
-
         _hasRequestedReview = true;
 
-        final prefs =
-        await SharedPreferences.getInstance();
-
-        await prefs.setBool(
-          'has_requested_review',
-          true,
-        );
+        // Store that we've requested review
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('has_requested_review', true);
       } else {
+        // Show custom review dialog if system review not available
         _showCustomReviewDialog();
       }
     } catch (e) {
-      debugPrint(
-        '[REVIEW] System review error: $e',
-      );
-
+      // Fallback to custom dialog
       _showCustomReviewDialog();
     }
   }
 
-  // ============================================================
-  // CUSTOM REVIEW DIALOG
-  // ============================================================
-
+  /// Show custom review dialog with back-to-close functionality
   void _showCustomReviewDialog() {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (
-          BuildContext dialogContext,
-          ) {
+      builder: (BuildContext context) {
         return PopScope(
           canPop: true,
           child: AlertDialog(
             title: const Row(
               children: [
-                Icon(
-                  Icons.star,
-                  color: Colors.blueGrey,
-                  size: 28,
-                ),
+                Icon(Icons.star, color: Colors.amber, size: 28),
                 SizedBox(width: 8),
                 Text('Rate VPN MASTER'),
               ],
             ),
             content: const Text(
-              'Great! You\'re connected to VPN successfully. '
-                  'Would you like to rate our app and share your experience?',
-              style: TextStyle(
-                fontSize: 16,
-              ),
+              'Great! You\'re connected to VPN successfully. Would you like to rate our app and share your experience?',
+              style: TextStyle(fontSize: 16),
             ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(
-                    dialogContext,
-                  ).pop();
+                  Navigator.of(context).pop();
                 },
-                child: const Text(
-                  'Maybe Later',
-                ),
+                child: const Text('Maybe Later'),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
-                  Navigator.of(
-                    dialogContext,
-                  ).pop();
-
+                  Navigator.of(context).pop();
                   _hasRequestedReview = true;
 
-                  final prefs =
-                  await SharedPreferences
-                      .getInstance();
+                  // Store that we've requested review
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('has_requested_review', true);
 
-                  await prefs.setBool(
-                    'has_requested_review',
-                    true,
-                  );
-
+                  // Try to open store page for rating
                   try {
-                    final InAppReview
-                    inAppReview =
-                        InAppReview.instance;
-
-                    await inAppReview
-                        .openStoreListing();
-                  } catch (e) {
-                    debugPrint(
-                      '[REVIEW] Store listing error: $e',
-                    );
-                  }
+                    final InAppReview inAppReview = InAppReview.instance;
+                    await inAppReview.openStoreListing();
+                  } catch (e) {}
                 },
-                icon: const Icon(
-                  Icons.star_rate,
-                ),
-                label: const Text(
-                  'Rate Now',
-                ),
+                icon: const Icon(Icons.star_rate),
+                label: const Text('Rate Now'),
               ),
             ],
           ),
@@ -624,853 +276,600 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  // ============================================================
-  // DISPOSE
-  // ============================================================
-
   @override
   void dispose() {
-    debugPrint(
-      '[MAIN SHELL] Disposing',
-    );
-
-    _vpnSubscription.close();
-
+    _disposeDrawerNativeAd();
     _pageController.dispose();
-
     super.dispose();
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
-    final isDarkMode =
-        Theme.of(context).brightness ==
-            Brightness.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isPremium = ref.watch(premiumStatusProvider);
+    final localizations = AppLocalizations.of(context);
 
-    final isPremium =
-    ref.watch(
-      premiumStatusProvider,
-    );
+    ref.listen<bool>(premiumStatusProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        if (next) {
+          _disposeDrawerNativeAd();
+        } else {
+          _initializeDrawerNativeAd();
+        }
+      }
+    });
 
-    final localizations =
-    AppLocalizations.of(context);
+    // Listen to VPN connection state for in-app review.
+    // Uses vpnStateProvider (the real, wired-up VPN state) rather than
+    // vpn_provider.dart's vpnProvider, whose VpnNotifier.initialize() is
+    // never called anywhere in the app — that provider's state never
+    // leaves VpnState.disconnected, so listening to it never fires.
+    ref.listen<AsyncValue<VpnState>>(vpnStateProvider, (previous, next) {
+      next.whenData((state) {
+        // Trigger review when VPN connects successfully (not just state change)
+        if (previous?.value != VpnState.connected &&
+            state == VpnState.connected) {
+          // VPN successfully connected, trigger review after delay
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted && !_hasRequestedReview) {
+              _triggerInAppReview();
+            }
+          });
+        }
+      });
+    });
 
-    // Run usage review check only once.
-    if (!_reviewUsageChecked) {
-      WidgetsBinding.instance
-          .addPostFrameCallback(
-            (_) {
-          if (mounted) {
-            _checkAndTriggerReviewByUsage();
-          }
-        },
-      );
-    }
+    // Also trigger review based on app usage patterns
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndTriggerReviewByUsage();
+    });
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult:
-          (didPop, result) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) {
-          final shouldPop =
-          await _onWillPop();
-
-          if (shouldPop &&
-              context.mounted) {
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            // Use SystemNavigator.pop() instead of Navigator.pop() to exit app
             SystemNavigator.pop();
           }
         }
       },
       child: Scaffold(
         key: _scaffoldKey,
-
-        // ======================================================
-        // BODY
-        // ======================================================
-
-        body: Stack(
+        body: Column(
           children: [
-            // Background image.
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/bg2.png',
-                fit: BoxFit.cover,
-              ),
+            // Modern AppBar for each screen
+            _buildModernAppBar(
+              _currentIndex,
+              isDarkMode,
+              isPremium,
+              localizations,
             ),
-
-            // Dark overlay.
-            Positioned.fill(
-              child: Container(
-                color:
-                Colors.black.withValues(
-                  alpha: 0.2,
+            // Screen content
+            Expanded(
+              child: SafeArea(
+                top: false, // We handle top padding in AppBar
+                child: PageView(
+                  key: const Key('main_page_view'),
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  physics: const ClampingScrollPhysics(),
+                  children: _screens,
                 ),
               ),
-            ),
-
-            // Main content.
-            Column(
-              children: [
-                _buildModernAppBar(
-                  _currentIndex,
-                  isDarkMode,
-                  isPremium,
-                  localizations,
-                ),
-                Expanded(
-                  child: SafeArea(
-                    top: false,
-                    child: PageView(
-                      controller:
-                      _pageController,
-                      onPageChanged:
-                      _onPageChanged,
-                      physics:
-                      const ClampingScrollPhysics(),
-                      children: _screens,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
-
-        // ======================================================
-        // BOTTOM NAVIGATION
-        // ======================================================
-
-        bottomNavigationBar:
-        Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color:
-                Colors.black.withValues(
-                  alpha: 0.1,
-                ),
-                blurRadius: 10,
-                offset:
-                const Offset(0, -5),
-              ),
-            ],
-          ),
-          child:
-          BottomNavigationBar(
-            currentIndex:
-            _currentIndex,
-            onTap:
-            _onTabTapped,
-            type:
-            BottomNavigationBarType.fixed,
-            backgroundColor:
-            isDarkMode
-                ? const Color(
-              0xFF1E293B,
-            )
-                : Colors.white,
-            selectedItemColor:
-            ref.watch(
-              themeColorProvider,
-            ),
-            unselectedItemColor:
-            isDarkMode
-                ? Colors.grey[400]
-                : Colors.grey[600],
-            elevation: 0,
-            selectedLabelStyle:
-            const TextStyle(
-              fontWeight:
-              FontWeight.w600,
-              fontSize: 12,
-            ),
-            unselectedLabelStyle:
-            const TextStyle(
-              fontWeight:
-              FontWeight.w400,
-              fontSize: 11,
-            ),
-            items: [
-              _buildBottomNavItem(
-                icon:
-                Icons.home_rounded,
-                label:
-                localizations.home,
-                index: 0,
-              ),
-              _buildBottomNavItem(
-                icon:
-                Icons.public,
-                label:
-                localizations.servers,
-                index: 1,
-              ),
-              _buildBottomNavItem(
-                icon:
-                Icons.settings_rounded,
-                label:
-                localizations.settings,
-                index: 2,
-              ),
-            ],
-          ),
-        ),
-
-        // ======================================================
-        // DRAWER
-        // ======================================================
-
-        drawer: _buildDrawer(
-          context,
-          isDarkMode,
-          isPremium,
-          localizations,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // MODERN APP BAR
-  // ============================================================
-
-  Widget _buildModernAppBar(
-      int currentIndex,
-      bool isDarkMode,
-      bool isPremium,
-      AppLocalizations localizations,
-      ) {
-    switch (currentIndex) {
-      case 0:
-        return MainAppBar(
-          title: 'VPN MASTER ',
-          showLogo: false,
-          leading: IconButton(
-            icon: Icon(
-              Icons.menu,
+        bottomNavigationBar: SafeArea(
+          bottom: true,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            height: 68,
+            decoration: BoxDecoration(
               color: isDarkMode
-                  ? Colors.white
-                  : const Color(0xFF1E293B),
-              size: 42,
+                  ? const Color(0xFF1E293B).withOpacity(0.85)
+                  : Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.05),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDarkMode ? 0.25 : 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            onPressed: () {
-              _scaffoldKey.currentState
-                  ?.openDrawer();
-            },
-            tooltip: 'Menu',
-          ),
-          actions: [
-            if (!isPremium)
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/premium',
-                  );
-                },
-                child: Container(
-                  margin:
-                  const EdgeInsets.only(
-                    right: 12,
-                  ),
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration:
-                  BoxDecoration(
-                    color:
-                    const Color(0xFFD97706),
-                    borderRadius:
-                    BorderRadius.circular(
-                      20,
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize:
-                    MainAxisSize.min,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Icon(
-                        Icons.workspace_premium,
-                        color:
-                        Colors.white,
-                        size: 16,
+                      _buildFloatingNavItem(
+                        icon: Icons.home_rounded,
+                        label: localizations.home,
+                        index: 0,
+                        isDarkMode: isDarkMode,
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Premium',
-                        style: TextStyle(
-                          color:
-                          Colors.white,
-                          fontWeight:
-                          FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                      _buildFloatingNavItem(
+                        icon: Icons.dns_rounded,
+                        label: localizations.servers,
+                        index: 1,
+                        isDarkMode: isDarkMode,
+                      ),
+                      _buildFloatingNavItem(
+                        icon: Icons.star_rounded,
+                        label: isPremium ? localizations.premium : 'Premium',
+                        index: 2,
+                        isDarkMode: isDarkMode,
+                      ),
+                      _buildFloatingNavItem(
+                        icon: Icons.settings_rounded,
+                        label: localizations.settings,
+                        index: 3,
+                        isDarkMode: isDarkMode,
                       ),
                     ],
                   ),
                 ),
               ),
-          ],
-        );
+            ),
+          ),
+        ),
+        drawer: _buildDrawer(context, isDarkMode, isPremium, localizations),
+      ),
+    );
+  }
 
-      case 1:
+  Widget _buildModernAppBar(
+    int currentIndex,
+    bool isDarkMode,
+    bool isPremium,
+    AppLocalizations localizations,
+  ) {
+    switch (currentIndex) {
+      case 0: // Home screen
         return MainAppBar(
-          title: 'Select Server ',
-          showLogo: false,
+          title: 'VPN MASTER',
+          showLogo: true,
           leading: IconButton(
             icon: Icon(
               Icons.menu,
-              color: isDarkMode
-                  ? Colors.white
-                  : const Color(0xFF1E293B),
-              size: 42,
+              color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+              size: 24,
             ),
             onPressed: () {
-              _scaffoldKey.currentState
-                  ?.openDrawer();
+              _scaffoldKey.currentState?.openDrawer();
             },
             tooltip: 'Menu',
           ),
           actions: [
+            // Theme toggle button
             IconButton(
+              onPressed: () {
+                final currentMode = ref.read(themeModeProvider);
+                final newMode = currentMode == ThemeMode.dark
+                    ? ThemeMode.light
+                    : ThemeMode.dark;
+                ref.read(themeModeProvider.notifier).setThemeMode(newMode);
+              },
               icon: Icon(
-                Icons.filter_list,
-                color: isDarkMode
-                    ? Colors.white
-                    : const Color(0xFF1E293B),
+                isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                color: isDarkMode ? Colors.amber : const Color(0xFF1E293B),
                 size: 24,
               ),
-              tooltip: 'Filter',
-              onPressed: () {
-                serversScreenKey
-                    .currentState
-                    ?.triggerFilterDialog();
-              },
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.refresh,
-                color: isDarkMode
-                    ? Colors.white
-                    : const Color(0xFF1E293B),
-                size: 24,
-              ),
-              tooltip: 'Refresh',
-              onPressed: () {
-                ref.invalidate(
-                  serversProvider,
-                );
-              },
+              tooltip: isDarkMode
+                  ? 'Switch to Light Mode'
+                  : 'Switch to Dark Mode',
             ),
           ],
         );
-
-      case 2:
-        return const ModernAppBar(
-          title: 'Settings',
-          showBackButton: false,
+      case 1: // Servers screen
+        return ModernAppBar(
+          title: 'Select Server',
+          showBackButton: false, // No back button for main screens
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.refresh,
+                color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                size: 24,
+              ),
+              onPressed: () {
+                // Refresh the servers list.
+                try {
+                  final _ = ref.refresh(serversProvider);
+                } catch (e) {}
+              },
+              tooltip: 'Refresh Servers',
+            ),
+          ],
         );
-
+      case 2: // Premium screen
+        return ModernAppBar(
+          title: 'Premium',
+          showBackButton: false, // No back button for main screens
+          actions: [
+            if (!isPremium)
+              IconButton(
+                icon: Icon(
+                  Icons.refresh,
+                  color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                  size: 24,
+                ),
+                tooltip: 'Refresh Products',
+                onPressed: () {
+                  premiumScreenKey.currentState?.refreshProducts();
+                },
+              ),
+          ],
+        );
+      case 3: // Settings screen
+        return ModernAppBar(
+          title: 'Settings',
+          showBackButton: false, // No back button for main screens
+        );
       default:
         return MainAppBar(
           title: 'VPN MASTER',
-          showLogo: false,
-          leading: IconButton(
-            icon: Icon(
-              Icons.menu,
-              color: isDarkMode
-                  ? Colors.white
-                  : const Color(0xFF1E293B),
-              size: 42,
+          showLogo: true,
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.menu,
+                color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                size: 24,
+              ),
+              onPressed: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+              tooltip: 'Menu',
             ),
-            onPressed: () {
-              _scaffoldKey.currentState
-                  ?.openDrawer();
-            },
-          ),
-          actions: const [],
+          ],
         );
     }
   }
 
-  // ============================================================
-  // BOTTOM NAV ITEM
-  // ============================================================
-
-  BottomNavigationBarItem
-  _buildBottomNavItem({
+  Widget _buildFloatingNavItem({
     required IconData icon,
     required String label,
     required int index,
-    bool badge = false,
+    required bool isDarkMode,
   }) {
-    return BottomNavigationBarItem(
-      icon: Stack(
-        children: [
-          FadeInUp(
-            delay: Duration(
-              milliseconds:
-              index * 100,
-            ),
-            child: Icon(
-              icon,
-              size:
-              _currentIndex == index
-                  ? 28
-                  : 24,
-            ),
-          ),
-          if (badge)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding:
-                const EdgeInsets.all(2),
-                decoration:
-                const BoxDecoration(
-                  color: Colors.red,
-                  shape:
-                  BoxShape.circle,
-                ),
-                constraints:
-                const BoxConstraints(
-                  minWidth: 8,
-                  minHeight: 8,
-                ),
+    final themeColor = ref.watch(themeColorProvider);
+    final isSelected = _currentIndex == index;
+    final activeColor = themeColor;
+    
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onTabTapped(index),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? activeColor.withOpacity(0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: isSelected
+                    ? activeColor
+                    : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
               ),
             ),
-        ],
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? activeColor
+                    : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
-      label: label,
     );
   }
 
-  // ============================================================
-  // DRAWER
-  // ============================================================
-
   Widget _buildDrawer(
-      BuildContext context,
-      bool isDarkMode,
-      bool isPremium,
-      AppLocalizations localizations,
-      ) {
-    final themeColor =
-    ref.watch(themeColorProvider);
+    BuildContext context,
+    bool isDarkMode,
+    bool isPremium,
+    AppLocalizations localizations,
+  ) {
+    final themeColor = ref.watch(themeColorProvider);
 
     return Drawer(
-      backgroundColor:
-      isDarkMode
-          ? const Color(0xFF0F172A)
-          : Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF0F172A) : Colors.white,
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            // ==================================================
-            // HEADER
-            // ==================================================
-
+            // Modernized Profile Header with Gradient Background
             Container(
-              height: 200,
               width: double.infinity,
-              decoration:
-              BoxDecoration(
-                gradient:
-                LinearGradient(
-                  begin:
-                  Alignment.topLeft,
-                  end:
-                  Alignment.bottomRight,
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: isDarkMode
                       ? [
-                    const Color(
-                      0xFF1E293B,
-                    ),
-                    const Color(
-                      0xFF334155,
-                    ),
-                    themeColor
-                        .withValues(
-                      alpha: 0.8,
-                    ),
-                  ]
+                          themeColor.withOpacity(0.15),
+                          const Color(0xFF1E293B),
+                        ]
                       : [
-                    themeColor,
-                    themeColor
-                        .withValues(
-                      alpha: 0.8,
-                    ),
-                    themeColor
-                        .withValues(
-                      alpha: 0.6,
-                    ),
-                  ],
+                          themeColor.withOpacity(0.08),
+                          const Color(0xFFF3F4F6),
+                        ],
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDarkMode
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE5E7EB),
+                    width: 1,
+                  ),
                 ),
               ),
-              child: Padding(
-                padding:
-                const EdgeInsets.all(
-                  20,
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-                  children: [
-                    Container(
-                      padding:
-                      const EdgeInsets.all(
-                        12,
+              child: Row(
+                children: [
+                  // Avatar with glowing gradient border
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [themeColor, themeColor.withOpacity(0.6)],
                       ),
-                      decoration:
-                      BoxDecoration(
-                        color: Colors.white
-                            .withValues(
-                          alpha: 0.15,
+                      boxShadow: [
+                        BoxShadow(
+                          color: themeColor.withOpacity(0.3),
+                          blurRadius: 12,
+                          spreadRadius: 2,
                         ),
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                          16,
-                        ),
-                        border:
-                        Border.all(
-                          color: Colors.white
-                              .withValues(
-                            alpha: 0.2,
-                          ),
-                          width: 1,
-                        ),
-                      ),
-                      child:
-                      ClipRRect(
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                          8,
-                        ),
-                        child:
-                        Image.asset(
-                          'assets/images/logo1.png',
-                          width: 31,
-                          height: 31,
-                          fit: BoxFit.contain,
-                          errorBuilder:
-                              (
-                              context,
-                              error,
-                              stackTrace,
-                              ) {
-                            return const Icon(
-                              Icons
-                                  .vpn_lock_sharp,
-                              size: 32,
-                              color:
-                              Colors.white,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 17,
-                    ),
-                    const Text(
-                      'VPN MASTER',
-                      style:
-                      TextStyle(
-                        color:
-                        Colors.white,
-                        fontSize: 23,
-                        fontWeight:
-                        FontWeight.bold,
-                        letterSpacing:
-                        1.2,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 4,
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding:
-                          const EdgeInsets
-                              .symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration:
-                          BoxDecoration(
-                            color: isPremium
-                                ? const Color(
-                              0xFF65645E,
-                            )
-                                : Colors.white
-                                .withValues(
-                              alpha: 0.2,
-                            ),
-                            borderRadius:
-                            BorderRadius
-                                .circular(
-                              12,
-                            ),
-                          ),
-                          child: Text(
-                            isPremium
-                                ? 'PREMIUM'
-                                : 'FREE',
-                            style:
-                            TextStyle(
-                              color: isPremium
-                                  ? Colors.black
-                                  : Colors.white,
-                              fontSize: 10,
-                              fontWeight:
-                              FontWeight.bold,
-                              letterSpacing:
-                              0.5,
-                            ),
-                          ),
-                        ),
-                        if (isPremium) ...[
-                          const SizedBox(
-                            width: 6,
-                          ),
-                          const Icon(
-                            Icons.verified,
-                            color:
-                            Color(0xFF3C3B38),
-                            size: 16,
-                          ),
-                        ],
                       ],
                     ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    Text(
-                      'Fast & Secure VPN',
-                      style:
-                      TextStyle(
-                        color: Colors.white
-                            .withValues(
-                          alpha: 0.8,
+                    child: Container(
+                      margin: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'A',
+                          style: TextStyle(
+                            color: themeColor,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        fontSize: 13,
-                        fontWeight:
-                        FontWeight.w300,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'VPN MASTER User',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : const Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isPremium
+                                ? const Color(0xFFFFD700).withOpacity(0.15)
+                                : themeColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isPremium
+                                  ? const Color(0xFFFFD700).withOpacity(0.6)
+                                  : themeColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPremium ? Icons.star_rounded : Icons.person_outline,
+                                size: 12,
+                                color: isPremium ? const Color(0xFFD97706) : themeColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isPremium ? 'Premium User' : 'Free User',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isPremium ? const Color(0xFFD97706) : themeColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            // ==================================================
-            // NAVIGATION
-            // ==================================================
-
+            // Navigation Items
             Expanded(
               child: ListView(
-                padding:
-                const EdgeInsets.only(
-                  bottom: 0,
-                ),
+                padding: const EdgeInsets.only(bottom: 12),
                 children: [
-                  const SizedBox(
-                    height: 8,
-                  ),
+                  const SizedBox(height: 12),
+
+                  // Language Selector in drawer
+                  const LanguageSelector(showInDrawer: true),
+
+                  const SizedBox(height: 6),
 
                   _buildModernDrawerItem(
-                    icon:
-                    Icons.privacy_tip,
-                    title:
-                    'Privacy Policy',
-                    subtitle:
-                    'Read our privacy policy',
-                    onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                    icon: Icons.home_rounded,
+                    title: localizations.home,
+                    subtitle: 'Connection dashboard',
+                    isSelected: _currentIndex == 0,
+                    onTap: () => _navigateToTab(0),
+                    isDarkMode: isDarkMode,
+                  ),
+                  _buildModernDrawerItem(
+                    icon: Icons.dns_rounded,
+                    title: localizations.servers,
+                    subtitle: 'Global locations',
+                    isSelected: _currentIndex == 1,
+                    onTap: () => _navigateToTab(1),
+                    isDarkMode: isDarkMode,
+                  ),
+                  _buildModernDrawerItem(
+                    icon: Icons.workspace_premium_rounded,
+                    title: localizations.premium,
+                    subtitle: 'Unlock VIP nodes',
+                    isSelected: _currentIndex == 2,
+                    onTap: () => _navigateToTab(2),
+                    isDarkMode: isDarkMode,
+                    badge: !isPremium ? 'HOT' : null,
+                  ),
+                  _buildModernDrawerItem(
+                    icon: Icons.settings_rounded,
+                    title: localizations.settings,
+                    subtitle: 'App preferences',
+                    isSelected: _currentIndex == 3,
+                    onTap: () => _navigateToTab(3),
+                    isDarkMode: isDarkMode,
+                  ),
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                          const PrivacyPolicyScreen(),
+                  if (!isPremium && _isDrawerNativeAdLoaded && _drawerNativeAd != null)
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        border: Border.all(
+                          color: isDarkMode
+                              ? Colors.white.withOpacity(0.06)
+                              : Colors.black.withOpacity(0.04),
                         ),
-                      );
-                    },
-                    isDarkMode:
-                    isDarkMode,
-                  ),
-
-                  _buildModernDrawerItem(
-                    icon:
-                    Icons.description,
-                    title:
-                    'Terms & Conditions',
-                    subtitle:
-                    'Read our terms of service',
-                    onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                          const TermsOfServiceScreen(),
-                        ),
-                      );
-                    },
-                    isDarkMode:
-                    isDarkMode,
-                  ),
-
-                  _buildModernDrawerItem(
-                    icon:
-                    Icons.share_rounded,
-                    title:
-                    localizations.shareApp,
-                    subtitle:
-                    'Tell your friends',
-                    onTap:
-                    _shareApp,
-                    isDarkMode:
-                    isDarkMode,
-                  ),
-
-                  _buildModernDrawerItem(
-                    icon:
-                    Icons.headset_mic,
-                    title:
-                    'Support',
-                    subtitle:
-                    'Get help with the app',
-                    onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                          const SupportScreen(),
-                        ),
-                      );
-                    },
-                    isDarkMode:
-                    isDarkMode,
-                  ),
-
-                  // ==================================================
-                  // DARK MODE
-                  // ==================================================
-
-                  Container(
-                    margin:
-                    const EdgeInsets
-                        .symmetric(
-                      horizontal: 8,
-                      vertical: 2,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: AdWidget(ad: _drawerNativeAd!),
+                      ),
                     ),
-                    child: ListTile(
-                      leading:
-                      Container(
-                        padding:
-                        const EdgeInsets
-                            .all(
-                          8,
-                        ),
-                        decoration:
-                        BoxDecoration(
-                          color: isDarkMode
-                              ? Colors
-                              .grey[800]
-                              : Colors
-                              .grey[100],
-                          borderRadius:
-                          BorderRadius
-                              .circular(
-                            10,
-                          ),
-                        ),
-                        child: Icon(
-                          isDarkMode
-                              ? Icons.dark_mode
-                              : Icons.light_mode,
-                          size: 20,
-                          color: isDarkMode
-                              ? Colors.grey[400]
-                              : Colors.grey[600],
-                        ),
+
+                  // Divider
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(
+                      color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
+                      thickness: 1.0,
+                      indent: 20,
+                      endIndent: 20,
+                    ),
+                  ),
+
+                  _buildModernDrawerItem(
+                    icon: Icons.share_rounded,
+                    title: localizations.shareApp,
+                    subtitle: 'Tell your friends',
+                    onTap: () => _shareApp(),
+                    isDarkMode: isDarkMode,
+                  ),
+                  _buildModernDrawerItem(
+                    icon: Icons.star_rate_rounded,
+                    title: localizations.rateApp,
+                    subtitle: 'Leave a review',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _triggerInAppReview();
+                    },
+                    isDarkMode: isDarkMode,
+                  ),
+                  _buildModernDrawerItem(
+                    icon: Icons.info_rounded,
+                    title: localizations.about,
+                    subtitle: 'App information',
+                    onTap: () => _showAboutDialog(),
+                    isDarkMode: isDarkMode,
+                  ),
+                ],
+              ),
+            ),
+
+            // Branded Footer
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: isDarkMode
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE5E7EB),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/images/app_icon.png',
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.shield,
+                        size: 24,
+                        color: themeColor,
                       ),
-                      title: Text(
-                        'Dark Mode',
-                        style:
-                        TextStyle(
-                          color: isDarkMode
-                              ? Colors.white
-                              : Colors.black87,
-                          fontWeight:
-                          FontWeight.w500,
-                          fontSize: 15,
-                        ),
-                      ),
-                      subtitle:
-                      Text(
-                        isDarkMode
-                            ? 'Currently enabled'
-                            : 'Currently disabled',
-                        style:
-                        TextStyle(
-                          color: isDarkMode
-                              ? Colors.grey[400]
-                              : Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing:
-                      Switch(
-                        value:
-                        ref.watch(
-                          themeModeProvider,
-                        ) ==
-                            ThemeMode.dark,
-                        onChanged:
-                            (value) {
-                          ref
-                              .read(
-                            themeModeProvider
-                                .notifier,
-                          )
-                              .setThemeMode(
-                            value
-                                ? ThemeMode.dark
-                                : ThemeMode.light,
-                          );
-                        },
-                        activeColor:
-                        themeColor,
-                      ),
-                      contentPadding:
-                      const EdgeInsets
-                          .symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'VPN MASTER',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ],
@@ -1482,10 +881,6 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  // ============================================================
-  // DRAWER ITEM
-  // ============================================================
-
   Widget _buildModernDrawerItem({
     required IconData icon,
     required String title,
@@ -1495,230 +890,354 @@ class _MainShellState extends ConsumerState<MainShell> {
     bool isSelected = false,
     String? badge,
   }) {
-    final themeColor =
-    ref.watch(themeColorProvider);
+    final themeColor = ref.watch(themeColorProvider);
 
-    return Container(
-      margin:
-      const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 2,
-      ),
-      decoration:
-      BoxDecoration(
-        borderRadius:
-        BorderRadius.circular(
-          12,
-        ),
-        color: isSelected
-            ? themeColor.withValues(
-          alpha: 0.1,
-        )
-            : Colors.transparent,
-      ),
-      child: ListTile(
-        leading:
+    return Stack(
+      children: [
         Container(
-          padding:
-          const EdgeInsets.all(
-            8,
-          ),
-          decoration:
-          BoxDecoration(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
             color: isSelected
-                ? themeColor.withValues(
-              alpha: 0.2,
-            )
-                : (isDarkMode
-                ? Colors.grey[800]
-                : Colors.grey[100]),
-            borderRadius:
-            BorderRadius.circular(
-              10,
-            ),
+                ? themeColor.withOpacity(0.12)
+                : Colors.transparent,
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: isSelected
-                ? themeColor
-                : (isDarkMode
-                ? Colors.grey[400]
-                : Colors.grey[600]),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? themeColor.withOpacity(0.18)
+                    : (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF3F4F6)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isSelected
+                    ? themeColor
+                    : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+              ),
+            ),
+            title: Text(
+              title,
+              style: TextStyle(
+                color: isSelected
+                    ? themeColor
+                    : (isDarkMode ? Colors.white : const Color(0xFF1F2937)),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 15,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              subtitle,
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey[450] ?? Colors.grey[400] : Colors.grey[500],
+                fontSize: 11,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: badge != null
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            onTap: onTap,
           ),
         ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected
-                ? themeColor
-                : (isDarkMode
-                ? Colors.white
-                : Colors.black87),
-            fontWeight: isSelected
-                ? FontWeight.w600
-                : FontWeight.w500,
-            fontSize: 15,
-          ),
-        ),
-        subtitle:
-        Text(
-          subtitle,
-          style:
-          TextStyle(
-            color: isDarkMode
-                ? Colors.grey[400]
-                : Colors.grey[600],
-            fontSize: 12,
-          ),
-        ),
-        trailing: badge != null
-            ? Container(
-          padding:
-          const EdgeInsets
-              .symmetric(
-            horizontal: 6,
-            vertical: 2,
-          ),
-          decoration:
-          BoxDecoration(
-            color:
-            const Color(
-              0xFFFF6B6B,
-            ),
-            borderRadius:
-            BorderRadius
-                .circular(
-              8,
+        if (isSelected)
+          Positioned(
+            left: 12,
+            top: 14,
+            bottom: 14,
+            width: 4,
+            child: Container(
+              decoration: BoxDecoration(
+                color: themeColor,
+                borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
+              ),
             ),
           ),
-          child: Text(
-            badge,
-            style:
-            const TextStyle(
-              color:
-              Colors.white,
-              fontSize: 9,
-              fontWeight:
-              FontWeight.bold,
-            ),
-          ),
-        )
-            : null,
-        contentPadding:
-        const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        onTap: onTap,
-      ),
+      ],
     );
   }
 
-  // ============================================================
-  // SHARE APP
-  // ============================================================
-
-  Future<void> _shareApp() async {
-    Navigator.pop(context);
+  // Share app functionality
+  void _shareApp() async {
+    Navigator.pop(context); // Close drawer
 
     try {
       const String appUrl =
           'https://play.google.com/store/apps/details?id=com.albonik.vpn';
-
-      const String shareText = '''
+      const String shareText =
+          '''
 🛡️ VPN MASTER - Secure & Fast VPN
 
 Protect your privacy with VPN MASTER:
-
-✅ Multi-grade encryption
-✅ 12+ server locations worldwide
+✅ Multi grade encryption
+✅ 50+ server locations worldwide
 ✅ No-logs policy
-✅ Fast & secure connection
+✅ Lightning-fast speeds
+✅ 24/7 customer support
 
 Download now and get premium features!
-
 $appUrl
 
 #VPNMASTER #VPN #Privacy #Security
-''';
+      ''';
 
       await Share.share(
         shareText,
-        subject:
-        'VPN MASTER - Secure VPN for Everyone',
+        subject: 'VPN MASTER - Secure VPN for Everyone',
       );
     } catch (e) {
-      debugPrint(
-        '[SHARE] Error: $e',
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      showDialog(
-        context: context,
-        builder:
-            (dialogContext) {
-          return AlertDialog(
-            title:
-            const Text(
-              'Share VPN MASTER',
-            ),
-            content:
-            const Text(
-              'Help us grow by sharing VPN MASTER '
-                  'with your friends and family!\n\n'
-                  'Search for "VPN MASTER" in your app store.',
+      // Show fallback
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Share VPN MASTER'),
+            content: const Text(
+              'Help us grow by sharing VPN MASTER with your friends and family!\n\n'
+              'Search for "VPN MASTER" in your app store.',
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(
-                    dialogContext,
-                  );
-                },
-                child:
-                const Text(
-                  'OK',
-                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
               ),
             ],
-          );
-        },
-      );
+          ),
+        );
+      }
     }
   }
 
-  // ============================================================
-  // NAVIGATE TO TAB
-  // ============================================================
+  // About dialog functionality
+  void _showAboutDialog() {
+    Navigator.pop(context); // Close drawer
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        final themeColor = ref.watch(themeColorProvider);
+
+        return AlertDialog(
+          backgroundColor: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.shield, color: themeColor, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'About VPN MASTER',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAboutItem(
+                  icon: Icons.info_outline,
+                  title: 'Version',
+                  value: '46.0.0',
+                  isDarkMode: isDarkMode,
+                ),
+                _buildAboutItem(
+                  icon: Icons.code,
+                  title: 'Build',
+                  value: 'Flutter 3.10+',
+                  isDarkMode: isDarkMode,
+                ),
+                _buildAboutItem(
+                  icon: Icons.security,
+                  title: 'Encryption',
+                  value: 'AES-256',
+                  isDarkMode: isDarkMode,
+                ),
+                _buildAboutItem(
+                  icon: Icons.language,
+                  title: 'Servers',
+                  value: '50+ Countries',
+                  isDarkMode: isDarkMode,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'VPN MASTER is a premium VPN service that provides secure, fast, and private internet access. We use military-grade encryption to protect your data and maintain a strict no-logs policy.',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildQuickAction(
+                      icon: Icons.privacy_tip,
+                      label: 'Privacy Policy',
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.pushNamed(this.context, '/privacy');
+                      },
+                      isDarkMode: isDarkMode,
+                    ),
+                    _buildQuickAction(
+                      icon: Icons.gavel,
+                      label: 'Terms',
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.pushNamed(this.context, '/terms');
+                      },
+                      isDarkMode: isDarkMode,
+                    ),
+                    _buildQuickAction(
+                      icon: Icons.support,
+                      label: 'Support',
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.pushNamed(this.context, '/support');
+                      },
+                      isDarkMode: isDarkMode,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close', style: TextStyle(color: themeColor)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAboutItem({
+    required IconData icon,
+    required String title,
+    required String value,
+    required bool isDarkMode,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: TextStyle(
+              color: isDarkMode ? Colors.white : Colors.black87,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool isDarkMode,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openUrl(String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {}
+    } catch (e) {}
+  }
 
   void _navigateToTab(int index) {
-    Navigator.pop(context);
-
-    if (index < 0 ||
-        index >= _screens.length) {
-      return;
-    }
-
-    if (_currentIndex == index) {
-      return;
-    }
-
+    Navigator.pop(context); // Close drawer
     setState(() {
       _currentIndex = index;
     });
-
     _pageController.animateToPage(
       index,
-      duration:
-      const Duration(
-        milliseconds: 300,
-      ),
-      curve:
-      Curves.easeInOut,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
 }

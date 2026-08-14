@@ -471,7 +471,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
     ]);
     final receiptText =
         '''
-VPN Premium - Payment Receipt
+VPN MASTER Premium - Payment Receipt
 
 Receipt #: ${receiptNumber ?? 'N/A'}
 Date: ${_formatDate(dateString)}
@@ -485,7 +485,7 @@ Total: ${widget.receiptData['currency'] ?? 'USD'} ${widget.receiptData['total_am
 Thank you for your purchase!
     ''';
 
-    Share.share(receiptText, subject: 'AxeVPN Payment Receipt');
+    Share.share(receiptText, subject: 'VPN MASTER Payment Receipt');
   }
 
   void _downloadReceipt() {

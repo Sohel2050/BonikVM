@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/config/app_config.dart';
 
 class ApiService {
   static String get baseUrl => AppConfig.apiBaseUrl;
 
+  static const _secureStorage = FlutterSecureStorage();
+
   static Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    return _secureStorage.read(key: 'auth_token');
   }
 
   static Future<Map<String, String>> _getHeaders({

@@ -207,6 +207,9 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    // V2Ray's libv2ray.aar is now declared `implementation` inside axevpn_flutter's
+    // own android/build.gradle, so it reaches every consuming app's runtime classpath
+    // without needing a duplicate declaration here. See that file for details.
 }
 
 flutter {

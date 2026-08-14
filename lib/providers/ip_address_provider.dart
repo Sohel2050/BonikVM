@@ -35,12 +35,26 @@ class IpAddressInfo {
 final ipAddressProvider = FutureProvider<IpAddressInfo>((ref) async {
   final apiService = ApiService.instance;
 
-  // Always use public IP service for accurate location info
-  try {
-    final response = await apiService.getPublicIp();
-    return IpAddressInfo.fromJson(response);
-  } catch (e) {
-    print('[IP] Error getting public IP: $e');
-    throw Exception('Failed to get IP address');
+  int retries = 3;
+  while (retries > 0) {
+    try {
+      final response = await apiService.getPublicIp();
+      return IpAddressInfo.fromJson(response);
+    } catch (e) {
+      retries--;
+      if (retries == 0) {
+        throw Exception('Failed to get IP address');
+      }
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
   }
+  throw Exception('Failed to get IP address');
 });
+
+/// Caches the user's real (non-VPN) IP/location the last time it was
+/// observed while disconnected. `ipAddressProvider` always reports
+/// whatever public IP is visible right now — once connected, that IS the
+/// VPN server's exit IP, so widgets that need to show "where the user
+/// actually is" (e.g. the source side of the connection map) must read
+/// this instead of `ipAddressProvider` directly.
+final originalLocationProvider = StateProvider<IpAddressInfo?>((ref) => null);

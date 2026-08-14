@@ -427,8 +427,8 @@ class VpnBundleTester {
               );
             }
 
-            // Check authentication requirements
-            final needsAuth = config.contains('auth-user-pass');
+            // Check authentication requirements — only uncommented lines
+            final needsAuth = RegExp(r'^(?!;)\s*auth-user-pass\b', multiLine: true).hasMatch(config);
             category.addTest(
               TestResult(
                 name: 'Authentication Configuration',

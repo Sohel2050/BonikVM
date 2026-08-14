@@ -6,7 +6,6 @@ import 'package:animate_do/animate_do.dart';
 import '../../providers/auth_providers.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../core/localization/app_localizations.dart';
-import 'legal_webview_screen.dart';
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 class _C {
@@ -33,10 +32,8 @@ class SignInScreen extends ConsumerStatefulWidget {
 }
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
-  static const _termsUrl = 'https://albonik.com/privacy-policy/vpn-master.txt';
-  static const _privacyUrl = 'https://albonik.com/privacy-policy/vpn-master.txt';
   static const _appleEulaUrl =
-      'https://www.apple.com/legal/internet-services/itunes/dev/albonikllc/';
+      'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -44,7 +41,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _nameController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isSignUp = false;
-  bool _hasAcceptedTerms = false;
+  bool _hasAcceptedTerms = true;
 
   @override
   void dispose() {
@@ -63,13 +60,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
     ref.listen<AuthState>(authStateProvider, (previous, next) {
       if (!mounted) return;
-      if (next.status == AuthStatus.unauthenticated &&
-          next.lastAction == 'guest') {
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/home', (route) => false);
-        return;
-      }
+      // Guest navigation is handled directly in _continueAsGuest() rather
+      // than here, since relying solely on this listener firing racily
+      // duplicated the /home push when it also fired.
       if (previous?.status != AuthStatus.authenticated &&
           next.status == AuthStatus.authenticated) {
         if (!context.mounted) return;
@@ -104,12 +97,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 12),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 12),
 
               // ── Logo + Title ───────────────────────────────────────────────
               FadeInDown(
@@ -146,7 +141,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: 'VPN ',
+                            text: 'Axe ',
                             style: TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w900,
@@ -155,7 +150,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ),
                           ),
                           TextSpan(
-                            text: 'MASTER',
+                            text: 'VPN',
                             style: TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w900,
@@ -179,7 +174,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
               const SizedBox(height: 28),
 
-             /* // ── Social buttons (side-by-side on iOS, full-width on Android) ──
+              // ── Social buttons (side-by-side on iOS, full-width on Android) ──
               FadeInUp(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 100),
@@ -278,7 +273,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
 
               const SizedBox(height: 20),
-*/
+
               // ── Form ───────────────────────────────────────────────────────
               FadeInUp(
                 duration: const Duration(milliseconds: 500),
@@ -422,10 +417,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                     recognizer: TapGestureRecognizer()
-                                      ..onTap = () => _openLegalDocument(
-                                        title: 'Terms & Conditions',
-                                        url: _termsUrl,
-                                      ),
+                                      ..onTap = () =>
+                                          _openLegalDocument('/terms'),
                                   ),
                                   TextSpan(
                                     text: ' & ',
@@ -442,10 +435,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                     recognizer: TapGestureRecognizer()
-                                      ..onTap = () => _openLegalDocument(
-                                        title: 'Privacy Policy',
-                                        url: _privacyUrl,
-                                      ),
+                                      ..onTap = () =>
+                                          _openLegalDocument('/privacy'),
                                   ),
                                 ],
                               ),
@@ -552,11 +543,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 440),
                 child: GestureDetector(
-                  onTap: authState.isLoading
-                      ? null
-                      : () => ref
-                            .read(authStateProvider.notifier)
-                            .signInAnonymously(),
+                  onTap: authState.isLoading ? null : _continueAsGuest,
                   child: Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -582,11 +569,31 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
 
               const SizedBox(height: 20),
-            ],
-          ),
+                ],
+              ),
+            ),
+            if (Navigator.canPop(context))
+              Positioned(
+                top: 4,
+                left: 4,
+                child: _BackButton(
+                  isDark: isDark,
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _continueAsGuest() async {
+    await ref.read(authStateProvider.notifier).signInAnonymously();
+    // Belt-and-braces: don't rely solely on the ref.listen side effect for
+    // navigation — go straight to /home so the button always does something
+    // even if this screen was reached while already in guest mode.
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
   }
 
   Future<void> _runIfTermsAccepted(Future<void> Function() action) async {
@@ -605,16 +612,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     await action();
   }
 
-  Future<void> _openLegalDocument({
-    required String title,
-    required String url,
-  }) async {
+  Future<void> _openLegalDocument(String routeName) async {
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LegalWebViewScreen(title: title, url: url),
-      ),
-    );
+    await Navigator.of(context).pushNamed(routeName);
   }
 
   Future<void> _handleEmailAuth() async {
@@ -737,6 +737,40 @@ class _LegalAcceptanceCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Back Button ───────────────────────────────────────────────────────────────
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.isDark, required this.onTap});
+
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDark ? _C.navyField : Colors.white,
+            border: Border.all(color: isDark ? _C.border : _C.lightBorder),
+          ),
+          child: Icon(
+            Icons.arrow_back_rounded,
+            size: 20,
+            color: isDark ? Colors.white : _C.lightText,
+          ),
+        ),
       ),
     );
   }

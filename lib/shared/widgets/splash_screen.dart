@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import '../../core/services/admob_service.dart';
-import '../providers/app_providers.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -54,32 +52,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         final prefs = await SharedPreferences.getInstance();
         final seenOnboarding = prefs.getBool('onboarding_done') ?? false;
         if (!mounted) return;
-
-        // Show app open ad on first launch for free users
-        final isPremium = ref.read(premiumStatusProvider);
-        if (!isPremium && AdMobService.instance.isAppOpenReady) {
-          AdMobService.instance.showAppOpenAd(
-            onAdClosed: () {
-              if (mounted) {
-                _navigateNext(seenOnboarding);
-              }
-            },
-          );
-          return;
+        if (!seenOnboarding) {
+          Navigator.of(context).pushReplacementNamed('/onboarding');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/home');
         }
-
-        _navigateNext(seenOnboarding);
       }
     });
-  }
-
-  void _navigateNext(bool seenOnboarding) {
-    if (!mounted) return;
-    if (!seenOnboarding) {
-      Navigator.of(context).pushReplacementNamed('/onboarding');
-    } else {
-      Navigator.of(context).pushReplacementNamed('/home');
-    }
   }
 
   @override
@@ -161,7 +140,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         const SizedBox(height: 10),
                         // Tagline
                         const Text(
-                          'Secure  •  Fast  •  VPN',
+                          'Secure  •  Fast  •  Private',
                           style: TextStyle(
                             fontSize: 16,
                             color: Color(0xFF3B82F6),
@@ -185,7 +164,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                              'Initializing Server connection...',
+                              'Initializing secure connection...',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF6B7280),

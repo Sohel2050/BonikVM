@@ -44,9 +44,6 @@ class VpnStatePersistenceService {
       );
     }
 
-    print(
-      'VPN state saved: connected=$isConnected, server=${server?.name}, timeLeft=${premiumTimeLeft?.inMinutes}m',
-    );
   }
 
   Future<Map<String, dynamic>?> loadVpnState() async {
@@ -67,7 +64,6 @@ class VpnStatePersistenceService {
       try {
         server = VpnServer.fromJson(jsonDecode(serverJson));
       } catch (e) {
-        print('Error decoding server data: $e');
       }
     }
 
@@ -83,9 +79,6 @@ class VpnStatePersistenceService {
       connectionDuration = Duration(milliseconds: connectionDurationMillis);
     }
 
-    print(
-      'VPN state loaded: connected=$isConnected, server=${server?.name}, timeLeft=${premiumTimeLeft?.inMinutes}m',
-    );
 
     return {
       'isConnected': isConnected,
@@ -105,7 +98,6 @@ class VpnStatePersistenceService {
     await prefs.remove(_premiumTimeLeftKey);
     await prefs.remove(_connectionDurationKey);
 
-    print('VPN state cleared');
   }
 
   Future<bool> checkBackgroundVpnStatus() async {
@@ -113,10 +105,8 @@ class VpnStatePersistenceService {
       // Note: openvpn_flutter doesn't provide a direct way to check current VPN state
       // For now, we'll rely on the persisted state and assume VPN may still be running
       // in background. This is safer for preventing premium bypass.
-      print('Background VPN status check: relying on persisted state');
       return false; // Return false to use persisted state logic
     } catch (e) {
-      print('Error checking background VPN status: $e');
       return false;
     }
   }
@@ -127,9 +117,6 @@ class VpnStatePersistenceService {
       final savedState = await loadVpnState();
 
       if (backgroundActive && !(savedState?['isConnected'] ?? false)) {
-        print(
-          'Background VPN active but app state shows disconnected - syncing state',
-        );
         // VPN is running in background but app doesn't know about it
         // This shouldn't happen with proper state management, but handle it
         await saveVpnState(
@@ -140,13 +127,9 @@ class VpnStatePersistenceService {
           connectionDuration: savedState?['connectionDuration'],
         );
       } else if (!backgroundActive && (savedState?['isConnected'] ?? false)) {
-        print(
-          'App state shows connected but background VPN not active - clearing state',
-        );
         await clearVpnState();
       }
     } catch (e) {
-      print('Error syncing VPN state: $e');
     }
   }
 

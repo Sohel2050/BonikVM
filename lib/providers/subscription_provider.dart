@@ -93,9 +93,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     if (currentAuth.status == AuthStatus.authenticated &&
         currentAuth.firebaseUser != null) {
       // User is already logged in on app start - check subscription
-      print(
-        '[Subscription] User already authenticated on init, checking subscription...',
-      );
       checkSubscriptionStatus(currentAuth.firebaseUser!.uid);
     }
 
@@ -104,9 +101,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
       if (next.status == AuthStatus.authenticated &&
           next.firebaseUser != null) {
         // User just logged in - check subscription
-        print(
-          '[Subscription] Auth state changed to authenticated, checking subscription...',
-        );
         checkSubscriptionStatus(next.firebaseUser!.uid);
       } else if (next.status == AuthStatus.unauthenticated) {
         // User logged out - clear subscription
@@ -119,9 +113,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
       final currentAuth = _ref.read(authStateProvider);
       if (currentAuth.status == AuthStatus.authenticated &&
           currentAuth.firebaseUser != null) {
-        print(
-          '[Subscription] Push notification "${event['type']}" — refreshing subscription status...',
-        );
         checkSubscriptionStatus(currentAuth.firebaseUser!.uid);
       }
     });
@@ -153,13 +144,9 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
                 .toList(),
             lastChecked: checkedAt,
           );
-          print(
-            '[Subscription] Loaded cached subscription: isPremium=${data['is_premium']}',
-          );
         }
       }
     } catch (e) {
-      print('[Subscription] Error loading cache: $e');
     }
   }
 
@@ -182,11 +169,7 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
 
       // Also update is_premium flag for AdMobService compatibility
       await prefs.setBool('is_premium', state.isPremium);
-      print(
-        '[Subscription] Cached is_premium=${state.isPremium} for AdMob compatibility',
-      );
     } catch (e) {
-      print('[Subscription] Error caching: $e');
     }
   }
 
@@ -197,7 +180,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     await prefs.remove('subscription_data');
     await prefs.remove('subscription_checked_at');
     await prefs.setBool('is_premium', false);
-    print('[Subscription] Subscription cleared');
   }
 
   /// Check subscription status from API
@@ -212,15 +194,11 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     if (!forceRefresh && state.lastChecked != null) {
       final timeSinceCheck = DateTime.now().difference(state.lastChecked!);
       if (timeSinceCheck.inMinutes < 2) {
-        print(
-          '[Subscription] Skipping check - checked ${timeSinceCheck.inSeconds}s ago',
-        );
         return;
       }
     }
 
     state = state.copyWith(isLoading: true, errorMessage: null);
-    print('[Subscription] Checking subscription for user: $userId');
 
     try {
       final response = await BillingService().getSubscriptionStatus();
@@ -247,11 +225,7 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
         // Cache the result
         await _cacheSubscription();
 
-        print('[Subscription] Status updated: isPremium=$isPremium');
         if (subscription != null) {
-          print(
-            '[Subscription] Product: ${subscription['product_id']}, Expires: ${subscription['expires_at']}',
-          );
         }
       } else {
         state = state.copyWith(
@@ -260,10 +234,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
           subscription: null,
           errorMessage: response['message'] ?? 'Failed to check subscription',
         );
-        print('[Subscription] No active subscription found');
       }
     } catch (e) {
-      print('[Subscription] Error checking status: $e');
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
@@ -273,7 +245,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     String userId,
     Map<String, dynamic> subscriptionData,
   ) async {
-    print('[Subscription] Manually activating subscription for user: $userId');
 
     state = SubscriptionState(
       isPremium: true,

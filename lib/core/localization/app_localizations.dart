@@ -283,7 +283,7 @@ class AppLocalizations {
   // Auth Screen
   String get welcomeBack => translate('welcome_back');
   String get createYourAccount => translate('create_your_account');
-  String get axeVpn => translate('vpn_master');
+  String get axeVpn => translate('axe_vpn');
   String get signInWithGoogle => translate('sign_in_with_google');
   String get or => translate('or');
   String get email => translate('email');
@@ -471,7 +471,7 @@ const Map<String, String> _enTranslations = {
   'ping': 'Ping',
 
   // Premium Screen
-  'upgrade_to_premium': 'Premium',
+  'upgrade_to_premium': 'Upgrade',
   'unlimited_access': 'Unlimited Access',
   'no_ads': 'No Ads',
   'faster_speeds': 'Faster Speeds',

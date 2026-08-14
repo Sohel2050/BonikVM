@@ -3,7 +3,14 @@ import 'package:vpn_master/core/config/app_config.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Encrypted, OS-backed storage (Keychain/Keystore/DPAPI/libsecret) for the
+// bearer auth token — SharedPreferences is a plaintext file, unsuitable for
+// credentials.
+const _secureStorage = FlutterSecureStorage();
+const _authTokenKey = 'auth_token';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -36,12 +43,13 @@ class ApiClient {
             final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
               // Use cached token (no force-refresh) — Firebase auto-refreshes when expired
-              final idToken = await user.getIdToken();
+              final idToken = await user.getIdToken().timeout(
+                const Duration(seconds: 6),
+                onTimeout: () => '',
+              );
               options.headers['Authorization'] = 'Bearer $idToken';
             }
           } catch (e) {
-            if (kDebugMode)
-              print('[ApiClient] Failed to get Firebase token: $e');
           }
           handler.next(options);
         },
@@ -57,7 +65,7 @@ class ApiClient {
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _baseUrl = prefs.getString('api_base_url') ?? AppConfig.baseUrl;
-    _authToken = prefs.getString('auth_token');
+    _authToken = await _secureStorage.read(key: _authTokenKey);
 
     _dio = Dio(
       BaseOptions(
@@ -87,16 +95,17 @@ class ApiClient {
           // Inject Firebase ID token on every request (use cached token)
           try {
             final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
+             if (user != null) {
               // No force-refresh — Firebase SDK auto-refreshes expired tokens
-              final idToken = await user.getIdToken();
+              final idToken = await user.getIdToken().timeout(
+                const Duration(seconds: 6),
+                onTimeout: () => '',
+              );
               options.headers['Authorization'] = 'Bearer $idToken';
             } else if (_authToken != null) {
               options.headers['Authorization'] = 'Bearer $_authToken';
             }
           } catch (e) {
-            if (kDebugMode)
-              print('[ApiClient] Failed to get Firebase token: $e');
             if (_authToken != null) {
               options.headers['Authorization'] = 'Bearer $_authToken';
             }
@@ -126,12 +135,11 @@ class ApiClient {
   // Set auth token
   Future<void> setAuthToken(String? token) async {
     _authToken = token;
-    final prefs = await SharedPreferences.getInstance();
 
     if (token != null) {
-      await prefs.setString('auth_token', token);
+      await _secureStorage.write(key: _authTokenKey, value: token);
     } else {
-      await prefs.remove('auth_token');
+      await _secureStorage.delete(key: _authTokenKey);
     }
 
     if (token != null) {
@@ -312,8 +320,7 @@ class ApiClient {
   // Handle unauthorized access
   Future<void> _handleUnauthorized() async {
     _authToken = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    await _secureStorage.delete(key: _authTokenKey);
 
     // Here you might want to navigate to login screen
     // or trigger an event to handle logout
@@ -341,8 +348,8 @@ class ApiClient {
   // Clear all data
   Future<void> clear() async {
     _authToken = null;
+    await _secureStorage.delete(key: _authTokenKey);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
     await prefs.remove('api_base_url');
   }
 }

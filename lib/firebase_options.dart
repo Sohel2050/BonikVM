@@ -33,10 +33,7 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -68,4 +65,21 @@ class DefaultFirebaseOptions {
     iosBundleId: 'com.albonik.vpn',
   );
 
+  /// Firebase has no distinct "Windows" app type — desktop (Windows/Linux)
+  /// uses the C++ SDK's REST-based Auth implementation, which only needs a
+  /// valid apiKey + projectId to call Identity Toolkit. No Web app has been
+  /// registered for this Firebase project yet, so this reuses the Android
+  /// app's apiKey as a starting point.
+  ///
+  /// If sign-in fails with an API-key-restriction error, go to Firebase
+  /// Console → Project Settings → General → Your apps → Add app → Web,
+  /// register one (no need for the JS SDK snippet), and replace apiKey/
+  /// appId below with the values it gives you.
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDJkPbXKK4-2fSpzs_pg8DtmC43RuvaFHE',
+    appId: '1:548357430334:web:0000000000000000000000',
+    messagingSenderId: '548357430334',
+    projectId: 'vpn-master-albonik',
+    storageBucket: 'vpn-master-albonik.firebasestorage.app',
+  );
 }

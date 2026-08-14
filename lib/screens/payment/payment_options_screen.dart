@@ -1169,9 +1169,6 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
 
                                             if (response['success']) {
                                               // IMMEDIATELY refresh subscription status after voucher redemption
-                                              print(
-                                                '[Voucher] Voucher redeemed successfully, refreshing subscription...',
-                                              );
                                               try {
                                                 await ref
                                                     .read(
@@ -1182,13 +1179,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                                       currentUser.uid,
                                                       forceRefresh: true,
                                                     );
-                                                print(
-                                                  '[Voucher] Subscription status refreshed successfully',
-                                                );
                                               } catch (e) {
-                                                print(
-                                                  '[Voucher] Error refreshing subscription: $e',
-                                                );
                                                 // Don't block voucher redemption if subscription check fails
                                               }
                                               Navigator.of(

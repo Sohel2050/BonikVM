@@ -239,11 +239,21 @@ class PurchaseService {
             purchaseDetails.verificationData.serverVerificationData.isNotEmpty
             ? purchaseDetails.verificationData.serverVerificationData
             : purchaseDetails.verificationData.localVerificationData;
+        // Look up the real price/currency the user was actually charged so
+        // the backend doesn't have to assume USD.
+        final productDetails = _products
+            .cast<ProductDetails?>()
+            .firstWhere(
+              (product) => product?.id == purchaseDetails.productID,
+              orElse: () => null,
+            );
         _purchaseResultController.add(
           PurchaseResult.success(
             purchaseDetails.productID,
             receiptData: receiptData,
             transactionId: purchaseDetails.purchaseID,
+            priceAmount: productDetails?.rawPrice,
+            currencyCode: productDetails?.currencyCode,
           ),
         );
       } else {
@@ -457,6 +467,8 @@ class PurchaseResult {
   final String? errorMessage;
   final String? receiptData; // Real Google Play / App Store receipt token
   final String? transactionId; // Store transaction ID
+  final double? priceAmount; // Real amount charged, in the store's currency
+  final String? currencyCode; // Real ISO 4217 currency the user was billed in
 
   PurchaseResult._({
     required this.status,
@@ -464,17 +476,23 @@ class PurchaseResult {
     this.errorMessage,
     this.receiptData,
     this.transactionId,
+    this.priceAmount,
+    this.currencyCode,
   });
 
   factory PurchaseResult.success(
     String productId, {
     String? receiptData,
     String? transactionId,
+    double? priceAmount,
+    String? currencyCode,
   }) => PurchaseResult._(
     status: PurchaseStatus.purchased,
     productId: productId,
     receiptData: receiptData,
     transactionId: transactionId,
+    priceAmount: priceAmount,
+    currencyCode: currencyCode,
   );
 
   factory PurchaseResult.pending() =>

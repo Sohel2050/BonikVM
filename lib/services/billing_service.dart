@@ -206,6 +206,8 @@ class BillingService {
     required String productId, // Store product ID
     required String transactionId,
     required String receiptData,
+    double? priceAmount,
+    String? currencyCode,
   }) async {
     try {
       final response = await _api.post(
@@ -215,6 +217,8 @@ class BillingService {
           'product_id': productId,
           'transaction_id': transactionId,
           'receipt_data': receiptData,
+          'amount_paid': priceAmount,
+          'currency': currencyCode,
         },
       );
       return response.data as Map<String, dynamic>;

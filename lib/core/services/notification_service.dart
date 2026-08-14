@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import '../models/app_notification.dart';
@@ -67,6 +68,7 @@ class NotificationService {
   // Storage keys
   static const String _tokenKey = 'fcm_token';
   static const String _deviceIdKey = 'device_id';
+  static const _secureStorage = FlutterSecureStorage();
 
   bool _isInitialized = false;
   String? _currentToken;
@@ -251,8 +253,7 @@ class NotificationService {
         _currentToken = token;
 
         // Save token locally
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_tokenKey, token);
+        await _secureStorage.write(key: _tokenKey, value: token);
 
         // Get device info
         final deviceInfo = await _getDeviceInfo();
@@ -283,8 +284,7 @@ class NotificationService {
       _firebaseMessaging.onTokenRefresh.listen((newToken) async {
         _currentToken = newToken;
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_tokenKey, newToken);
+        await _secureStorage.write(key: _tokenKey, value: newToken);
 
         // Register new token with backend
         try {
@@ -365,7 +365,6 @@ class NotificationService {
       _notificationController.add(updatedNotifications);
     } catch (e) {
       if (kDebugMode) {
-        print('Error saving notification: $e');
       }
     }
 
@@ -630,11 +629,9 @@ class NotificationService {
       _notificationController.add(notifications);
 
       if (kDebugMode) {
-        print('Notification saved successfully: ${notification.title}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error saving notification: $e');
       }
     }
   }

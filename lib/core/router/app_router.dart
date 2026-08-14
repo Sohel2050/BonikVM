@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import '../../shared/widgets/splash_screen.dart';
 import '../../shared/widgets/main_shell.dart';
 import '../../features/about/about_screen.dart';
-import '../../features/privacy/privacy_policy_screen.dart';
-import '../../features/terms/terms_of_service_screen.dart';
 import '../../features/support/support_screen.dart';
 import '../../features/debug/vpn_debug_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/settings/admin_notifications_screen.dart';
-import '../../features/premium/premium_screen.dart';
-import 'package:flutter/material.dart';
+import '../../features/privacy/privacy_policy_screen.dart';
+import '../../features/terms/terms_of_service_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -33,12 +31,12 @@ class AppRouter {
         );
       case '/premium':
         return MaterialPageRoute(
-          builder: (_) => const PremiumScreen(),
+          builder: (_) => const MainShell(initialIndex: 2),
           settings: settings,
         );
       case '/settings':
         return MaterialPageRoute(
-          builder: (_) => const MainShell(initialIndex: 2),
+          builder: (_) => const MainShell(initialIndex: 3),
           settings: settings,
         );
       case '/about':

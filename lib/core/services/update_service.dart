@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_update/in_app_update.dart';
+import '../api/api_service.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
@@ -71,9 +72,24 @@ class UpdateService {
     _isCheckingForUpdates = true;
 
     try {
+      // Admin-controlled force update check runs on every platform first —
+      // Play Store's own in-app-update prompt has no idea about our
+      // force_update/min_version settings, so it can't be relied on alone.
+      final forcedUpdate = await _checkAdminForceUpdate();
+      if (forcedUpdate != null && forcedUpdate.isForceUpdate) {
+        if (context != null && context.mounted) {
+          await _showUpdateDialog(context, forcedUpdate);
+        }
+        return;
+      }
+
       if (Platform.isAndroid) {
-        // Use Google Play In-App Updates for Android
+        // Use Google Play In-App Updates for Android (optional update UX)
         await _checkGooglePlayUpdate(context, showNoUpdateDialog);
+      } else if (forcedUpdate != null && forcedUpdate.shouldUpdate) {
+        if (context != null && context.mounted) {
+          await _showUpdateDialog(context, forcedUpdate);
+        }
       } else {
         // For iOS or other platforms, use API-based check
         await _checkWithCustomAPI(context, showNoUpdateDialog);
@@ -282,13 +298,7 @@ class UpdateService {
     bool showNoUpdateDialog,
   ) async {
     try {
-      // Get current app version
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
-      final currentBuildNumber = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-      // Check with API for latest version
-      final updateInfo = await _checkWithAPI(currentBuildNumber);
+      final updateInfo = await _checkAdminForceUpdate();
 
       if (updateInfo != null && updateInfo.shouldUpdate) {
         if (context != null && context.mounted) {
@@ -316,37 +326,42 @@ class UpdateService {
     }
   }
 
-  /// Check for updates with API
-  Future<UpdateInfo?> _checkWithAPI(int currentBuildNumber) async {
+  /// Ask the backend (admin-configured app_version / min_version /
+  /// force_update settings) whether the installed version needs updating,
+  /// and if so, whether it's a forced/blocking update.
+  Future<UpdateInfo?> _checkAdminForceUpdate() async {
     try {
-      // TODO: Implement API call to check for updates
-      // This would typically call your backend to get the latest version info
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+      final platform = Platform.isIOS ? 'ios' : 'android';
 
-      // For now, simulate an update check
+      final data = await ApiService.instance.getUpdateInfo(
+        platform: platform,
+        version: currentVersion,
+      );
 
+      final updateAvailable = data['update_available'] == true;
+      if (!updateAvailable) return null;
 
-      // Simulated response - replace with actual API call
-      final latestBuildNumber = currentBuildNumber; // No update available
+      final latestVersion = data['latest_version']?.toString() ?? currentVersion;
+      final downloadUrl = (data['download_url']?.toString() ?? '').isNotEmpty
+          ? data['download_url'].toString()
+          : (Platform.isAndroid
+                ? 'https://play.google.com/store/apps/details?id=com.albonik.vpn'
+                : 'https://apps.apple.com/app/axe-vpn/id123456789');
 
-      if (latestBuildNumber > currentBuildNumber) {
-        return UpdateInfo(
-          latestVersion: '1.0.${latestBuildNumber}',
-          latestBuildNumber: latestBuildNumber,
-          releaseNotes: [
-            'Bug fixes and performance improvements',
-            'Enhanced VPN connection stability',
-            'Updated security features',
-          ],
-          downloadUrl: Platform.isAndroid
-              ? 'https://play.google.com/store/apps/details?id=com.albonik.vpn'
-              : 'https://apps.apple.com/app/axe-vpn/id123456789',
-          isForceUpdate: false,
-        );
-      }
-
-      return null;
+      return UpdateInfo(
+        latestVersion: latestVersion,
+        latestBuildNumber: 1,
+        releaseNotes: const [
+          'Bug fixes and performance improvements',
+          'Enhanced VPN connection stability',
+        ],
+        downloadUrl: downloadUrl,
+        isForceUpdate: data['is_force_update'] == true,
+      );
     } catch (e) {
-
+      debugPrint('UpdateService: Admin update check failed: $e');
       return null;
     }
   }
@@ -409,7 +424,7 @@ class UpdateService {
                 Text(
                   updateInfo.isForceUpdate
                       ? 'A critical update is required to continue using VPN MASTER.'
-                      : 'A new version of VPN MASTERis available!',
+                      : 'A new version of VPN MASTER is available!',
                   style: TextStyle(
                     fontSize: 16,
                     color: Theme.of(

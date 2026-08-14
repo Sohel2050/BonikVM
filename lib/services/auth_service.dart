@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../repositories/api_repository.dart';
 import '../core/services/purchase_service.dart';
+import '../core/services/windows_google_auth.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -35,6 +37,10 @@ class AuthService {
 
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
+    if (Platform.isWindows) {
+      return _signInWithGoogleWindows();
+    }
+
     try {
       // First, sign out to clear any cached state (fixes API 10 error)
       await _googleSignIn.signOut();
@@ -83,6 +89,34 @@ class AuthService {
           'No internet connection. Please check your network and try again.',
         );
       }
+      throw Exception(
+        'Google Sign-In failed. Please try again or use email & password.',
+      );
+    }
+  }
+
+  /// Windows: google_sign_in has no desktop implementation, so this drives
+  /// its own system-browser OAuth flow (see windows_google_auth.dart) and
+  /// feeds the resulting ID token into the same Firebase credential
+  /// exchange used on mobile.
+  Future<UserCredential?> _signInWithGoogleWindows() async {
+    try {
+      final result = await WindowsGoogleAuth.signIn();
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: result.idToken,
+        accessToken: result.accessToken,
+      );
+
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
+      _syncUserWithBackend(userCredential.user!).catchError((error) {});
+
+      return userCredential;
+    } on WindowsGoogleAuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
       throw Exception(
         'Google Sign-In failed. Please try again or use email & password.',
       );
@@ -165,6 +199,11 @@ class AuthService {
       if (e is FirebaseAuthException) {
         switch (e.code) {
           case 'email-already-in-use':
+          // Same Windows plugin quirk as signInWithEmail() above — a
+          // rejected create-account request (most commonly: email already
+          // registered) surfaces as this generic code on Windows instead of
+          // 'email-already-in-use'.
+          case 'unknown-error':
             throw Exception(
               'An account already exists for that email. Please sign in instead.',
             );
@@ -209,6 +248,15 @@ class AuthService {
             );
           case 'wrong-password':
           case 'invalid-credential':
+          // The Windows build of firebase_auth doesn't parse Firebase's
+          // REST error body on failed sign-in attempts — it surfaces every
+          // rejected credential (wrong password, unknown email, etc.) as
+          // this generic code instead of the specific one. Verified: valid
+          // credentials sign in successfully on Windows; only the error
+          // path for invalid ones collapses to 'unknown-error'. Treating it
+          // the same as wrong-password gives users a correct, actionable
+          // message instead of a raw "internal error".
+          case 'unknown-error':
             throw Exception('Incorrect email or password. Please try again.');
           case 'user-disabled':
             throw Exception(

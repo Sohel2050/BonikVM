@@ -127,7 +127,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   delay: const Duration(milliseconds: 300),
                   child: _buildInfoCard(
                     'Developer',
-                    'ALBONIK LLC',
+                    'Axe Technologies',
                     Icons.developer_mode,
                     isDarkMode,
                   ),
@@ -190,7 +190,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'VPN MASTER is a premium VPN service that provides secure, fast, and reliable internet access. Our app uses  encryption to protect your online privacy and allows you to access content from around the world.',
+                          'VPN MASTER is a premium VPN service that provides secure, fast, and reliable internet access. Our app uses military-grade encryption to protect your online privacy and allows you to access content from around the world.',
                           style: TextStyle(
                             fontSize: 16,
                             height: 1.5,

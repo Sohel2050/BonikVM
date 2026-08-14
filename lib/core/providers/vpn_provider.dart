@@ -130,18 +130,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = VpnState.connecting;
 
     // DEBUG: Log protocol detection
-    print('🔍 VPN Protocol Detection:');
-    print('   Server: ${server.name}');
-    print('   vpnProtocolType: "${server.vpnProtocolType}"');
-    print('   supportsWireGuard: ${server.supportsWireGuard}');
-    print('   supportsOpenVPN: ${server.supportsOpenVPN}');
 
     // Check protocol type and route to appropriate connection method
     if (server.vpnProtocolType == 'wireguard') {
-      print('✅ Detected WireGuard - using WireGuard engine');
       await _connectWireGuard(server);
     } else {
-      print('✅ Detected OpenVPN - using OpenVPN engine');
       await _connectOpenVPN(server);
     }
   }
@@ -157,10 +150,8 @@ class VpnNotifier extends StateNotifier<VpnState> {
       }
 
       // Connect using WireGuard engine
-      print('Connecting to WireGuard server: ${server.name}');
       await _wireGuardEngine!.connect(config, server.name);
     } catch (e) {
-      print('WireGuard connection error: $e');
       state = VpnState.error;
       rethrow;
     }

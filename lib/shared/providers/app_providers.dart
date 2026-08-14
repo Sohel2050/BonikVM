@@ -217,9 +217,6 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
     // Sync with subscription provider
     _ref.listen(subscriptionProvider, (previous, next) {
       if (next.isPremium != state) {
-        print(
-          '💎 Syncing premium status from subscription provider: ${next.isPremium}',
-        );
         state = next.isPremium;
       }
     });
@@ -231,13 +228,9 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
       final user = next.firebaseUser;
       if (user == null) {
         // User logged out - clear premium status
-        print('🔐 User logged out - clearing premium status');
         _clearPremiumStatus();
       } else {
         // User logged in - subscription provider will handle status updates
-        print(
-          '🔐 User logged in - subscription provider will sync premium status',
-        );
       }
     });
   }
@@ -246,7 +239,6 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       state = prefs.getBool('is_premium') ?? false;
-      print('[PremiumStatus] Loaded from cache: isPremium=$state');
     } catch (e) {
       state = false;
     }
@@ -257,7 +249,6 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_premium', isPremium);
     } catch (e) {
-      print('[PremiumStatus] Error saving: $e');
     }
   }
 
@@ -265,7 +256,6 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
     if (state != isPremium) {
       state = isPremium;
       await _savePremiumStatus(isPremium);
-      print('[PremiumStatus] Manually set: isPremium=$isPremium');
     }
   }
 
@@ -276,7 +266,6 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
     await prefs.remove('premium_status');
     await prefs.remove('subscription_status');
     await prefs.remove('user_purchases');
-    print('[PremiumStatus] Cleared premium status');
   }
 
   Future<void> forceRefresh() async {

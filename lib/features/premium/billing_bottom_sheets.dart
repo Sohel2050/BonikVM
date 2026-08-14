@@ -1,4 +1,4 @@
-﻿// lib/features/premium/billing_bottom_sheets.dart
+// lib/features/premium/billing_bottom_sheets.dart
 // All payment bottom sheets — WebViews open AS bottom sheets (quickro-POS style).
 
 import 'dart:async';
@@ -8,13 +8,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/billing_service.dart';
 import '../../core/services/purchase_service.dart';
+import '../../core/services/admob_service.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../screens/auth/sign_in_screen.dart';
+import 'windows_checkout.dart';
 
 // ─── PAYMENT METHOD SHEET ─────────────────────────────────────────────────────
 
@@ -208,8 +212,10 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         ),
       );
     }
-    // Google Play IAP — keyed as 'iap' or 'in_app_purchase' from the API
-    if (_isEnabled('iap') || _isEnabled('in_app_purchase')) {
+    // Google Play IAP — keyed as 'iap' or 'in_app_purchase' from the API.
+    // No Play Store on Windows, so this method never applies there.
+    if (!Platform.isWindows &&
+        (_isEnabled('iap') || _isEnabled('in_app_purchase'))) {
       addTile(
         _MethodTile(brand: _Brand.googlePlay, isDark: isDark, onTap: _doIap),
       );
@@ -255,27 +261,45 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         );
         return;
       }
-      // ignore: use_build_context_synchronously
-      final ok = await showModalBottomSheet<bool>(
-        context: context,
-        isScrollControlled: true,
-        enableDrag:
-            false, // prevent sheet drag from intercepting WebView scroll
-        backgroundColor: Colors.transparent,
-        useSafeArea: false,
-        builder: (_) => _WebViewSheet(
-          url: result['checkout_url'] as String,
-          title: 'Stripe Checkout',
-          successPattern: '/payment/success',
-          cancelPattern: '/payment/cancel',
-          onSuccess: (url) async {
-            final sid = Uri.parse(url).queryParameters['session_id'];
-            if (sid != null) await BillingService().confirmStripeSession(sid);
-            return true;
-          },
-        ),
-      );
-      if (ok == true && mounted) {
+
+      final bool ok;
+      if (Platform.isWindows) {
+        // webview_flutter has no Windows backend — Stripe's own
+        // /payment/success page activates the subscription server-side
+        // when the system browser loads it, so we just poll for that.
+        // ignore: use_build_context_synchronously
+        ok = await launchWindowsCheckoutAndWait(
+          context: context,
+          ref: widget.externalRef,
+          checkoutUrl: result['checkout_url'] as String,
+          providerName: 'Stripe',
+        );
+      } else {
+        // ignore: use_build_context_synchronously
+        ok = await showModalBottomSheet<bool>(
+              context: context,
+              isScrollControlled: true,
+              enableDrag:
+                  false, // prevent sheet drag from intercepting WebView scroll
+              backgroundColor: Colors.transparent,
+              useSafeArea: false,
+              builder: (_) => _WebViewSheet(
+                url: result['checkout_url'] as String,
+                title: 'Stripe Checkout',
+                successPattern: '/payment/success',
+                cancelPattern: '/payment/cancel',
+                onSuccess: (url) async {
+                  final sid = Uri.parse(url).queryParameters['session_id'];
+                  if (sid != null) {
+                    await BillingService().confirmStripeSession(sid);
+                  }
+                  return true;
+                },
+              ),
+            ) ??
+            false;
+      }
+      if (ok && mounted) {
         widget.externalRef.read(subscriptionProvider.notifier).refresh();
         // ignore: use_build_context_synchronously
         Navigator.pop(context);
@@ -319,28 +343,48 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         return;
       }
       final orderId = result['order_id'] as String?;
-      // ignore: use_build_context_synchronously
-      final ok = await showModalBottomSheet<bool>(
-        context: context,
-        isScrollControlled: true,
-        enableDrag:
-            false, // prevent sheet drag from intercepting WebView scroll
-        backgroundColor: Colors.transparent,
-        useSafeArea: false,
-        builder: (_) => _WebViewSheet(
-          url: result['approve_url'] as String,
-          title: 'PayPal Checkout',
-          successPattern: '/payment/paypal/return',
-          cancelPattern: '/payment/paypal/cancel',
-          onSuccess: (url) async {
-            if (orderId != null) {
-              await BillingService().capturePaypalOrder(orderId);
-            }
-            return true;
-          },
-        ),
-      );
-      if (ok == true && mounted) {
+
+      final bool ok;
+      if (Platform.isWindows) {
+        // PayPal requires an explicit capture call after the user
+        // approves in the browser — there's no way to detect that
+        // automatically without WebView URL interception, so the user
+        // confirms manually and we capture at that point.
+        // ignore: use_build_context_synchronously
+        ok = await launchWindowsCheckoutAndWait(
+          context: context,
+          ref: widget.externalRef,
+          checkoutUrl: result['approve_url'] as String,
+          providerName: 'PayPal',
+          onManualConfirm: orderId == null
+              ? null
+              : () => BillingService().capturePaypalOrder(orderId),
+        );
+      } else {
+        // ignore: use_build_context_synchronously
+        ok = await showModalBottomSheet<bool>(
+              context: context,
+              isScrollControlled: true,
+              enableDrag:
+                  false, // prevent sheet drag from intercepting WebView scroll
+              backgroundColor: Colors.transparent,
+              useSafeArea: false,
+              builder: (_) => _WebViewSheet(
+                url: result['approve_url'] as String,
+                title: 'PayPal Checkout',
+                successPattern: '/payment/paypal/return',
+                cancelPattern: '/payment/paypal/cancel',
+                onSuccess: (url) async {
+                  if (orderId != null) {
+                    await BillingService().capturePaypalOrder(orderId);
+                  }
+                  return true;
+                },
+              ),
+            ) ??
+            false;
+      }
+      if (ok && mounted) {
         widget.externalRef.read(subscriptionProvider.notifier).refresh();
         // ignore: use_build_context_synchronously
         Navigator.pop(context);
@@ -386,19 +430,54 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
       sub.cancel();
       if (!mounted) return;
       if (result.isSuccess || result.isRestored) {
-        // Verify with backend and refresh subscription
-        try {
-          if (result.receiptData != null) {
-            await BillingService().verifyIap(
-              productId: widget.productId,
-              receiptData: result.receiptData!,
-              transactionId: result.transactionId ?? '',
-              platform: Platform.isIOS ? 'app_store' : 'google_play',
-            );
-          }
-        } catch (_) {}
+        if (result.receiptData == null) {
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error =
+                'Purchase completed but no receipt was returned. Please use "Restore Purchases" or contact support.';
+          });
+          return;
+        }
+
+        // Verify with backend, retrying a few times — the store purchase is
+        // already completed at this point, so a lost verify call here means
+        // the user paid but the server never activates their plan.
+        Map<String, dynamic>? response;
+        for (var attempt = 0; attempt < 3; attempt++) {
+          response = await BillingService().verifyIap(
+            productId: widget.productId,
+            receiptData: result.receiptData!,
+            transactionId: result.transactionId ?? '',
+            platform: Platform.isIOS ? 'app_store' : 'google_play',
+            priceAmount: result.priceAmount,
+            currencyCode: result.currencyCode,
+          );
+          if (response['success'] == true) break;
+          if (attempt < 2) await Future.delayed(const Duration(seconds: 2));
+        }
+
         if (!mounted) return;
-        widget.externalRef.read(subscriptionProvider.notifier).refresh();
+
+        if (response == null || response['success'] != true) {
+          setState(() {
+            _loading = false;
+            _error =
+                'Your payment went through, but we could not confirm it with the server. '
+                'It will be retried automatically — please check back shortly or use "Restore Purchases".';
+          });
+          return;
+        }
+
+        // Refresh subscription state first so the cached `is_premium` flag
+        // AdMobService reads is up to date, then force it to re-check now
+        // instead of waiting for the next app-resume ad-settings refresh.
+        await widget.externalRef
+            .read(subscriptionProvider.notifier)
+            .refresh();
+        await AdMobService.instance.refreshAdSettings();
+
+        if (!mounted) return;
         // ignore: use_build_context_synchronously
         Navigator.pop(context);
         // ignore: use_build_context_synchronously
@@ -577,6 +656,7 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
   bool _loading = true;
   List<Map<String, dynamic>> _items = [];
   String? _error;
+  bool _needsSignIn = false;
 
   @override
   void initState() {
@@ -585,6 +665,16 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
   }
 
   Future<void> _fetch() async {
+    // Receipts require an authenticated user — without one the backend
+    // returns 401. Show a sign-in prompt instead of a raw network error.
+    if (FirebaseAuth.instance.currentUser == null) {
+      setState(() {
+        _needsSignIn = true;
+        _loading = false;
+      });
+      return;
+    }
+
     try {
       final res = await BillingService().getReceipts();
       if (!mounted) return;
@@ -593,6 +683,11 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
         final list = (data?['receipts'] as List? ?? []);
         setState(() {
           _items = list.cast<Map<String, dynamic>>();
+          _loading = false;
+        });
+      } else if (res['message'] == 'Unauthenticated.') {
+        setState(() {
+          _needsSignIn = true;
           _loading = false;
         });
       } else {
@@ -609,6 +704,14 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
         });
       }
     }
+  }
+
+  Future<void> _signIn() async {
+    // ignore: use_build_context_synchronously
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SignInScreen()));
   }
 
   @override
@@ -633,6 +736,55 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
                     child: Padding(
                       padding: EdgeInsets.all(40),
                       child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _needsSignIn
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Sign in to view your receipts',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Your purchase history is tied to your account.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _signIn,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Sign In'),
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : _error != null
@@ -964,7 +1116,7 @@ class _VoucherSheetState extends ConsumerState<_VoucherSheet> {
                   }
                 },
                 decoration: InputDecoration(
-                  hintText: 'VPN-XXXX-XXXX',
+                  hintText: 'VPNMASTER-XXXX-XXXX',
                   filled: true,
                   fillColor: isDark
                       ? const Color(0xFF0D1117)
@@ -1093,6 +1245,15 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
   }
 
   Future<void> _pickProof() async {
+    // image_picker has no Windows implementation — file_picker does.
+    if (Platform.isWindows) {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+      );
+      final path = result?.files.single.path;
+      if (path != null && mounted) setState(() => _proofPath = path);
+      return;
+    }
     final f = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
@@ -1541,7 +1702,11 @@ class _Sheet extends StatelessWidget {
           color: isDark ? const Color(0xFF161B22) : Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
         ),
-        child: child,
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: child,
+        ),
       ),
     );
   }

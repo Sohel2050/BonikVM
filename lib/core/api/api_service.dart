@@ -43,7 +43,7 @@ class ApiService {
             'Accept': 'application/json',
             'X-API-Token': AppConfig.apiKey, // Add API token for authentication
             // Simple headers for better compatibility with all build types
-            'User-Agent': 'VPNMASTER/3.0.0',
+            'User-Agent': 'AxeVPN/3.0.0',
             'X-App-Version': '3.0.0',
             // Add connection keep-alive
             'Connection': 'keep-alive',
@@ -323,6 +323,23 @@ class ApiService {
     }
   }
 
+  // Get app update info (force-update / min-version check against admin panel)
+  Future<Map<String, dynamic>> getUpdateInfo({
+    required String platform,
+    required String version,
+  }) async {
+    final response = await _dio.get(
+      '/api/${AppConfig.apiVersion}/app/update-info',
+      queryParameters: {'platform': platform, 'version': version},
+    );
+    if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+      return (response.data as Map<String, dynamic>)['data']
+              as Map<String, dynamic>? ??
+          {};
+    }
+    throw Exception('Failed to load update info');
+  }
+
   // Get AdMob Settings from Admin Panel
   Future<Map<String, dynamic>> getAdmobSettings() async {
     try {
@@ -405,20 +422,24 @@ class ApiService {
         if (configData is String && configData.isNotEmpty) {
           return configData;
         } else if (configData is Map<String, dynamic>) {
-          // Handle JSON response format
           if (configData.containsKey('config')) {
             final config = configData['config'];
             if (config is String && config.isNotEmpty) {
               return config;
             }
           } else if (configData.containsKey('error')) {
-            throw Exception('Server error: ${configData['error']}');
+            // Surface the backend error message so callers can show it
+            throw Exception('Server config error: ${configData['error']}');
           }
         }
         return '';
       } else {
         return '';
       }
+    } on Exception {
+      // Re-throw meaningful exceptions (e.g., "Server config error: ...") so
+      // callers like _connectWireGuard can show the real reason to the user.
+      rethrow;
     } catch (e) {
       return '';
     }
@@ -610,36 +631,27 @@ class ApiService {
   // Get available purchase plans
   Future<List<PurchasePlan>?> getPurchasePlans() async {
     try {
-      print(
-        '[API] Fetching purchase plans from: /api/${AppConfig.apiVersion}/purchase/plans',
-      );
       final response = await _makeRequestWithFallback(
         '/api/${AppConfig.apiVersion}/purchase/plans',
       );
 
-      print('[API] Purchase plans response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = response.data;
-        print('[API] Purchase plans response data: ${data}');
 
         if (data['success'] == true && data['data'] != null) {
           final plansData = data['data']['plans'] as List?;
-          print('[API] Found ${plansData?.length ?? 0} plans in response');
 
           final plans = plansData
               ?.map((plan) => PurchasePlan.fromJson(plan))
               .toList();
           return plans;
         } else {
-          print('[API] API returned success=false or no data');
         }
       } else {
-        print('[API] HTTP error: ${response.statusCode}');
       }
 
       return null;
     } catch (e) {
-      print('[API] Error fetching purchase plans: $e');
       return null;
     }
   }
@@ -1044,8 +1056,10 @@ class ApiService {
         if (data['ip'] != null) {
           // ipinfo.io returns org like "AS12345 Provider Name" — map to isp
           data['isp'] = data['org'] ?? data['isp'];
-          // ipinfo.io returns country as 2-letter code (e.g. "DE") — keep as-is
-          // country_name is not returned; country field will show the code
+          // ipinfo.io returns country as a bare 2-letter code (e.g. "DE") in
+          // the `country` field — IpAddressInfo expects that in
+          // `countryCode`/`country_code`, so mirror it there for the flag.
+          data['countryCode'] = data['country'];
           return data;
         }
       }
@@ -1798,15 +1812,15 @@ class AdMobConfig {
     return AdMobConfig(
       // Map the actual API response keys to our expected format
       bannerAndroid: json['abi'] ?? '', // Android Banner ID
-      bannerIos: json['ibi'] ?? '', // iOS Banner ID (if exists)
+      bannerIos: json['ibi'] ?? '', // iOS Banner ID
       interstitialAndroid: json['aii'] ?? '', // Android Interstitial ID
-      interstitialIos: json['iii'] ?? '', // iOS Interstitial ID (if exists)
-      rewardedAndroid: json['arii'] ?? '', // Android Rewarded ID
-      rewardedIos: json['iri'] ?? '', // iOS Rewarded ID (if exists)
+      interstitialIos: json['iii'] ?? '', // iOS Interstitial ID
+      rewardedAndroid: json['ari'] ?? '', // Android Rewarded ID
+      rewardedIos: json['iri'] ?? '', // iOS Rewarded ID
       nativeAndroid: json['ani'] ?? '', // Android Native ID
-      nativeIos: json['ini'] ?? '', // iOS Native ID (if exists)
+      nativeIos: json['ini'] ?? '', // iOS Native ID
       appOpenAndroid: json['aai'] ?? '', // Android App Open ID
-      appOpenIos: json['iai'] ?? '', // iOS App Open ID (if exists)
+      appOpenIos: json['iai'] ?? '', // iOS App Open ID
     );
   }
 }

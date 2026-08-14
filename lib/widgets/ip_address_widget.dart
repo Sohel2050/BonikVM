@@ -324,8 +324,39 @@ Widget build(BuildContext context, WidgetRef ref) {
                   ),
                 ),
 
+                const SizedBox(height: 10),
 
-
+                // Location Info
+                if (ipData.country != null || ipData.city != null)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          [
+                            if (ipData.city != null) ipData.city!,
+                            if (ipData.country != null) ipData.country!,
+                          ].join(', '),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      if (ipData.countryCode != null)
+                        Text(
+                          _getCountryFlag(ipData.countryCode!),
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                    ],
+                  ),
 
                 // ISP Info
                 if (ipData.isp != null) ...[
@@ -381,15 +412,36 @@ Widget build(BuildContext context, WidgetRef ref) {
                   width: 1,
                 ),
               ),
-
-
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Failed to load IP',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.red[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => ref.invalidate(ipAddressProvider),
+                    child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
               ),
             ),
-
+          ),
         ],
       ),
     ),
   );
 }
 
-
+String _getCountryFlag(String countryCode) {
+  final code = countryCode.toUpperCase();
+  return String.fromCharCode(code.codeUnitAt(0) + 127397) +
+      String.fromCharCode(code.codeUnitAt(1) + 127397);
+}

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ironsource_mediation/ironsource_mediation.dart';
+import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
 import '../core/services/level_play_service.dart';
 
 /// A widget that loads and displays a LevelPlay (IronSource) banner ad using

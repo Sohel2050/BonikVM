@@ -11,6 +11,9 @@ import '../api/api_service.dart';
 import 'purchase_service.dart';
 import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
+import 'windows_vpn_service.dart';
+import 'windows_wireguard_service.dart';
+import 'windows_v2ray_service.dart';
 
 class VpnService {
   static final VpnService _instance = VpnService._internal();
@@ -26,6 +29,13 @@ class VpnService {
   WireGuard? _wireGuard;
   V2Ray? _v2ray;
   OpenConnect? _openConnect;
+  final WindowsVpnService _windowsVpn = WindowsVpnService.instance;
+  final WindowsWireGuardService _windowsWireGuard =
+      WindowsWireGuardService.instance;
+  final WindowsV2RayService _windowsV2Ray = WindowsV2RayService.instance;
+  StreamSubscription<VpnState>? _windowsVpnSub;
+  StreamSubscription<VpnState>? _windowsWireGuardSub;
+  StreamSubscription<VpnState>? _windowsV2RaySub;
   Completer<bool>? _ocCompleter;
   VpnState _vpnState = VpnState.disconnected;
   VpnServer? _currentServer;
@@ -84,6 +94,14 @@ class VpnService {
       // Initialize local notifications
       await _initializeNotifications();
 
+      if (Platform.isWindows) {
+        _windowsVpnSub ??= _windowsVpn.stateStream.listen(_bridgeWindowsState);
+        _windowsWireGuardSub ??=
+            _windowsWireGuard.stateStream.listen(_bridgeWindowsState);
+        _windowsV2RaySub ??=
+            _windowsV2Ray.stateStream.listen(_bridgeWindowsState);
+      }
+
       // Initialize OpenVPN plugin immediately for iOS
       if (Platform.isIOS) {
         try {
@@ -92,27 +110,19 @@ class VpnService {
             onVpnStageChanged: _onVpnStageChanged,
           );
 
-          print('🔧 Initializing OpenVPN for iOS...');
-          print('   Group ID: com.albonik.vpn');
-          print('   Provider Bundle: com.albonik.vpn.VPNExtension');
 
           await _openVPN!.initialize(
-            groupIdentifier: "com.albonik.vpn",
-            providerBundleIdentifier: "com.app.axevpnbh.VPNExtension",
+            groupIdentifier: "group.com.albonik.vpn",
+            providerBundleIdentifier: "com.albonik.vpn.VPNExtension",
             localizedDescription: "VPN MASTER Connection",
           );
-          print('✅ OpenVPN initialized for iOS');
 
           // Test if VPN profile is installed
           try {
             final stage = await _openVPN!.stage();
-            print('📊 Current VPN stage: $stage');
           } catch (e) {
-            print('⚠️ Could not get VPN stage (normal on first install): $e');
           }
         } catch (e) {
-          print('⚠️ Failed to initialize OpenVPN for iOS: $e');
-          print('   This may prevent VPN from connecting');
         }
       }
 
@@ -132,6 +142,25 @@ class VpnService {
       // Even on error, emit disconnected state
       _vpnState = VpnState.disconnected;
       _stateController.add(_vpnState);
+    }
+  }
+
+  /// Shared state-stream bridge for all three Windows backends (OpenVPN,
+  /// WireGuard, V2Ray) into the single cross-platform VpnState the rest of
+  /// the app watches.
+  void _bridgeWindowsState(VpnState state) {
+    _updateVpnState(state);
+    if (state == VpnState.connected) {
+      _connectionStartTime ??= DateTime.now();
+      _cancelConnectionTimer();
+      _logConnection();
+      _startStatusUpdater();
+    } else if (state == VpnState.disconnected || state == VpnState.error) {
+      _cancelConnectionTimer();
+      _stopStatusUpdater();
+      _logDisconnection();
+      _currentServer = null;
+      _connectionStartTime = null;
     }
   }
 
@@ -169,9 +198,7 @@ class VpnService {
             onVpnStageChanged: _onVpnStageChanged,
           );
           await _openVPN!.initialize();
-          print('✅ Android OpenVPN initialised for state recovery');
         } catch (e) {
-          print('⚠️ Android OpenVPN early init failed: $e');
           _openVPN = null;
         }
       }
@@ -181,9 +208,29 @@ class VpnService {
         try {
           final currentStage = await _openVPN!.stage();
           isActuallyConnected = (currentStage == VPNStage.connected);
-          print('📊 VPN plugin stage on startup: $currentStage');
         } catch (e) {
-          print('⚠️ Could not query VPN stage: $e');
+        }
+      }
+
+      // If OpenVPN is not connected, check WireGuard (tunnel may still be up).
+      if (!isActuallyConnected && Platform.isAndroid) {
+        try {
+          final tempWg = WireGuard(
+            onVpnStageChanged: (_, __) {},
+            onVpnStatusChanged: (_) {},
+          );
+          await tempWg.initialize();
+          final wgStage = await tempWg.stage();
+          if (wgStage == WGStage.connected) {
+            isActuallyConnected = true;
+            // Re-use or create the real WireGuard instance so callbacks work.
+            _wireGuard ??= WireGuard(
+              onVpnStageChanged: _onWireGuardStageChanged,
+              onVpnStatusChanged: _onWireGuardStatusChanged,
+            );
+            await _wireGuard!.initialize();
+          }
+        } catch (e) {
         }
       }
 
@@ -196,9 +243,6 @@ class VpnService {
           );
           final ocRunning = await tempOc.isServiceRunning();
           if (ocRunning) {
-            print(
-              '📊 OC foreground service is still running — recovering OC state',
-            );
             isActuallyConnected = true;
             // Initialise the real OC instance so event callbacks work.
             _openConnect ??= OpenConnect(
@@ -209,7 +253,6 @@ class VpnService {
             await _openConnect!.initialize();
           }
         } catch (e) {
-          print('⚠️ OC state check error: $e');
         }
       }
 
@@ -219,17 +262,12 @@ class VpnService {
         _totalConnectionTime = connectionDuration ?? Duration.zero;
         _vpnState = VpnState.connected;
         _startStatusUpdater();
-        print(
-          '✅ VPN state recovered: still connected to ${_currentServer?.name}',
-        );
       } else {
         // VPN is not running — clear the stale saved state.
         _vpnState = VpnState.disconnected;
         await _persistence.clearVpnState();
-        print('📊 VPN not active on startup, cleared saved state');
       }
     } catch (e) {
-      print('Error loading saved VPN state: $e');
       _vpnState = VpnState.disconnected;
       await _persistence.clearVpnState();
     }
@@ -333,16 +371,14 @@ class VpnService {
       // Initialize based on platform
       if (Platform.isIOS) {
         await _openVPN!.initialize(
-          groupIdentifier: "com.albonik.vpn",
-          providerBundleIdentifier: "com.app.axevpnbh.VPNExtension",
+          groupIdentifier: "group.com.albonik.vpn",
+          providerBundleIdentifier: "com.albonik.vpn.VPNExtension",
           localizedDescription: "VPN MASTER Connection",
         );
       } else if (Platform.isAndroid) {
         await _openVPN!.initialize();
       }
-      print('✅ OpenVPN initialized successfully');
     } catch (e) {
-      print('❌ Failed to initialize OpenVPN: $e');
       // Retry once more for Android
       if (Platform.isAndroid && _openVPN != null) {
         try {
@@ -387,31 +423,21 @@ class VpnService {
   }
 
   Future<void> _onVpnStageChanged(VPNStage stage, String rawStage) async {
-    print(
-      '🔄 VPN Stage Changed: $stage (raw: $rawStage) - Current State: $_vpnState',
-    );
 
     switch (stage) {
       case VPNStage.prepare:
         _updateVpnState(VpnState.connecting);
-        print('📡 Preparing VPN connection...');
         break;
       case VPNStage.connecting:
         _updateVpnState(VpnState.connecting);
-        print('🔌 Connecting to VPN server...');
         break;
       case VPNStage.authenticating:
         _updateVpnState(VpnState.authenticating);
-        print('🔐 Authenticating...');
         break;
       case VPNStage.connected:
         if (_isUserDisconnecting) {
-          print(
-            '⚠️ Ignoring VPN connected event during user-initiated disconnect',
-          );
           break;
         }
-        print('✅ VPN Connected successfully! Updating state...');
         _updateVpnState(VpnState.connected);
         // Only set connection start time if not already set (e.g. restored on app relaunch).
         _connectionStartTime ??= DateTime.now();
@@ -421,7 +447,6 @@ class VpnService {
         // stats + disconnect button. Showing a second Flutter notification
         // here would duplicate it, so we skip _showVpnConnectedNotification().
         _startStatusUpdater(); // Start periodic status updates
-        print('✅ All connection tasks completed');
 
         // Save VPN state to persistence to prevent premium bypass
         if (_currentServer != null) {
@@ -450,23 +475,12 @@ class VpnService {
               _suppressDisconnectedUntil != null &&
               DateTime.now().isBefore(_suppressDisconnectedUntil!);
           if (inGracePeriod) {
-            print(
-              '⏳ Ignoring transient disconnected event during connection startup grace period',
-            );
             break;
           }
-          print('❌ VPN disconnected immediately during connection attempt');
-          print('💡 This usually means:');
-          print('   1. VPN Extension failed to start');
-          print('   2. Configuration error in VPN Extension');
-          print('   3. iOS VPN profile needs to be deleted and recreated');
-          print('   4. Check Settings > VPN for "Update Required" message');
-          print('   5. Extension may not be properly signed/embedded');
           _updateVpnState(VpnState.error);
         } else {
           _suppressDisconnectedUntil = null;
           _updateVpnState(VpnState.disconnected);
-          print('🔌 VPN Disconnected');
         }
 
         _cancelConnectionTimer();
@@ -482,29 +496,22 @@ class VpnService {
       case VPNStage.denied:
         _updateVpnState(VpnState.denied);
         _cancelConnectionTimer();
-        print('❌ VPN Permission Denied');
         break;
       case VPNStage.error:
         _cancelConnectionTimer();
         _updateVpnState(VpnState.error);
-        print('❌ VPN Error: $rawStage');
 
         // Provide more specific error information
         if (rawStage.toLowerCase().contains('auth')) {
-          print('🔐 Authentication error detected');
         } else if (rawStage.toLowerCase().contains('timeout')) {
-          print('⏱️ Connection timeout detected');
         } else if (rawStage.toLowerCase().contains('network')) {
-          print('🌐 Network error detected');
         }
         break;
       default:
         if (rawStage.toLowerCase().contains('wait')) {
           _updateVpnState(VpnState.waitConnection);
-          print('⏳ Waiting for connection...');
         } else if (rawStage.toLowerCase().contains('reconnect')) {
           _updateVpnState(VpnState.reconnecting);
-          print('🔄 Reconnecting...');
         } else if (rawStage.toLowerCase().contains('noprocess')) {
           if (_vpnState == VpnState.connected) {}
         }
@@ -584,30 +591,25 @@ class VpnService {
         await initialize();
       }
 
+      if (Platform.isWindows) {
+        return await _connectWindows(server);
+      }
+
       // DEBUG: Log protocol detection
-      print('🔍 VPN Protocol Detection (vpn_service):');
-      print('   Server: ${server.name}');
-      print('   vpnProtocolType: "${server.vpnProtocolType}"');
-      print('   supportsWireGuard: ${server.supportsWireGuard}');
-      print('   supportsOpenVPN: ${server.supportsOpenVPN}');
 
       // CRITICAL: Check protocol type and route to appropriate engine
       if (server.vpnProtocolType == 'wireguard') {
-        print('✅ Detected WireGuard - using WireGuard engine');
         return await _connectWireGuard(server);
       }
 
       if (server.vpnProtocolType == 'v2ray') {
-        print('✅ Detected V2Ray - using V2Ray engine');
         return await _connectV2Ray(server);
       }
 
       if (server.vpnProtocolType == 'openconnect') {
-        print('✅ Detected OpenConnect - using OpenConnect engine');
         return await _connectOpenConnect(server);
       }
 
-      print('✅ Detected OpenVPN - continuing with OpenVPN engine');
 
       // Check if user can access this server
       final canAccess = await canAccessServer(server);
@@ -625,10 +627,6 @@ class VpnService {
 
       _currentServer = server;
       _updateVpnState(VpnState.connecting);
-      print(
-        '🌐 Connecting to server: ${server.name} (${server.ip}:${server.port})',
-      );
-      print('📡 Protocol: ${server.protocol}');
 
       // Check VPN permission first (Android)
       if (Platform.isAndroid) {
@@ -655,7 +653,6 @@ class VpnService {
 
       // For iOS, ensure we're using the correct initialization
       if (Platform.isIOS && _openVPN == null) {
-        print('⚠️ OpenVPN not initialized, initializing now...');
         await _ensureOpenVPNReady();
       }
 
@@ -668,9 +665,6 @@ class VpnService {
 
       // For iOS: If this is a retry due to immediate disconnect, try reconfiguring
       if (Platform.isIOS && retryCount == 1) {
-        print(
-          '🔄 Attempting to reconfigure VPN profile (retry $retryCount)...',
-        );
         await reconfigureVpn();
       }
 
@@ -680,10 +674,6 @@ class VpnService {
       try {
         // Try to fetch config from API first
         config = await _fetchServerConfig(server);
-        print('📥 Fetched config from API: ${config.length} bytes');
-        print('📝 Has certificates: ${config.contains('<ca>')}');
-        print('🔐 Has auth: ${config.contains('auth-user-pass')}');
-        print('🔑 Has embedded auth: ${config.contains('<auth-user-pass>')}');
 
         if (config.isEmpty) {
           throw Exception('Failed to fetch VPN configuration from server');
@@ -691,19 +681,13 @@ class VpnService {
       } catch (configError) {
         // OneConnect servers must use their embedded config — never fall back
         if (server.isOneConnect) {
-          print('❌ OneConnect config error (no fallback): $configError');
           rethrow;
         }
-        print('⚠️ Config fetch error: $configError');
         config = _createMinimalWorkingConfig(server);
-        print('🔧 Created fallback config: ${config.length} bytes');
       } // Start connection timeout timer (longer timeout for better reliability)
       _startConnectionTimer();
 
       // Enhanced connection with better error handling
-      print('🔐 Pre-connect credentials check:');
-      print('   Has username: ${server.vpnUsername.isNotEmpty}');
-      print('   Has password: ${server.vpnPassword.isNotEmpty}');
 
       await _simpleConnect(config, server);
 
@@ -722,9 +706,6 @@ class VpnService {
         if (retryCount == 0) {
           // First retry: Switch protocol (skip for OneConnect whose config embeds the protocol)
           if (server.isOneConnect) {
-            print(
-              '❌ OneConnect connection failed, not retrying with protocol swap',
-            );
             return false;
           }
 
@@ -782,10 +763,6 @@ class VpnService {
         throw Exception('OpenVPN not initialized');
       }
 
-      print('🔧 Preparing to connect...');
-      print('   OpenVPN instance: ${_openVPN != null ? "Ready" : "NULL"}');
-      print('   Server: ${server.name}');
-      print('   Config size: ${config.length} bytes');
 
       // Validate config has minimum requirements
       if (!config.contains('client') || !config.contains('remote')) {
@@ -794,8 +771,8 @@ class VpnService {
         );
       }
 
-      // Check if config needs username/password and we have them
-      final needsAuth = config.contains('auth-user-pass');
+      // Check if config needs username/password — only match uncommented lines
+      final needsAuth = RegExp(r'^(?!;)\s*auth-user-pass\b', multiLine: true).hasMatch(config);
       final hasEmbeddedAuth = config.contains('<auth-user-pass>');
 
       // Decrypt credentials for OneConnect servers (encrypted storage format)
@@ -807,9 +784,6 @@ class VpnService {
           : server.vpnPassword;
 
       if (server.isOneConnect) {
-        print(
-          '🔓 OneConnect decrypted username length: ${effectiveUsername.length}',
-        );
       }
 
       final hasCredentials =
@@ -819,9 +793,6 @@ class VpnService {
           config.contains('<ca>') ||
           config.contains('<key>');
 
-      print(
-        '🔐 Auth Config - needsAuth: $needsAuth, embedded: $hasEmbeddedAuth, hasCreds: $hasCredentials, hasCerts: $hasCertificates',
-      );
 
       // Handle different authentication types
       String finalConfig = config;
@@ -829,9 +800,6 @@ class VpnService {
       // If credentials are embedded in <auth-user-pass> tags, remove them
       // because openvpn_flutter doesn't support inline auth
       if (hasEmbeddedAuth) {
-        print(
-          '⚠️ Removing embedded credentials - plugin requires separate params',
-        );
         // Remove the embedded auth block and replace with simple directive
         final authRegex = RegExp(
           r'<auth-user-pass>.*?</auth-user-pass>',
@@ -857,7 +825,6 @@ class VpnService {
       if (hasCertificates && needsAuth && hasCredentials) {
         // Perfect setup: certificates + username/password (hybrid auth)
         // Keep the config as-is, credentials will be passed separately
-        print('✅ Using hybrid authentication: certificates + credentials');
       }
 
       // Handle edge cases
@@ -874,28 +841,13 @@ class VpnService {
         username: hasCredentials ? effectiveUsername : null,
         password: hasCredentials ? effectivePassword : null,
         bypassPackages: [],
-        certIsRequired: false, // Let OpenVPN determine auth method from config
+        certIsRequired: hasCertificates,
       );
 
-      print('✅ OpenVPN connect() returned successfully');
-      print('   Method call completed without throwing exception');
-      print('   Now waiting for VPN extension callbacks...');
 
-      print('🔑 Credentials: ${hasCredentials ? "Provided" : "Not required"}');
-      print(
-        '📜 Certificates: ${finalConfig.contains('<cert>') || finalConfig.contains('<ca>') ? "Yes" : "No"}',
-      );
 
       // For iOS, verify the connect call actually started the extension
       if (Platform.isIOS) {
-        print('📱 iOS: VPN connect initiated');
-        print('⏳ Waiting for VPN extension to respond...');
-        print('💡 If connection fails:');
-        print('   1. Check VPN profile in Settings > VPN');
-        print('   2. Grant VPN permission if prompted');
-        print(
-          '   3. Check Xcode console for VPN Extension logs starting with "📡"',
-        );
       }
 
       // iOS VPN extension needs time to initialize before reporting status
@@ -905,7 +857,6 @@ class VpnService {
         Future.delayed(const Duration(seconds: 5), () {
           if (_vpnState == VpnState.connecting ||
               _vpnState == VpnState.authenticating) {
-            print('📊 Starting status polling after initial delay');
             _startStatusCheckTimer();
           }
         });
@@ -914,7 +865,6 @@ class VpnService {
         _startStatusCheckTimer();
       }
     } catch (e) {
-      print('❌ OpenVPN connect() failed: $e');
       // Provide more specific error information
       if (e.toString().contains('permission')) {
         throw Exception('VPN permission denied - please check app permissions');
@@ -938,9 +888,6 @@ class VpnService {
         final ovpnConfig =
             server.providerPayload?['ovpnConfiguration'] as String?;
         if (ovpnConfig != null && ovpnConfig.isNotEmpty) {
-          print(
-            '✅ Using embedded OneConnect ovpnConfiguration (${ovpnConfig.length} bytes)',
-          );
           return ovpnConfig;
         }
         throw Exception('OneConnect server has no embedded OVPN configuration');
@@ -1029,10 +976,186 @@ pull
     }
   }
 
+  // ── Windows engine ─────────────────────────────────────────────────────
+  // OpenVPN, WireGuard and V2Ray/Xray servers are supported on Windows via
+  // windows_vpn_service.dart / windows_wireguard_service.dart /
+  // windows_v2ray_service.dart. OpenConnect has no available Windows
+  // binary and is not yet supported here.
+
+  Future<bool> _connectWindows(VpnServer server) async {
+    final canAccess = await canAccessServer(server);
+    if (!canAccess) {
+      throw Exception('Premium subscription required to access this server');
+    }
+
+    switch (server.vpnProtocolType) {
+      case 'wireguard':
+        return _connectWindowsWireGuard(server);
+      case 'v2ray':
+        return _connectWindowsV2Ray(server);
+      case 'openconnect':
+        _updateVpnState(VpnState.error);
+        return false;
+      case 'openvpn':
+      default:
+        return _connectWindowsOpenVpn(server);
+    }
+  }
+
+  Future<bool> _connectWindowsOpenVpn(VpnServer server) async {
+    _currentServer = server;
+    _updateVpnState(VpnState.connecting);
+    _startConnectionTimer();
+
+    String config;
+    try {
+      config = await _fetchServerConfig(server);
+      if (config.isEmpty) throw Exception('Empty config');
+    } catch (e) {
+      config = _createMinimalWorkingConfig(server);
+    }
+
+    final effectiveUsername = server.isOneConnect
+        ? _decryptOneConnect(server.vpnUsername)
+        : server.vpnUsername;
+    final effectivePassword = server.isOneConnect
+        ? _decryptOneConnect(server.vpnPassword)
+        : server.vpnPassword;
+
+    try {
+      final started = await _windowsVpn.connect(
+        config: config,
+        name: server.name,
+        username: effectiveUsername.isNotEmpty ? effectiveUsername : null,
+        password: effectivePassword.isNotEmpty ? effectivePassword : null,
+      );
+      if (!started) {
+        _cancelConnectionTimer();
+        _updateVpnState(VpnState.error);
+        _currentServer = null;
+      }
+      return started;
+    } catch (e) {
+      _cancelConnectionTimer();
+      _updateVpnState(VpnState.error);
+      _currentServer = null;
+      return false;
+    }
+  }
+
+  Future<bool> _connectWindowsWireGuard(VpnServer server) async {
+    _currentServer = server;
+    _updateVpnState(VpnState.connecting);
+    _startConnectionTimer();
+
+    String config;
+    try {
+      final serverId = int.tryParse(server.id) ?? 0;
+      config = await ApiService.instance.getServerConfig(serverId);
+      if (config.isEmpty || !config.contains('[Interface]')) {
+        throw Exception('Invalid or missing WireGuard configuration');
+      }
+    } catch (e) {
+      _cancelConnectionTimer();
+      _updateVpnState(VpnState.error);
+      _currentServer = null;
+      return false;
+    }
+
+    try {
+      final started = await _windowsWireGuard.connect(
+        config: config,
+        name: server.name,
+      );
+      if (!started) {
+        _cancelConnectionTimer();
+        _updateVpnState(VpnState.error);
+        _currentServer = null;
+      }
+      return started;
+    } catch (e) {
+      _cancelConnectionTimer();
+      _updateVpnState(VpnState.error);
+      _currentServer = null;
+      return false;
+    }
+  }
+
+  Future<bool> _connectWindowsV2Ray(VpnServer server) async {
+    _currentServer = server;
+    _updateVpnState(VpnState.connecting);
+    _startConnectionTimer();
+
+    final configJson = _buildV2RayConfigJson(server);
+
+    try {
+      final started = await _windowsV2Ray.connect(
+        configJson: configJson,
+        name: server.name,
+      );
+      if (!started) {
+        _cancelConnectionTimer();
+        _updateVpnState(VpnState.error);
+        _currentServer = null;
+      }
+      return started;
+    } catch (e) {
+      _cancelConnectionTimer();
+      _updateVpnState(VpnState.error);
+      _currentServer = null;
+      return false;
+    }
+  }
+
+  /// Builds the Xray-core JSON config for [server] — shared by the mobile
+  /// axevpn_flutter V2Ray engine and the Windows xray.exe backend, since
+  /// V2Ray's static config builders are pure Dart with no native
+  /// dependency.
+  String _buildV2RayConfigJson(VpnServer server) {
+    final sub = server.v2raySubProtocol ?? 'vless';
+    switch (sub) {
+      case 'vmess':
+        return V2Ray.buildVmessConfig(
+          address: server.ip,
+          port: server.v2rayPort ?? server.port,
+          uuid: server.v2rayUuid ?? '',
+          network: server.v2rayNetwork ?? 'tcp',
+          security: server.v2raySecurity ?? 'tls',
+          serverName: server.v2rayHost,
+          path: server.v2rayPath,
+        );
+      case 'trojan':
+        return V2Ray.buildTrojanConfig(
+          address: server.ip,
+          port: server.v2rayPort ?? server.port,
+          password: server.v2rayUuid ?? '',
+          serverName: server.v2rayHost,
+        );
+      case 'shadowsocks':
+        return V2Ray.buildShadowsocksConfig(
+          address: server.ip,
+          port: server.v2rayPort ?? server.port,
+          password: server.v2rayUuid ?? '',
+          method: server.v2raySecurity ?? 'chacha20-ietf-poly1305',
+        );
+      case 'vless':
+      default:
+        return V2Ray.buildVlessConfig(
+          address: server.ip,
+          port: server.v2rayPort ?? server.port,
+          uuid: server.v2rayUuid ?? '',
+          network: server.v2rayNetwork ?? 'tcp',
+          security: server.v2raySecurity ?? 'reality',
+          serverName: server.v2rayHost,
+          publicKey: server.v2rayPublicKey,
+          shortId: server.v2rayShortId,
+        );
+    }
+  }
+
   /// Connect to WireGuard server
   Future<bool> _connectWireGuard(VpnServer server) async {
     try {
-      print('🔧 Initializing WireGuard connection...');
 
       // ✅ CRITICAL: Set current server for disconnect routing
       _currentServer = server;
@@ -1045,32 +1168,46 @@ pull
           onVpnStageChanged: _onWireGuardStageChanged,
         );
         await _wireGuard!.initialize();
-        print('✅ WireGuard engine initialized');
       }
 
       // Fetch WireGuard config
       final serverId = int.tryParse(server.id) ?? 0;
-      final config = await ApiService.instance.getServerConfig(serverId);
-
-      if (config.isEmpty) {
+      final String config;
+      try {
+        config = await ApiService.instance.getServerConfig(serverId);
+      } catch (e) {
+        // Backend returned an error (e.g. config file not uploaded yet)
         throw Exception(
-          'WireGuard configuration not available for this server',
+          'WireGuard config not available. '
+          'Upload a .conf file for this server in the admin panel. ($e)',
         );
       }
 
-      print('📥 Fetched WireGuard config: ${config.length} bytes');
+      if (config.isEmpty) {
+        throw Exception(
+          'WireGuard configuration not available. '
+          'Upload a .conf file for this server in the admin panel.',
+        );
+      }
+
+      // Basic sanity check – must look like a WireGuard config
+      if (!config.contains('[Interface]') && !config.contains('[Peer]')) {
+        throw Exception(
+          'Invalid WireGuard configuration returned by server. '
+          'Please check the uploaded .conf file in the admin panel.',
+        );
+      }
+
 
       // Connect using WireGuard
       await _wireGuard!.connect(config, server.name);
 
-      print('✅ WireGuard connect() called successfully');
 
       // Start connection monitoring
       _startConnectionTimer();
 
       return true;
     } catch (e) {
-      print('❌ WireGuard connection failed: $e');
       _updateVpnState(VpnState.error);
       return false;
     }
@@ -1079,14 +1216,12 @@ pull
   /// Handle WireGuard status changes
   void _onWireGuardStatusChanged(WireGuardStatus? status) {
     if (status != null) {
-      _statusController.add(null); // Convert to VpnStatus if needed
-      print('📊 WireGuard Status: ${status.duration}');
+      // Timer is driven by _startStatusUpdater using _connectionStartTime; no null emit here.
     }
   }
 
   /// Handle WireGuard stage changes
   void _onWireGuardStageChanged(WGStage stage, String raw) {
-    print('🔄 WireGuard Stage: $stage');
 
     switch (stage) {
       case WGStage.preparing:
@@ -1095,7 +1230,7 @@ pull
         break;
       case WGStage.connected:
         _cancelConnectionTimer();
-        _connectionStartTime = DateTime.now();
+        _connectionStartTime ??= DateTime.now(); // preserve start time on app restore
         _updateVpnState(VpnState.connected);
         _logConnection();
         _startStatusUpdater();
@@ -1109,7 +1244,6 @@ pull
         _connectionStartTime = null;
         _currentServer = null;
         _updateVpnState(VpnState.disconnected);
-        print('✅ Clearing current server reference after disconnect');
         break;
       case WGStage.error:
         _cancelConnectionTimer();
@@ -1117,7 +1251,6 @@ pull
         _connectionStartTime = null;
         _currentServer = null;
         _updateVpnState(VpnState.error);
-        print('⚠️ Clearing current server reference after error');
         break;
       case WGStage.denied:
         _cancelConnectionTimer();
@@ -1128,7 +1261,6 @@ pull
         break;
       case WGStage.unknown:
         // Don't update state for unknown stage
-        print('⚠️ WireGuard unknown stage');
         break;
     }
   }
@@ -1137,13 +1269,11 @@ pull
 
   Future<bool> _connectV2Ray(VpnServer server) async {
     try {
-      print('🔧 Initializing V2Ray connection...');
       _currentServer = server;
       _updateVpnState(VpnState.connecting);
 
       _v2ray ??= V2Ray(
         onVpnStatusChanged: (status) {
-          if (status != null) print('📊 V2Ray status: ${status.state}');
         },
         onVpnStageChanged: _onV2RayStageChanged,
       );
@@ -1206,14 +1336,12 @@ pull
       _startConnectionTimer();
       return true;
     } catch (e) {
-      print('❌ V2Ray connection failed: $e');
       _updateVpnState(VpnState.error);
       return false;
     }
   }
 
   void _onV2RayStageChanged(V2RayStage stage, String raw) {
-    print('🔄 V2Ray Stage: $stage');
     switch (stage) {
       case V2RayStage.preparing:
       case V2RayStage.connecting:
@@ -1259,7 +1387,6 @@ pull
 
   Future<bool> _connectOpenConnect(VpnServer server) async {
     try {
-      print('🔧 Initializing OpenConnect connection...');
       _currentServer = server;
       _updateVpnState(VpnState.connecting);
 
@@ -1272,7 +1399,6 @@ pull
 
       _openConnect ??= OpenConnect(
         onVpnStatusChanged: (status) {
-          if (status != null) print('📊 OpenConnect status: ${status.state}');
         },
         onVpnStageChanged: _onOpenConnectStageChanged,
       );
@@ -1298,7 +1424,6 @@ pull
       final connected = await _ocCompleter!.future.timeout(
         const Duration(seconds: 60),
         onTimeout: () {
-          print('⏱️ OpenConnect connection timed out after 60 s');
           _updateVpnState(VpnState.error);
           return false;
         },
@@ -1306,7 +1431,6 @@ pull
       _ocCompleter = null;
       return connected;
     } catch (e) {
-      print('❌ OpenConnect connection failed: $e');
       _ocCompleter = null;
       _updateVpnState(VpnState.error);
       return false;
@@ -1314,7 +1438,6 @@ pull
   }
 
   void _onOpenConnectStageChanged(OCStage stage, String raw) {
-    print('🔄 OpenConnect Stage: $stage');
     switch (stage) {
       case OCStage.preparing:
       case OCStage.connecting:
@@ -1382,8 +1505,6 @@ pull
       if (_vpnState == VpnState.connecting ||
           _vpnState == VpnState.authenticating ||
           _vpnState == VpnState.waitConnection) {
-        print('⏱️ Connection timeout after ${timeout.inSeconds} seconds');
-        print('🔄 Force disconnecting due to timeout...');
 
         // Force disconnect based on protocol
         if (_currentServer?.vpnProtocolType == 'wireguard' &&
@@ -1428,32 +1549,40 @@ pull
           _vpnState == VpnState.authenticating) {
         // Only log every 5th check to reduce spam
         if (checkCount % 5 == 0) {
-          print('📊 Status check ${checkCount}/${maxChecks}: Still $_vpnState');
         }
 
         // Stop checking after max attempts
         if (checkCount >= maxChecks) {
-          print('⏱️ Status polling timeout after ${maxChecks * 2} seconds');
           timer.cancel();
         }
       } else {
         // Stop checking once we're connected or disconnected
-        print('✅ Status polling stopped - State: $_vpnState');
         timer.cancel();
       }
     });
   }
 
   Future<void> disconnect() async {
+    if (Platform.isWindows) {
+      _isUserDisconnecting = true;
+      try {
+        // Disconnect all three — cheap no-ops for the ones that weren't
+        // active, and avoids needing to track which engine is "current"
+        // separately from _currentServer.
+        await Future.wait([
+          _windowsVpn.disconnect(),
+          _windowsWireGuard.disconnect(),
+          _windowsV2Ray.disconnect(),
+        ]);
+      } finally {
+        _isUserDisconnecting = false;
+      }
+      return;
+    }
+
     _isUserDisconnecting = true;
     try {
       final protocol = _currentServer?.vpnProtocolType.toLowerCase();
-      print('═══════════════════════════════════════');
-      print('🔌 DISCONNECT CALLED');
-      print('   Server: ${_currentServer?.name}');
-      print('   Protocol: $protocol');
-      print('   Current State: $_vpnState');
-      print('═══════════════════════════════════════');
 
       _updateVpnState(VpnState.disconnecting);
       _cancelConnectionTimer();
@@ -1461,21 +1590,15 @@ pull
       // Try protocol-specific disconnect first, then run generic fallbacks.
       if (protocol == 'wireguard' && _wireGuard != null) {
         try {
-          print('🔌 Disconnecting WireGuard...');
           await _wireGuard!.disconnect();
-          print('✅ WireGuard disconnect completed');
         } catch (e) {
-          print('⚠️ WireGuard disconnect failed: $e');
         }
       }
 
       if (protocol == 'v2ray' && _v2ray != null) {
         try {
-          print('🔌 Disconnecting V2Ray...');
           await _v2ray!.disconnect();
-          print('✅ V2Ray disconnect completed');
         } catch (e) {
-          print('⚠️ V2Ray disconnect failed: $e');
         }
       }
 
@@ -1488,12 +1611,9 @@ pull
           );
           final ocRunning = await _openConnect!.isServiceRunning();
           if (ocRunning || protocol == 'openconnect') {
-            print('🔌 Disconnecting OpenConnect...');
             await _openConnect!.disconnect();
-            print('✅ OpenConnect disconnect completed');
           }
         } catch (e) {
-          print('⚠️ OpenConnect disconnect failed: $e');
         }
       }
 
@@ -1507,20 +1627,17 @@ pull
           await _openVPN!.initialize();
         } else if (Platform.isIOS) {
           await _openVPN!.initialize(
-            groupIdentifier: "group.com.app.axevpnbh",
-            providerBundleIdentifier: "com.app.axevpnbh.VPNExtension",
+            groupIdentifier: "group.com.albonik.vpn",
+            providerBundleIdentifier: "com.albonik.vpn.VPNExtension",
             localizedDescription: "VPN MASTER Connection",
           );
         }
-        print('🔌 Disconnecting OpenVPN...');
         _openVPN!.disconnect();
         for (int i = 0; i < 30; i++) {
           await Future.delayed(const Duration(milliseconds: 100));
           if (_vpnState == VpnState.disconnected) break;
         }
-        print('✅ OpenVPN disconnect attempted');
       } catch (e) {
-        print('⚠️ OpenVPN disconnect failed: $e');
       }
 
       // Clear server and connection state
@@ -1537,9 +1654,7 @@ pull
       // Clear VPN state from persistence to prevent stale state
       await _persistence.clearVpnState();
 
-      print('✅ Disconnect completed');
     } catch (e) {
-      print('❌ Disconnect error: $e');
       _updateVpnState(VpnState.error);
     } finally {
       _isUserDisconnecting = false;
@@ -1631,7 +1746,6 @@ pull
     if (!Platform.isIOS) return false;
 
     try {
-      print('🔄 Reconfiguring VPN profile...');
 
       // Re-initialize OpenVPN which will recreate the profile
       _openVPN = OpenVPN(
@@ -1640,15 +1754,13 @@ pull
       );
 
       await _openVPN!.initialize(
-        groupIdentifier: "group.com.app.axevpnbh",
-        providerBundleIdentifier: "com.app.axevpnbh.VPNExtension",
+        groupIdentifier: "group.com.albonik.vpn",
+        providerBundleIdentifier: "com.albonik.vpn.VPNExtension",
         localizedDescription: "VPN MASTER Connection",
       );
 
-      print('✅ VPN profile reconfigured');
       return true;
     } catch (e) {
-      print('❌ Failed to reconfigure VPN: $e');
       return false;
     }
   }
@@ -1691,16 +1803,20 @@ pull
         } catch (_) {}
       }
 
+      // Check WireGuard stage
+      if (!isActuallyConnected && _wireGuard != null) {
+        try {
+          final wgStage = await _wireGuard!.stage();
+          isActuallyConnected = (wgStage == WGStage.connected);
+        } catch (_) {}
+      }
+
       if (!isActuallyConnected) {
-        print(
-          '🔄 resyncVpnState: VPN not running — updating UI to disconnected',
-        );
         _updateVpnState(VpnState.disconnected);
         _stopStatusUpdater();
         await _persistence.clearVpnState();
       }
     } catch (e) {
-      print('⚠️ resyncVpnState error: $e');
     }
   }
 

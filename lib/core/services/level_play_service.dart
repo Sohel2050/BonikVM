@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:ironsource_mediation/ironsource_mediation.dart';
+import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ============================================================

@@ -1,1178 +1,990 @@
-﻿import 'package:flutter/material.dart';
+// lib/features/premium/premium_screen.dart
+// Quickro-POS-style subscription screen.
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/theme_provider.dart';
-import '../../core/services/purchase_service.dart';
-import '../../core/api/api_service.dart';
-import '../../screens/auth/sign_in_screen.dart';
-import '../../screens/payment/payment_options_screen.dart';
-import '../../services/auth_service.dart';
+import '../../providers/subscription_provider.dart';
 import '../../core/localization/app_localizations.dart';
-import 'dart:async';
+import '../../services/billing_service.dart';
+import '../../screens/auth/legal_webview_screen.dart';
+import 'billing_bottom_sheets.dart';
 
+// ignore: library_private_types_in_public_api
 final GlobalKey<_PremiumScreenState> premiumScreenKey =
-GlobalKey<_PremiumScreenState>();
+    GlobalKey<_PremiumScreenState>();
 
 class PremiumScreen extends ConsumerStatefulWidget {
   const PremiumScreen({super.key, this.autoRefresh = false});
-
   final bool autoRefresh;
 
   @override
   ConsumerState<PremiumScreen> createState() => _PremiumScreenState();
 }
 
-class _PremiumScreenState extends ConsumerState<PremiumScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _animationController;
-  late AnimationController _pulseAnimationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _pulseAnimation;
+class _PremiumScreenState extends ConsumerState<PremiumScreen> {
+  static const _appleEulaUrl =
+      'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
-  // Purchase service
-  final PurchaseService _purchaseService = PurchaseService();
-  final ApiService _apiService = ApiService();
-  StreamSubscription<PurchaseResult>? _purchaseResultSubscription;
-  bool _isLoading = false;
+  String? _selectedProductId;
 
-  // Dynamic pricing plans
-  List<PurchasePlan> _apiPlans = [];
-  bool _plansLoaded = false;
-  bool _purchaseSuccessful = false;
+  void refresh() => ref.read(subscriptionProvider.notifier).refresh();
+  // Alias used by MainShell toolbar
+  void refreshProducts() => refresh();
 
-  List<PremiumFeature> _getPremiumFeatures(Color themeColor, bool isDarkMode) {
+  List<Map<String, dynamic>> _parseCatalog(SubscriptionState sub) {
+    if (sub.planCatalog.isNotEmpty) return sub.planCatalog;
     return [
-      PremiumFeature(
-        icon: Icons.flash_on,
-        title: 'Ultra-Fast Servers',
-        description: 'Get Access to premium high-speed servers',
-        gradient: LinearGradient(
-          colors: [
-            isDarkMode ? themeColor : themeColor.withValues(alpha: 0.8),
-            isDarkMode
-                ? themeColor.withValues(alpha: 0.7)
-                : themeColor.withValues(alpha: 0.6),
-          ],
-        ),
-      ),
-
-      PremiumFeature(
-        icon: Icons.block,
-        title: 'Ad-Free Experience',
-        description: 'No ads, no Disturb, pure VPN experience',
-        gradient: LinearGradient(
-          colors: [
-            isDarkMode ? Colors.green : Colors.green.withValues(alpha: 0.8),
-            isDarkMode
-                ? Colors.green.withValues(alpha: 0.7)
-                : Colors.green.withValues(alpha: 0.6),
-          ],
-        ),
-      ),
-
-
-
+      {
+        'product_id': '1m',
+        'display_name': '1 Month',
+        'web_price': '4.99',
+        'is_popular': false,
+        'is_lifetime': false,
+        'duration_days': 30,
+      },
+      {
+        'product_id': '3m',
+        'display_name': '3 Months',
+        'web_price': '11.99',
+        'is_popular': true,
+        'is_lifetime': false,
+        'duration_days': 90,
+      },
+      {
+        'product_id': '1y',
+        'display_name': '1 Year',
+        'web_price': '29.99',
+        'is_popular': false,
+        'is_lifetime': false,
+        'duration_days': 365,
+      },
     ];
-  }
-
-  // Convert API plans to SubscriptionPlan objects
-  List<SubscriptionPlan> _getDisplayPlans() {
-    if (_plansLoaded && _apiPlans.isNotEmpty) {
-      return _apiPlans.map((apiPlan) {
-        // Get real price from store if available
-        final realPrice = _purchaseService.getRealPrice(apiPlan.id);
-
-        return SubscriptionPlan(
-          id: apiPlan.id,
-          name: apiPlan.name,
-          price:
-          realPrice ??
-              apiPlan.formattedPrice, // Use real price if available
-          period: '/${apiPlan.period}',
-          originalPrice: apiPlan.formattedOriginalPrice,
-          discount: apiPlan.discount,
-          features: apiPlan.features,
-          isPopular: apiPlan.isPopular,
-        );
-      }).toList();
-    }
-
-    // Return empty list if no plans available from API
-    // Don't use fallback plans anymore
-    return [];
-  }
-
-  // ⚠️ Selected plan is now set dynamically from API response
-  // First enabled plan from /api/v1/purchase/plans is selected by default
-  String _selectedPlan = ''; // Will be set from API data
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    _pulseAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
-          ),
-        );
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(
-        parent: _pulseAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    _animationController.forward();
-    _pulseAnimationController.repeat(reverse: true);
-
-    // Initialize purchase service
-    _initializePurchaseService();
-
-    // Load pricing plans from API
-    _loadPricingPlans();
-  }
-
-  /// Public method for main shell to trigger a product refresh
-  Future<void> refreshProducts() async {
-    await _loadPricingPlans();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _apiPlans.isNotEmpty
-              ? 'Products refreshed successfully!'
-              : 'No products available',
-        ),
-        backgroundColor: _apiPlans.isNotEmpty ? Colors.green : Colors.orange,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _loadPricingPlans() async {
-    try {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = true;
-      });
-
-      print('[Premium] Loading pricing plans from API...');
-      final plans = await _apiService.getPurchasePlans();
-      print('[Premium] API response: plans = ${plans?.length ?? 0} items');
-
-      if (!mounted) return;
-
-      if (plans != null && plans.isNotEmpty) {
-        print('[Premium] Plans loaded successfully: ${plans.length} plans');
-        setState(() {
-          _apiPlans = plans;
-          _plansLoaded = true;
-          _isLoading = false;
-
-          // Set default selected plan to the popular one, or first one if none marked as popular
-          final popularPlan = plans.firstWhere(
-                (plan) => plan.isPopular,
-            orElse: () => plans.first,
-          );
-          _selectedPlan = popularPlan.id;
-        });
-      } else {
-        print('[Premium] No plans received from API');
-        setState(() {
-          _plansLoaded = false;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('[Premium] Error loading pricing plans: $e');
-      if (!mounted) return;
-      setState(() {
-        _plansLoaded = false;
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _initializePurchaseService() async {
-    await _purchaseService.initialize();
-
-    // Track if we've shown a success dialog to prevent duplicates
-    bool hasShownSuccessDialog = false;
-
-    _purchaseResultSubscription = _purchaseService.purchaseResultStream.listen((
-        result,
-        ) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (result.isSuccess && !hasShownSuccessDialog) {
-          hasShownSuccessDialog = true;
-
-          // Mark purchase as successful for handling in build method
-          setState(() {
-            _purchaseSuccessful = true;
-          });
-
-          // Verify subscription with backend
-          _verifyPurchaseWithBackend(result.productId!);
-
-          // Show success dialog
-          _showSuccessDialog();
-        } else if (result.isError) {
-          // Show error dialog
-          _showErrorDialog(result.errorMessage ?? 'Purchase failed');
-        }
-      }
-    });
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: true, // Allow tap outside to close
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF1E293B),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.workspace_premium,
-                size: 40,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Welcome to Premium!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'You now have access to all premium features. Enjoy unlimited VPN access!',
-              style: TextStyle(fontSize: 16, color: Color(0xFF94A3B8)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              // Close dialog and navigate back to home
-              Navigator.of(context).popUntil(ModalRoute.withName('/home'));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Start Using Premium'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Verify purchase with backend server
-  Future<void> _verifyPurchaseWithBackend(String productId) async {
-    try {
-      // Get current user info from authentication
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        return;
-      }
-
-      // CRITICAL FIX: Don't verify with fake data!
-      // Only proceed if we have actual purchase data// TODO: Implement proper verification only when we have real Google Play receipt data
-      // For now, we skip verification to prevent auto-reactivation of cancelled subscriptions
-
-      return;
-
-      // DISABLED CODE - The below code was causing auto-reactivation with fake data
-      /*
-      final result = await _apiService.verifyPurchase(
-        userId: user.uid,
-        receiptData: 'google_play_receipt_$productId', // This was fake data
-        productId: productId,
-        platform: Platform.isAndroid ? 'android' : 'ios',
-        transactionId: 'real_transaction_${DateTime.now().millisecondsSinceEpoch}', // This was fake
-        firebaseUid: user.uid,
-        userEmail: user.email,
-      );
-
-      if (result != null && result['success'] == true) {
-
-        await _purchaseService.activateSubscriptionBenefits();
-      } else {
-
-      }
-      */
-    } catch (e) {}
-  }
-
-  void _showErrorDialog(String error) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text(
-          'Purchase Failed',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Text(error, style: const TextStyle(color: Color(0xFF94A3B8))),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _purchasePlan() async {
-    if (_isLoading) return;
-
-    // Check if user is authenticated
-    if (AuthService.requiresAuthForPurchase()) {
-      // Navigate to login screen
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (context) => const SignInScreen()));
-
-      // Check if user is now authenticated
-      if (!AuthService.isLoggedIn) {
-        return; // User didn't complete authentication
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Authentication successful!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-
-    // Get selected plan details
-    final selectedPlan = _getDisplayPlans().firstWhere(
-          (plan) => plan.id == _selectedPlan,
-    );
-
-    // Navigate to payment options screen
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentOptionsScreen(
-            planId: selectedPlan.id,
-            planName: selectedPlan.name,
-            planPrice: selectedPlan.price,
-            planDetails: {
-              'price':
-              double.tryParse(
-                selectedPlan.price.replaceAll(RegExp(r'[^\d.]'), ''),
-              ) ??
-                  0.0,
-              'period': selectedPlan.period,
-              'features': selectedPlan.features,
-              'is_popular': selectedPlan.isPopular,
-            },
-          ),
-        ),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _pulseAnimationController.dispose();
-    _purchaseResultSubscription?.cancel();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isPremium = ref.watch(premiumStatusProvider);
-    final themeMode = ref.watch(themeModeProvider);
-    final themeColor = ref.watch(themeColorProvider);
-    final isDarkMode =
-        themeMode == ThemeMode.dark ||
-            (themeMode == ThemeMode.system &&
-                MediaQuery.of(context).platformBrightness == Brightness.dark);
+    final sub = ref.watch(subscriptionProvider);
+    final theme = ref.watch(themeColorProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0D1117) : const Color(0xFFF0F4F8);
+    final catalog = _parseCatalog(sub);
 
-    // Handle purchase success in build method (safe for ref operations)
-    if (_purchaseSuccessful) {
-      _purchaseSuccessful = false; // Reset flag
-      ref.read(premiumStatusProvider.notifier).setPremiumStatus(true);
+    if (_selectedProductId == null && catalog.isNotEmpty) {
+      final popular = catalog.firstWhere(
+        (p) => p['is_popular'] == true,
+        orElse: () => catalog.first,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted)
+          setState(() => _selectedProductId = popular['product_id'] as String?);
+      });
     }
 
-    // Check if we should show purchase options
-    final shouldShowPurchaseOptions =
-        !isPremium && (_plansLoaded && _apiPlans.isNotEmpty);
-
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF0F172A) : Colors.grey[50],
-      body: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: SingleChildScrollView(
+      backgroundColor: bg,
+      body: sub.isLoading
+          ? Center(child: CircularProgressIndicator(color: theme))
+          : sub.isPremium
+          ? _ActiveView(
+              sub: sub,
+              theme: theme,
+              isDark: isDark,
+              screenState: this,
+            )
+          : _SelectView(
+              catalog: catalog,
+              theme: theme,
+              isDark: isDark,
+              selectedId: _selectedProductId,
+              onSelect: (id) => setState(() => _selectedProductId = id),
+              bg: bg,
+            ),
+    );
+  }
+}
+
+// ─── ACTIVE SUBSCRIPTION ─────────────────────────────────────────────────────
+
+class _ActiveView extends StatelessWidget {
+  const _ActiveView({
+    required this.sub,
+    required this.theme,
+    required this.isDark,
+    required this.screenState,
+  });
+  final SubscriptionState sub;
+  final Color theme;
+  final bool isDark;
+  final _PremiumScreenState screenState;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = sub.displayName;
+    final expiresAt = sub.expiresAt;
+    final isLife = sub.isLifetime;
+    final source = (sub.subscription?['platform'] as String? ?? 'unknown')
+        .toUpperCase();
+    final daysLeft = expiresAt != null
+        ? expiresAt.difference(DateTime.now()).inDays
+        : null;
+    final totalDays = (sub.subscription?['duration_days'] as num?)?.toInt();
+    double? progress;
+    if (!isLife && expiresAt != null && totalDays != null && totalDays > 0) {
+      progress = ((totalDays - (daysLeft ?? 0)) / totalDays).clamp(0.0, 1.0);
+    }
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Hero status card ──────────────────────────────────
+            FadeInDown(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme,
+                      theme.withValues(alpha: 0.72),
+                      Colors.green.shade700,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(22),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Hero Section
-                    _buildHeroSection(isPremium, isDarkMode, themeColor),
-
-                    // Features Section
-                    if (!isPremium) ...[
-                      _buildFeaturesSection(isDarkMode, themeColor),
-
-                      // Check if products are available from admin panel
-                      if (shouldShowPurchaseOptions) ...[
-                        // Subscription Plans
-                        _buildSubscriptionPlans(isDarkMode, themeColor),
-
-                        // Purchase Button
-                        _buildPurchaseButton(isDarkMode, themeColor),
-
-                        // Terms & Privacy
-                        _buildTermsSection(isDarkMode),
-                      ] else if (!_isLoading) ...[
-                        // Show message when no products are available
-                        _buildNoProductsMessage(isDarkMode),
-                      ] else ...[
-                        // Show loading indicator
-                        const Padding(
-                          padding: EdgeInsets.all(40),
-                          child: CircularProgressIndicator(),
+                    Row(
+                      children: [
+                        _CircleIcon(
+                          icon: Icons.workspace_premium,
+                          bg: Colors.white.withValues(alpha: 0.18),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _Pill(
+                                label: source,
+                                bg: Colors.white.withValues(alpha: 0.2),
+                                textColor: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                        _Pill(
+                          label: '✓  ACTIVE',
+                          bg: Colors.white.withValues(alpha: 0.2),
+                          textColor: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ],
+                    ),
+                    // Expiry / lifetime info
+                    if (isLife) ...[
+                      const SizedBox(height: 18),
+                      const Divider(color: Colors.white24),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.all_inclusive,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context).lifetimeAccess,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else if (expiresAt != null) ...[
+                      const SizedBox(height: 18),
+                      const Divider(color: Colors.white24),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.event,
+                            color: Colors.white60,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _fmtDate(expiresAt),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            daysLeft != null && daysLeft < 0
+                                ? AppLocalizations.of(context).expired
+                                : '${daysLeft ?? 0} ${AppLocalizations.of(context).daysLeft}',
+                            style: TextStyle(
+                              color: (daysLeft ?? 0) <= 0
+                                  ? Colors.red.shade200
+                                  : (daysLeft! <= 7
+                                        ? Colors.orange.shade200
+                                        : Colors.white),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (progress != null) ...[
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.2,
+                            ),
+                            valueColor: const AlwaysStoppedAnimation(
+                              Colors.white,
+                            ),
+                            minHeight: 7,
+                          ),
                         ),
                       ],
                     ],
-
-                    // Bottom spacing
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 20),
+            // ── Quick actions ─────────────────────────────────────
+            FadeInUp(
+              delay: const Duration(milliseconds: 80),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Receipts',
+                      isDark: isDark,
+                      theme: theme,
+                      onTap: () => showReceiptsSheet(context),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.local_offer_outlined,
+                      label: 'Voucher',
+                      isDark: isDark,
+                      theme: theme,
+                      onTap: () {
+                        final ref =
+                            (context as Element)
+                                .findAncestorStateOfType<ConsumerState>()
+                                ?.ref ??
+                            (screenState as ConsumerState).ref;
+                        showVoucherSheet(context, ref);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            FadeInUp(
+              delay: const Duration(milliseconds: 140),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: theme, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: Icon(Icons.upgrade_rounded, color: theme),
+                  label: Text(
+                    AppLocalizations.of(context).upgradeExtendPlan,
+                    style: TextStyle(color: theme, fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () => screenState.refresh(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            // ── Included features ─────────────────────────────────
+            FadeInUp(
+              delay: const Duration(milliseconds: 200),
+              child: Text(
+                AppLocalizations.of(context).whatsIncluded,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                ),
+              ),
+            ),
+            ..._kFeatures(context).map(
+              (f) => FadeInUp(
+                delay: const Duration(milliseconds: 230),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: theme.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(f.$1, color: theme, size: 18),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              f.$2,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1A1A2E),
+                              ),
+                            ),
+                            Text(
+                              f.$3,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // ── Cancel subscription ───────────────────────────────
+            FadeInUp(
+              delay: const Duration(milliseconds: 260),
+              child: _CancelButton(
+                isDark: isDark,
+                platform: sub.platform,
+                screenState: screenState,
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeroSection(bool isPremium, bool isDarkMode, Color themeColor) {
-    return Container(
-      padding: const EdgeInsets.all(24),
+  static String _fmtDate(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+}
+
+// ─── PLAN SELECTION ───────────────────────────────────────────────────────────
+
+class _SelectView extends StatelessWidget {
+  const _SelectView({
+    required this.catalog,
+    required this.theme,
+    required this.isDark,
+    required this.selectedId,
+    required this.onSelect,
+    required this.bg,
+  });
+  final List<Map<String, dynamic>> catalog;
+  final Color theme;
+  final bool isDark;
+  final String? selectedId;
+  final ValueChanged<String?> onSelect;
+  final Color bg;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = (context as Element)
+        .findAncestorStateOfType<ConsumerState>()
+        ?.ref;
+
+    return SafeArea(
+      top: false,
       child: Column(
         children: [
-          if (isPremium) ...[
-            // Premium Badge with pulse animation
-            AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _pulseAnimation.value,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
+          // ── Clean header ──────────────────────────────────────
+          FadeInDown(
+            child: Container(
+              width: double.infinity,
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+              child: Column(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
+                      color: theme.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.workspace_premium,
-                          color: Colors.black,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'PREMIUM ACTIVE',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
+                    child: Icon(
+                      Icons.workspace_premium_rounded,
+                      color: theme,
+                      size: 34,
                     ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 32),
-            FadeInUp(
-              delay: const Duration(milliseconds: 200),
-              child: Text(
-                '🎉 You\'re enjoying the full\nVPN MASTER experience!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                  height: 1.2,
-                ),
+                  const SizedBox(height: 12),
+                  Text(
+                    AppLocalizations.of(context).unlockPremium,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    AppLocalizations.of(context).accessAllServersFeatures,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            FadeInUp(
-              delay: const Duration(milliseconds: 400),
-              child: Text(
-                'Thank you for supporting VPN MASTER! Enjoy unlimited access to all premium features.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : Colors.grey[600],
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ] else ...[
-            // Crown Icon with animation
-            FadeInDown(
-              child: AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _pulseAnimation.value,
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            themeColor,
-                            themeColor.withValues(alpha: 0.8),
-                          ],
+          ),
+
+          // ── Scrollable body ───────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppLocalizations.of(context).chooseYourPlan,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Vertical plan list ────────────────────────
+                  ...catalog.asMap().entries.map(
+                    (entry) => FadeInUp(
+                      delay: Duration(milliseconds: 55 * entry.key),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _PlanCard(
+                          plan: entry.value,
+                          isSelected: selectedId == entry.value['product_id'],
+                          theme: theme,
+                          isDark: isDark,
+                          onTap: () =>
+                              onSelect(entry.value['product_id'] as String?),
                         ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: themeColor.withValues(alpha: 0.3),
-                            blurRadius: 30,
-                            spreadRadius: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // ── Feature checkmarks ────────────────────────
+                  ..._kFeatures(context).map(
+                    (f) => Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: theme,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            f.$2,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF374151),
+                            ),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.workspace_premium,
-                        size: 50,
-                        color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // ── Subscribe CTA ─────────────────────────────
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 200),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 58,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          elevation: 6,
+                          shadowColor: theme.withValues(alpha: 0.45),
+                        ),
+                        icon: const Icon(
+                          Icons.lock_open_rounded,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          AppLocalizations.of(context).continueToCheckout,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        onPressed: selectedId == null
+                            ? null
+                            : () {
+                                final planData = catalog.firstWhere(
+                                  (p) => p['product_id'] == selectedId,
+                                  orElse: () => <String, dynamic>{},
+                                );
+                                final widgetRef = context
+                                    .findAncestorStateOfType<ConsumerState>()
+                                    ?.ref;
+                                if (widgetRef != null) {
+                                  showPaymentMethodSheet(
+                                    context,
+                                    widgetRef,
+                                    selectedId!,
+                                    planData,
+                                  );
+                                }
+                              },
                       ),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 14),
+
+                  _SubscriptionLegalLinks(
+                    isDark: isDark,
+                    themeColor: theme,
+                    onOpenTerms: () => Navigator.pushNamed(context, '/terms'),
+                    onOpenPrivacy: () =>
+                        Navigator.pushNamed(context, '/privacy'),
+                    onOpenAppleEula: Platform.isIOS
+                        ? () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const LegalWebViewScreen(
+                                title: 'Apple EULA',
+                                url: _PremiumScreenState._appleEulaUrl,
+                              ),
+                            ),
+                          )
+                        : null,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // ── Secondary links ───────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => showReceiptsSheet(context),
+                        icon: Icon(
+                          Icons.receipt_long_outlined,
+                          size: 15,
+                          color: Colors.grey.shade500,
+                        ),
+                        label: Text(
+                          AppLocalizations.of(context).myReceipts,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 14,
+                        color: Colors.grey.shade400,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                      ),
+                      TextButton.icon(
+                        onPressed: () {
+                          if (ref != null) showVoucherSheet(context, ref);
+                        },
+                        icon: Icon(
+                          Icons.local_offer_outlined,
+                          size: 15,
+                          color: Colors.grey.shade500,
+                        ),
+                        label: Text(
+                          AppLocalizations.of(context).redeemVoucher,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            FadeInUp(
-              delay: const Duration(milliseconds: 200),
-              child: Text(
-                'Unlock Premium\nFeatures',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                  height: 1.2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            FadeInUp(
-              delay: const Duration(milliseconds: 400),
-              child: Text(
-                'Get unlimited access to premium servers,\nad-free experience, and priority support',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : Colors.grey[600],
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildFeaturesSection(bool isDarkMode, Color themeColor) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+class _SubscriptionLegalLinks extends StatelessWidget {
+  const _SubscriptionLegalLinks({
+    required this.isDark,
+    required this.themeColor,
+    required this.onOpenTerms,
+    required this.onOpenPrivacy,
+    this.onOpenAppleEula,
+  });
+
+  final bool isDark;
+  final Color themeColor;
+  final VoidCallback onOpenTerms;
+  final VoidCallback onOpenPrivacy;
+  final VoidCallback? onOpenAppleEula;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white70 : const Color(0xFF4B5563);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161B22) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF30363D) : Colors.grey.shade200,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FadeInLeft(
-            child: Text(
-              'Premium Features',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
+          Text(
+            AppLocalizations.of(context).subscriptionTerms,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF111827),
             ),
           ),
-          const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio:
-              0.95, // Reduced aspect ratio to allow more vertical space
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: _getPremiumFeatures(themeColor, isDarkMode).length,
-            itemBuilder: (context, index) => _buildFeatureCard(
-              _getPremiumFeatures(themeColor, isDarkMode)[index],
-              index,
-              isDarkMode,
-            ),
+          const SizedBox(height: 6),
+          Text(
+            AppLocalizations.of(context).subscriptionTermsDescription,
+            style: TextStyle(fontSize: 12, height: 1.45, color: textColor),
+          ),
+          const SizedBox(height: 10),
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _LegalChip(
+                      label: AppLocalizations.of(context).privacyPolicy,
+                      onTap: onOpenPrivacy,
+                      themeColor: themeColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _LegalChip(
+                      label: AppLocalizations.of(context).termsConditions,
+                      onTap: onOpenTerms,
+                      themeColor: themeColor,
+                    ),
+                  ),
+                ],
+              ),
+              if (onOpenAppleEula != null) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: _LegalChip(
+                    label: AppLocalizations.of(context).appleEula,
+                    onTap: onOpenAppleEula!,
+                    themeColor: themeColor,
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildFeatureCard(PremiumFeature feature, int index, bool isDarkMode) {
-    return FadeInUp(
-      delay: Duration(milliseconds: 100 * index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: 24,
-          horizontal: 16,
-        ), // Increased vertical padding
+class _LegalChip extends StatelessWidget {
+  const _LegalChip({
+    required this.label,
+    required this.onTap,
+    required this.themeColor,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final Color themeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: themeColor,
+        side: BorderSide(color: themeColor),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      child: Text(label),
+    );
+  }
+}
+
+// ─── PLAN CARD (2-col grid) ───────────────────────────────────────────────────
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.plan,
+    required this.isSelected,
+    required this.theme,
+    required this.isDark,
+    required this.onTap,
+  });
+  final Map<String, dynamic> plan;
+  final bool isSelected;
+  final Color theme;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final name =
+        plan['display_name'] as String? ?? plan['product_id'] as String;
+    final price = plan['web_price']?.toString() ?? '–';
+    final isPopular = plan['is_popular'] == true;
+    final isLife =
+        plan['is_lifetime'] == true ||
+        plan['product_id'] == 'lt' ||
+        plan['product_id'] == 'lifetime';
+    final hasBadge = isPopular || isLife;
+    final badgeLabel = isPopular
+        ? AppLocalizations.of(context).popular
+        : AppLocalizations.of(context).oneTime;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: isSelected
+              ? theme.withOpacity(0.08)
+              : (isDark ? const Color(0xFF1E293B) : Colors.white),
           border: Border.all(
-            color: isDarkMode
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.grey.withValues(alpha: 0.2),
-            width: 1,
+            color: isSelected
+                ? theme
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB)),
+            width: isSelected ? 2.0 : 1.0,
           ),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: isDarkMode
-                  ? Colors.black.withValues(alpha: 0.2)
-                  : Colors.grey.withValues(alpha: 0.1),
+              color: isSelected
+                  ? theme.withOpacity(0.12)
+                  : Colors.black.withOpacity(isDark ? 0.15 : 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        child: Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
+            // Selection circle
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
-                gradient: feature.gradient,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: feature.gradient.colors.first.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(feature.icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              feature.title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                feature.description,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : Colors.grey[600],
-                  height: 1.2,
+                shape: BoxShape.circle,
+                color: isSelected ? theme : Colors.transparent,
+                border: Border.all(
+                  color: isSelected
+                      ? theme
+                      : (isDark ? const Color(0xFF475569) : const Color(0xFFD1D5DB)),
+                  width: 2,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
+              child: isSelected
+                  ? const Icon(Icons.check, color: Colors.white, size: 16)
+                  : null,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubscriptionPlans(bool isDarkMode, Color themeColor) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FadeInLeft(
-            child: Text(
-              'Choose Your Plan',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          FadeInLeft(
-            delay: const Duration(milliseconds: 200),
-            child: Text(
-              'Select the plan that works best for you',
-              style: TextStyle(
-                fontSize: 16,
-                color: isDarkMode ? const Color(0xFF94A3B8) : Colors.grey[600],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          ...List.generate(
-            _getDisplayPlans().length,
-                (index) => _buildPlanCard(
-              _getDisplayPlans()[index],
-              index,
-              isDarkMode,
-              themeColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlanCard(
-      SubscriptionPlan plan,
-      int index,
-      bool isDarkMode,
-      Color themeColor,
-      ) {
-    final isSelected = _selectedPlan == plan.id;
-
-    return FadeInUp(
-      delay: Duration(milliseconds: 100 * index),
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedPlan = plan.id;
-          });
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? (isDarkMode
-                ? themeColor.withValues(alpha: 0.1)
-                : themeColor.withValues(alpha: 0.05))
-                : (isDarkMode ? const Color(0xFF1E293B) : Colors.white),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected
-                  ? themeColor
-                  : (isDarkMode
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.2)),
-              width: isSelected ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isSelected
-                    ? themeColor.withValues(alpha: 0.2)
-                    : (isDarkMode
-                    ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.1)),
-                blurRadius: isSelected ? 15 : 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // Popular Badge
-              if (plan.isPopular)
-                Positioned(
-                  top: -8,
-                  right: -8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      'POPULAR',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ),
-
-              // Plan Content
-              Row(
+            const SizedBox(width: 14),
+            // Plan info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Radio Button
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected
-                            ? themeColor
-                            : (isDarkMode
-                            ? const Color(0xFF6B7280)
-                            : Colors.grey),
-                        width: 2,
+                  Row(
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF111827),
+                        ),
                       ),
-                      color: isSelected ? themeColor : Colors.transparent,
-                    ),
-                    child: isSelected
-                        ? const Center(
-                      child: Icon(
-                        Icons.check,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    )
-                        : null,
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // Plan Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              plan.name,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isDarkMode
-                                    ? Colors.white
-                                    : Colors.black87,
-                              ),
-                            ),
-                            if (plan.discount != null) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  plan.discount!,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                      if (hasBadge) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: isPopular
+                                ? LinearGradient(colors: [theme, theme.withOpacity(0.8)])
+                                : const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFF59E0B)]),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (isPopular ? theme : const Color(0xFFD97706)).withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
                               ),
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Text(
-                              plan.price,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: themeColor,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPopular ? Icons.local_fire_department_rounded : Icons.star_rounded,
+                                size: 10,
+                                color: Colors.white,
                               ),
-                            ),
-                            Text(
-                              plan.period,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isDarkMode
-                                    ? const Color(0xFF94A3B8)
-                                    : Colors.grey[600],
-                              ),
-                            ),
-                            if (plan.originalPrice != null) ...[
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 2),
                               Text(
-                                plan.originalPrice!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDarkMode
-                                      ? const Color(0xFF94A3B8)
-                                      : Colors.grey[600],
-                                  decoration: TextDecoration.lineThrough,
+                                badgeLabel.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ...plan.features.map(
-                              (feature) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: themeColor,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    feature,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDarkMode
-                                          ? const Color(0xFF94A3B8)
-                                          : Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isLife
+                        ? AppLocalizations.of(context).oneTimePayment
+                        : _durLabel(plan),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPurchaseButton(bool isDarkMode, Color themeColor) {
-    final selectedPlan = _getDisplayPlans().firstWhere(
-          (plan) => plan.id == _selectedPlan,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: FadeInUp(
-        delay: const Duration(milliseconds: 500),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _purchasePlan,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: themeColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 8,
-                  shadowColor: themeColor.withValues(alpha: 0.3),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white,
-                    ),
-                  ),
-                )
-                    : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.workspace_premium, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Start Premium ${selectedPlan.price}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Cancel anytime • 30-day money-back guarantee',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? const Color(0xFF94A3B8) : Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTermsSection(bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: FadeInUp(
-        delay: const Duration(milliseconds: 600),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Text(
-              'By purchasing you agree to our Terms of Service and Privacy Policy. Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDarkMode ? const Color(0xFF6B7280) : Colors.grey[500],
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // Price
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: () {
-                    // Open terms of service
-                  },
-                  child: Text(
-                    'Terms of Service',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: ref.watch(themeColorProvider),
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
                 Text(
-                  ' • ',
+                  '\$$price',
                   style: TextStyle(
-                    color: isDarkMode
-                        ? const Color(0xFF6B7280)
-                        : Colors.grey[500],
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected
+                        ? theme
+                        : (isDark ? Colors.white : const Color(0xFF111827)),
                   ),
                 ),
-                TextButton(
-                  onPressed: () {
-                    // Open privacy policy
-                  },
-                  child: Text(
-                    'Privacy Policy',
+                if (!isLife) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'per period',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: ref.watch(themeColorProvider),
-                      decoration: TextDecoration.underline,
+                      fontSize: 10,
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ],
@@ -1181,92 +993,426 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen>
     );
   }
 
-  Widget _buildNoProductsMessage(bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: FadeInUp(
-        delay: const Duration(milliseconds: 300),
+  static String _durLabel(Map<String, dynamic> p) {
+    final d = p['duration_days'];
+    if (d == null) return 'lifetime';
+    final days = (d is int) ? d : int.tryParse(d.toString()) ?? 0;
+    if (days <= 31) return '30 days';
+    if (days <= 92) return '90 days';
+    if (days >= 365) return '1 year';
+    return '$days days';
+  }
+}
+
+// ─── SHARED WIDGETS ───────────────────────────────────────────────────────────
+
+class _CircleIcon extends StatelessWidget {
+  const _CircleIcon({required this.icon, required this.bg, this.size = 28});
+  final IconData icon;
+  final Color bg;
+  final double size;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(11),
+    decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+    child: Icon(icon, color: Colors.white, size: size),
+  );
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.bg,
+    required this.textColor,
+    this.fontSize = 11,
+  });
+  final String label;
+  final Color bg;
+  final Color textColor;
+  final double fontSize;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: textColor,
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
+}
+
+class _ActionCard extends StatelessWidget {
+  const _ActionCard({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+    required this.theme,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool isDark;
+  final Color theme;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: isDark ? const Color(0xFF161B22) : Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF30363D) : Colors.grey.shade200,
+          ),
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDarkMode
-                    ? const Color(0xFF1E293B).withValues(alpha: 0.5)
-                    : Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.orange.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.info_outline, size: 48, color: Colors.orange),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Premium Not Available',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Premium subscriptions are currently not available. Please contact support for more information.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : Colors.grey[600],
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+            Icon(icon, color: theme, size: 26),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1A1A2E),
               ),
             ),
           ],
         ),
       ),
+    ),
+  );
+}
+
+// ─── FEATURE LIST ────────────────────────────────────────────────────────────
+
+List<(IconData, String, String)> _kFeatures(BuildContext context) {
+  final l10n = AppLocalizations.of(context);
+  return [
+    (Icons.flash_on, l10n.ultraFastServers, l10n.accessPremiumServers),
+    (Icons.security, l10n.advancedGradeSecurity, l10n.advancedEncryption),
+    (Icons.block, l10n.adFreeExperience, l10n.noInterruptions),
+    (Icons.device_hub, l10n.unlimitedDevices, l10n.connectUnlimitedDevices),
+    (Icons.public, l10n.premiumLocations, l10n.exclusiveServers),
+  ];
+}
+
+// ─── CANCEL INFO SHEET (IAP) ─────────────────────────────────────────────────
+
+class _CancelInfoSheet extends StatelessWidget {
+  const _CancelInfoSheet({required this.isDark, required this.message});
+  final bool isDark;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1F2E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white24 : Colors.black12,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.info_outline, color: Colors.blue, size: 28),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Cancel Subscription',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : Colors.black54,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Got it',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// Data classes
-class PremiumFeature {
-  final IconData icon;
-  final String title;
-  final String description;
-  final LinearGradient gradient;
+// ─── CANCEL CONFIRM SHEET ────────────────────────────────────────────────────
 
-  PremiumFeature({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.gradient,
-  });
+class _CancelConfirmSheet extends StatelessWidget {
+  const _CancelConfirmSheet({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1F2E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white24 : Colors.black12,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.cancel_outlined,
+              color: Colors.red,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Cancel Subscription',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Are you sure you want to cancel your subscription?\n'
+            'You will keep access until the end of the current billing period.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : Colors.black54,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Keep button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(
+                'Keep Subscription',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Cancel button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Cancel Subscription',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class SubscriptionPlan {
-  final String id;
-  final String name;
-  final String price;
-  final String period;
-  final String? originalPrice;
-  final String? discount;
-  final List<String> features;
-  final bool isPopular;
+// ─── CANCEL BUTTON ────────────────────────────────────────────────────────────
 
-  SubscriptionPlan({
-    required this.id,
-    required this.name,
-    required this.price,
-    required this.period,
-    this.originalPrice,
-    this.discount,
-    required this.features,
-    required this.isPopular,
+class _CancelButton extends ConsumerStatefulWidget {
+  const _CancelButton({
+    required this.isDark,
+    required this.platform,
+    required this.screenState,
   });
+  final bool isDark;
+  final String? platform;
+  final _PremiumScreenState screenState;
+
+  @override
+  ConsumerState<_CancelButton> createState() => _CancelButtonState();
+}
+
+class _CancelButtonState extends ConsumerState<_CancelButton> {
+  bool _cancelling = false;
+
+  bool get _isIap =>
+      widget.platform == 'app_store' || widget.platform == 'google_play';
+
+  Future<void> _onCancel() async {
+    // IAP subscriptions: direct to the store's subscription management
+    if (_isIap) {
+      final msg = widget.platform == 'app_store'
+          ? 'To cancel your App Store subscription, go to:\nSettings → Apple ID → Subscriptions.'
+          : 'To cancel your Google Play subscription, open the Play Store → Subscriptions.';
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return _CancelInfoSheet(isDark: isDark, message: msg);
+        },
+      );
+      return;
+    }
+
+    // Non-IAP: confirm then call backend cancel
+    if (!mounted) return;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return _CancelConfirmSheet(isDark: isDark);
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() => _cancelling = true);
+    try {
+      await BillingService().cancelSubscription();
+      if (!mounted) return;
+      // Refresh subscription state
+      await ref.read(subscriptionProvider.notifier).refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Subscription cancelled.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to cancel: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: TextButton.icon(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.red.shade400,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.red.shade200),
+          ),
+        ),
+        icon: _cancelling
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.red,
+                ),
+              )
+            : const Icon(Icons.cancel_outlined, size: 18),
+        label: const Text(
+          'Cancel Subscription',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        onPressed: _cancelling ? null : _onCancel,
+      ),
+    );
+  }
 }

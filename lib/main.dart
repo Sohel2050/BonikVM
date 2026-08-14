@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,6 +20,8 @@ import 'core/services/level_play_service.dart';
 import 'core/services/vpn_service.dart';
 import 'core/services/purchase_service.dart';
 import 'core/services/update_service.dart';
+import 'services/google_login_config_service.dart';
+import 'core/services/windows_tray_service.dart';
 import 'core/api/api_service.dart';
 import 'core/localization/app_localizations.dart';
 import 'shared/providers/theme_provider.dart';
@@ -30,17 +33,17 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Set up the fixed, phone-proportioned window + system tray before
+  // anything else on Windows, so the window is sized correctly before its
+  // first paint instead of flashing at the native default size.
+  if (Platform.isWindows) {
+    await WindowsTrayService.instance.initialize();
+  }
+
   // Initialize dependencies
   await _initializeApp();
 
-  runApp(const ProviderScope(child: myVPNApp()));
-
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-  // Initialize with your OneSignal App ID
-  OneSignal.initialize("662ec5db-a9df-416a-8585-584d68ec9919");
-  // Use this method to prompt for push notifications.
-  // We recommend removing this method after testing and instead use In-App Messages to prompt for notification permission.
-  OneSignal.Notifications.requestPermission(false);
+  runApp(const ProviderScope(child: AxeVPNApp()));
 }
 
 Future<void> _initializeApp() async {
@@ -96,6 +99,14 @@ Future<void> _initializeApp() async {
 
     // Initialize API service (synchronous)
     ApiService.instance.initialize();
+
+    // Windows only: fetch the admin-managed Google Desktop OAuth client ID
+    // in the background — not awaited, since AppConfig.googleDesktopClientId
+    // falls back to .env until this completes, and the user won't tap
+    // "Continue with Google" within milliseconds of launch.
+    if (Platform.isWindows) {
+      GoogleLoginConfigService().refresh();
+    }
 
     // Initialize VPN service with timeout
     try {
@@ -219,14 +230,14 @@ Future<void> _requestPermissions() async {
   }
 }
 
-class myVPNApp extends ConsumerStatefulWidget {
-  const myVPNApp({super.key});
+class AxeVPNApp extends ConsumerStatefulWidget {
+  const AxeVPNApp({super.key});
 
   @override
-  ConsumerState<myVPNApp> createState() => _myVPNAppState();
+  ConsumerState<AxeVPNApp> createState() => _AxeVPNAppState();
 }
 
-class _myVPNAppState extends ConsumerState<myVPNApp>
+class _AxeVPNAppState extends ConsumerState<AxeVPNApp>
     with WidgetsBindingObserver {
   @override
   void initState() {

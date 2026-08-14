@@ -54,7 +54,7 @@ class _UnifiedAdsPopupState extends ConsumerState<UnifiedAdsPopup> {
 
   @override
   void initState() {
-    print('🎬 POPUP INIT START'); // Using print() instead of debugPrint
+     // Using print() instead of debugPrint
     super.initState();
     debugPrint('\n🎬 === UnifiedAdsPopup.initState() STARTED ===');
     debugPrint('   AdCount: ${widget.adCount}');
@@ -89,7 +89,7 @@ class _UnifiedAdsPopupState extends ConsumerState<UnifiedAdsPopup> {
   /// Load rewarded ad for specific index
   void _loadRewardedAd(int index) {
     try {
-      print('📺 LOADING AD $index'); // Using print()
+       // Using print()
       debugPrint('\n📺 Ad $index: Starting load...');
       debugPrint('   Ad Unit ID: ${AdMobService.instance.rewardedAdUnitId}');
 
@@ -104,7 +104,7 @@ class _UnifiedAdsPopupState extends ConsumerState<UnifiedAdsPopup> {
         request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (ad) {
-            print('✅ AD $index LOADED'); // Using print()
+             // Using print()
             debugPrint('✅ Ad $index: onAdLoaded callback FIRED');
             if (mounted && index < _rewardedAds.length) {
               debugPrint('✅ Ad $index: LOADED successfully');
@@ -204,7 +204,7 @@ class _UnifiedAdsPopupState extends ConsumerState<UnifiedAdsPopup> {
       // NOW show the ad after callbacks are set
       await ad.show(
         onUserEarnedReward: (ad, reward) async {
-          print('🎬 REWARD FIRED FOR AD $videoIndex'); // Using print()
+           // Using print()
           debugPrint(
             '\n🎬 Ad $videoIndex: ========== REWARD EARNED ==========',
           );
@@ -228,7 +228,7 @@ class _UnifiedAdsPopupState extends ConsumerState<UnifiedAdsPopup> {
           debugPrint('   📊 All watched check: $allWatched');
 
           if (allWatched) {
-            print('✅ ALL ADS WATCHED - CALLING onAction'); // Using print()
+             // Using print()
             debugPrint('\n✅✅✅ ALL ADS WATCHED (Count: ${widget.adCount}) ✅✅✅');
             debugPrint('   Calling parent onAction callback...\n');
 

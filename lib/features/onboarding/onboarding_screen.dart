@@ -19,18 +19,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconBg: Color(0xFFEFF6FF),
       title: 'Secure Your\nOnline Activity',
       subtitle:
-          'AES-256 encryption keeps your data safe from hackers and surveillance.',
+          'Military-grade AES-256 encryption keeps your data safe from hackers and surveillance.',
     ),
     _OnboardingPage(
       icon: Icons.bolt_rounded,
       iconColor: Color(0xFF10B981),
       iconBg: Color(0xFFECFDF5),
-      title: 'Secure And  Fast\nServers',
+      title: 'Blazing Fast\nServers',
       subtitle:
-          'Connect many  global servers with ultra-low latency for seamless streaming and browsing.',
+          'Connect to 50+ global servers with ultra-low latency for seamless streaming and browsing.',
     ),
     _OnboardingPage(
-      icon: Icons.location_on,
+      icon: Icons.public_rounded,
       iconColor: Color(0xFF8B5CF6),
       iconBg: Color(0xFFF5F3FF),
       title: 'Access Global\nContent',

@@ -1,12 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import '../core/api/api_service.dart'; // For VpnServer type
 
-import '../core/api/api_service.dart';
-
-/// Information about a temporarily unlocked premium server.
+/// Model for temporarily unlocked premium server
 class UnlockedPremiumServer {
   final int? serverId;
   final String? serverName;
@@ -20,30 +17,14 @@ class UnlockedPremiumServer {
     required this.unlockedBy,
   });
 
-  /// Whether the unlock is still valid.
-  bool get isStillUnlocked {
-    return DateTime.now().isBefore(unlockedUntil);
-  }
+  bool get isStillUnlocked => DateTime.now().isBefore(unlockedUntil);
 
-  /// Remaining unlock duration.
   Duration get remainingTime {
-    if (!isStillUnlocked) {
-      return Duration.zero;
-    }
-
-    final duration = unlockedUntil.difference(DateTime.now());
-
-    if (duration.isNegative) {
-      return Duration.zero;
-    }
-
-    return duration;
+    if (!isStillUnlocked) return Duration.zero;
+    return unlockedUntil.difference(DateTime.now());
   }
 
-  /// Remaining seconds.
-  int get remainingSeconds {
-    return remainingTime.inSeconds;
-  }
+  int get remainingSeconds => remainingTime.inSeconds;
 
   Map<String, dynamic> toJson() {
     return {
@@ -54,918 +35,363 @@ class UnlockedPremiumServer {
     };
   }
 
-  factory UnlockedPremiumServer.fromJson(
-      Map<String, dynamic> json,
-      ) {
-    final unlockedUntilString = json['unlocked_until']?.toString();
-
-    if (unlockedUntilString == null || unlockedUntilString.isEmpty) {
-      throw const FormatException(
-        'Missing unlocked_until',
-      );
-    }
-
-    final unlockedUntil = DateTime.parse(
-      unlockedUntilString,
-    );
-
-    int? parsedServerId;
-
-    final rawServerId = json['server_id'];
-
-    if (rawServerId is int) {
-      parsedServerId = rawServerId;
-    } else if (rawServerId != null) {
-      parsedServerId = int.tryParse(
-        rawServerId.toString(),
-      );
-    }
-
+  factory UnlockedPremiumServer.fromJson(Map<String, dynamic> json) {
     return UnlockedPremiumServer(
-      serverId: parsedServerId,
-      serverName: json['server_name']?.toString(),
-      unlockedUntil: unlockedUntil,
-      unlockedBy: json['unlocked_by']?.toString() ?? 'ad',
+      serverId: json['server_id'],
+      serverName: json['server_name'],
+      unlockedUntil: DateTime.parse(json['unlocked_until']),
+      unlockedBy: json['unlocked_by'] ?? 'ad',
     );
   }
 }
 
-/// Service responsible for temporarily unlocking premium servers.
-///
-/// Supports:
-/// - Reward ad unlock
-/// - Subscription unlock
-/// - SharedPreferences persistence
-/// - App restart persistence
-/// - String / int server IDs
-/// - Automatic expired unlock cleanup
-/// - Safe concurrent initialization
+/// Service to manage premium server unlocks via ads
 class PremiumServerUnlockService {
-  PremiumServerUnlockService._internal();
-
   static final PremiumServerUnlockService _instance =
+      PremiumServerUnlockService._internal();
+
+  factory PremiumServerUnlockService() => _instance;
   PremiumServerUnlockService._internal();
 
-  factory PremiumServerUnlockService() {
-    return _instance;
-  }
-
-  static const String _storageKey = 'premium_server_unlocks';
-
-  /// In-memory unlocked servers.
-  ///
-  /// Key is ALWAYS String.
+  // Cache of unlocked servers - KEY IS STRING (server.id is String)
   final Map<String, UnlockedPremiumServer> _unlockedServers = {};
-
+  static const String _storageKey = 'premium_server_unlocks';
   bool _initialized = false;
-
-  /// Prevents multiple simultaneous initialization operations.
+  // Cached future so concurrent callers all await the same load operation
+  // instead of the second caller returning early with empty data.
   Future<void>? _initFuture;
 
-  /// Prevents simultaneous writes to SharedPreferences.
-  Future<void> _saveQueue = Future<void>.value();
-
-  // ---------------------------------------------------------------------------
-  // INITIALIZATION
-  // ---------------------------------------------------------------------------
-
-  /// Initialize service and load saved unlocks.
-  ///
-  /// Safe to call multiple times.
-  Future<void> initialize() {
-    debugPrint(
-      '\n🔄 PremiumServerUnlockService.initialize()',
-    );
+  /// Initialize - load saved unlocks from storage.
+  /// Safe to call multiple times and from concurrent callers.
+  Future<void> initialize() async {
+    debugPrint('\n🔄 PremiumServerUnlockService.initialize() called');
+    debugPrint('   _initialized flag: $_initialized');
 
     if (_initialized) {
-      debugPrint(
-        '   ✅ Already initialized',
-      );
-      return Future<void>.value();
+      debugPrint('   ⚠️ Already initialized, returning');
+      return;
     }
-
+    // If another caller already started loading, wait for it instead of
+    // returning immediately with empty _unlockedServers.
     if (_initFuture != null) {
-      debugPrint(
-        '   ⏳ Initialization already running. Waiting...',
-      );
-
+      debugPrint('   ⏳ Init already in progress, waiting...');
       return _initFuture!;
     }
-
     _initFuture = _doInitialize();
-
     return _initFuture!;
   }
 
   Future<void> _doInitialize() async {
+    // NOTE: _initialized is set to true only AFTER data has been loaded so
+    // that any caller which checks the flag can trust _unlockedServers is
+    // already populated.  The _initFuture field prevents duplicate loads.
     try {
-      debugPrint(
-        '   📦 Loading premium unlocks...',
-      );
-
       final prefs = await SharedPreferences.getInstance();
+
+      debugPrint('   📦 Fetching from SharedPreferences...');
+      debugPrint('   📦 Storage key: $_storageKey');
 
       final savedData = prefs.getString(_storageKey);
 
-      debugPrint(
-        '   📦 Storage key: $_storageKey',
-      );
-
-      debugPrint(
-        '   📦 Saved data exists: ${savedData != null}',
-      );
-
-      if (savedData == null || savedData.isEmpty) {
-        debugPrint(
-          '   📦 No saved unlock data.',
-        );
-
-        _initialized = true;
-        return;
+      debugPrint('   📦 Saved data exists: ${savedData != null}');
+      if (savedData != null) {
+        debugPrint('   📦 Saved data length: ${savedData.length} chars');
+        debugPrint('   📦 Saved data content: $savedData');
       }
 
-      debugPrint(
-        '   📦 Saved data length: ${savedData.length}',
-      );
-
-      try {
-        final decoded = jsonDecode(savedData);
-
-        if (decoded is! Map) {
-          throw const FormatException(
-            'Saved unlock data is not a JSON object',
+      if (savedData != null && savedData.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(savedData) as Map<String, dynamic>;
+          debugPrint(
+            '   📦 JSON decoded successfully: ${decoded.length} items',
           );
-        }
 
-        _unlockedServers.clear();
+          decoded.forEach((key, value) {
+            try {
+              debugPrint('   📦 Loading item key=$key, value=$value');
+              final unlock = UnlockedPremiumServer.fromJson(value);
 
-        int loadedCount = 0;
-        int expiredCount = 0;
-        int invalidCount = 0;
-
-        for (final entry in decoded.entries) {
-          final key = entry.key.toString();
-          final value = entry.value;
-
-          try {
-            if (value is! Map) {
-              invalidCount++;
-
-              debugPrint(
-                '   ❌ Invalid unlock data for key: $key',
-              );
-
-              continue;
+              // Only keep if still valid
+              if (unlock.isStillUnlocked) {
+                _unlockedServers[key] = unlock; // KEY IS STRING
+                debugPrint(
+                  '   ✅ LOADED unlock for [$key]: until=${unlock.unlockedUntil.toLocal()}, remainingTime=${unlock.remainingSeconds}s',
+                );
+              } else {
+                debugPrint(
+                  '   ⏰ EXPIRED unlock for [$key] (until=${unlock.unlockedUntil.toLocal()}), skipping',
+                );
+              }
+            } catch (e) {
+              debugPrint('   ❌ Error parsing unlock for key $key: $e');
+              debugPrint('      value was: $value');
             }
+          });
 
-            final unlock =
-            UnlockedPremiumServer.fromJson(
-              Map<String, dynamic>.from(value),
-            );
-
-            if (unlock.isStillUnlocked) {
-              _unlockedServers[key] = unlock;
-
-              loadedCount++;
-
-              debugPrint(
-                '   ✅ Loaded server [$key]',
-              );
-
-              debugPrint(
-                '      Name: ${unlock.serverName}',
-              );
-
-              debugPrint(
-                '      Until: ${unlock.unlockedUntil.toLocal()}',
-              );
-
-              debugPrint(
-                '      Remaining: ${unlock.remainingSeconds}s',
-              );
-
-              debugPrint(
-                '      By: ${unlock.unlockedBy}',
-              );
-            } else {
-              expiredCount++;
-
-              debugPrint(
-                '   ⏰ Expired server [$key]',
-              );
-            }
-          } catch (e) {
-            invalidCount++;
-
-            debugPrint(
-              '   ❌ Failed to parse unlock [$key]: $e',
-            );
-          }
+          debugPrint(
+            '✅ Initialize complete - Loaded ${_unlockedServers.length} valid unlocked premium servers',
+          );
+          debugPrint(
+            '   Final _unlockedServers keys: ${_unlockedServers.keys.toList()}',
+          );
+        } catch (e) {
+          debugPrint('   ❌ Error decoding JSON: $e');
+          debugPrint('      Saved data was: $savedData');
         }
-
-        debugPrint(
-          '   📊 Load result:',
-        );
-
-        debugPrint(
-          '      Loaded: $loadedCount',
-        );
-
-        debugPrint(
-          '      Expired: $expiredCount',
-        );
-
-        debugPrint(
-          '      Invalid: $invalidCount',
-        );
-
-        debugPrint(
-          '      Active: ${_unlockedServers.length}',
-        );
-
-        // Remove expired/invalid data from storage.
-        if (expiredCount > 0 || invalidCount > 0) {
-          await _saveUnlocksToStorage();
-        }
-      } catch (e, st) {
-        debugPrint(
-          '   ❌ JSON decode error: $e',
-        );
-
-        debugPrint(
-          '   Stack trace: $st',
-        );
-
-        // Do not crash the app because stored data is corrupted.
-        _unlockedServers.clear();
+      } else {
+        debugPrint('   📦 No saved data in SharedPreferences (empty or null)');
       }
 
-      // Important:
-      // Set initialized ONLY after loading is complete.
+      // Mark as fully loaded only after all data is in memory.
       _initialized = true;
-
-      debugPrint(
-        '   ✅ PremiumServerUnlockService initialized.',
-      );
-
-      debugPrint(
-        '   🔑 Active server IDs: '
-            '${_unlockedServers.keys.toList()}',
-      );
     } catch (e, st) {
-      debugPrint(
-        '❌ PremiumServerUnlockService initialization failed: $e',
-      );
-
-      debugPrint(
-        '   Stack trace: $st',
-      );
-
-      // Allow next call to retry initialization.
-      _initialized = false;
-    } finally {
+      debugPrint('❌ Error loading unlocked servers: $e');
+      debugPrint('   Stack trace: $st');
+      // Allow a future retry by clearing the in-progress future.
       _initFuture = null;
     }
   }
 
+  /// Ensure service is initialized before first use
   Future<void> _ensureInitialized() async {
     if (!_initialized) {
       await initialize();
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // SERVER ID
-  // ---------------------------------------------------------------------------
-
-  /// Converts any supported server value into a String ID.
-  String? _extractServerId(dynamic server) {
-    if (server == null) {
-      return null;
-    }
-
-    if (server is String) {
-      final value = server.trim();
-
-      return value.isEmpty ? null : value;
-    }
-
-    if (server is int) {
-      return server.toString();
-    }
-
-    if (server is VpnServer) {
-      final id = server.id;
-
-      if (id == null) {
-        return null;
-      }
-
-      final value = id.toString().trim();
-
-      return value.isEmpty ? null : value;
-    }
-
-    if (server is Map) {
-      final id = server['id'];
-
-      if (id == null) {
-        return null;
-      }
-
-      final value = id.toString().trim();
-
-      return value.isEmpty ? null : value;
-    }
-
-    // Last-resort support for objects exposing an id getter.
-    try {
-      final dynamic id = server.id;
-
-      if (id == null) {
-        return null;
-      }
-
-      final value = id.toString().trim();
-
-      return value.isEmpty ? null : value;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Extract server name safely.
-  String _extractServerName(dynamic server) {
-    if (server == null) {
-      return 'Premium Server';
-    }
-
-    if (server is String) {
-      return server.trim().isEmpty
-          ? 'Premium Server'
-          : server.trim();
-    }
-
-    if (server is VpnServer) {
-      final name = server.name;
-
-      return name?.toString().trim().isNotEmpty == true
-          ? name.toString()
-          : 'Premium Server';
-    }
-
-    if (server is Map) {
-      final name = server['name'];
-
-      return name?.toString().trim().isNotEmpty == true
-          ? name.toString()
-          : 'Premium Server';
-    }
-
-    try {
-      final dynamic name = server.name;
-
-      return name?.toString().trim().isNotEmpty == true
-          ? name.toString()
-          : 'Premium Server';
-    } catch (_) {
-      return 'Premium Server';
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // UNLOCK
-  // ---------------------------------------------------------------------------
-
-  /// Unlock a premium server for [durationMinutes].
-  Future<bool> unlockPremiumServer({
+  /// Unlock a premium server for a specified duration
+  Future<void> unlockPremiumServer({
     required dynamic server,
     required int durationMinutes,
-    required String unlockedBy,
+    required String unlockedBy, // 'ad' or 'subscription'
   }) async {
+    debugPrint('\n🔓 unlockPremiumServer() called');
     debugPrint(
-      '\n🔓 unlockPremiumServer() called',
-    );
-
-    debugPrint(
-      '   Duration: $durationMinutes minutes',
-    );
-
-    debugPrint(
-      '   Unlocked by: $unlockedBy',
+      '   server: $server, duration: $durationMinutes min, by: $unlockedBy',
     );
 
     await _ensureInitialized();
 
-    if (durationMinutes <= 0) {
+    try {
+      // Extract server ID - ALWAYS convert to String to match server.id type
+      String? serverId;
+      if (server is String) {
+        serverId = server;
+      } else if (server is int) {
+        serverId = server.toString();
+      } else if (server is VpnServer) {
+        serverId = server.id;
+      } else if (server is Map && server['id'] != null) {
+        serverId = server['id'].toString();
+      } else if (server != null && server.id != null) {
+        serverId = server.id.toString();
+      }
+
+      if (serverId == null || serverId.isEmpty) {
+        debugPrint('❌ Invalid server ID for unlock: $server');
+        return;
+      }
+
       debugPrint(
-        '   ❌ Invalid duration: $durationMinutes',
+        '   1️⃣ Extracted serverId: "$serverId" (type: ${serverId.runtimeType})',
       );
 
-      return false;
+      final serverName = server is String
+          ? server
+          : (server is VpnServer
+                ? server.name
+                : (server is Map ? server['name'] : server?.name));
+
+      final unlockedUntil = DateTime.now().add(
+        Duration(minutes: durationMinutes),
+      );
+      debugPrint(
+        '   2️⃣ Unlock time: now + $durationMinutes min = ${unlockedUntil.toLocal()}',
+      );
+
+      final unlock = UnlockedPremiumServer(
+        serverId: int.tryParse(serverId),
+        serverName: serverName ?? 'Premium Server',
+        unlockedUntil: unlockedUntil,
+        unlockedBy: unlockedBy,
+      );
+
+      // Store in memory using STRING KEY
+      debugPrint('   3️⃣ Storing to _unlockedServers["$serverId"]');
+      _unlockedServers[serverId] = unlock;
+      debugPrint(
+        '   ✅ Stored in memory. _unlockedServers now has ${_unlockedServers.length} items',
+      );
+      debugPrint('      Keys: ${_unlockedServers.keys.toList()}');
+
+      // Persist to storage
+      debugPrint('   4️⃣ Calling _saveUnlocksToStorage()...');
+      await _saveUnlocksToStorage();
+
+      debugPrint(
+        '✅ Premium server $serverId unlocked until ${unlockedUntil.toLocal()}',
+      );
+    } catch (e) {
+      debugPrint('❌ Error unlocking premium server: $e');
+      debugPrint('   Stack trace: $e');
     }
-
-    final serverId = _extractServerId(server);
-
-    if (serverId == null) {
-      debugPrint(
-        '   ❌ Could not extract server ID.',
-      );
-
-      debugPrint(
-        '   Server: $server',
-      );
-
-      return false;
-    }
-
-    final serverName = _extractServerName(server);
-
-    final unlockedUntil = DateTime.now().add(
-      Duration(minutes: durationMinutes),
-    );
-
-    final unlock = UnlockedPremiumServer(
-      serverId: int.tryParse(serverId),
-      serverName: serverName,
-      unlockedUntil: unlockedUntil,
-      unlockedBy: unlockedBy,
-    );
-
-    // Store in memory first.
-    _unlockedServers[serverId] = unlock;
-
-    debugPrint(
-      '   ✅ Stored in memory',
-    );
-
-    debugPrint(
-      '      ID: $serverId',
-    );
-
-    debugPrint(
-      '      Name: $serverName',
-    );
-
-    debugPrint(
-      '      Until: ${unlockedUntil.toLocal()}',
-    );
-
-    debugPrint(
-      '      Remaining: ${unlock.remainingSeconds}s',
-    );
-
-    debugPrint(
-      '      Total unlocked servers: '
-          '${_unlockedServers.length}',
-    );
-
-    // Persist.
-    final saved = await _saveUnlocksToStorage();
-
-    if (!saved) {
-      debugPrint(
-        '   ⚠️ Unlock is active in memory, '
-            'but storage save failed.',
-      );
-    }
-
-    return true;
   }
 
-  // ---------------------------------------------------------------------------
-  // CHECK UNLOCK
-  // ---------------------------------------------------------------------------
-
-  /// Check whether a server is currently unlocked.
+  /// Check if a server is currently unlocked
   bool isPremiumServerUnlocked(dynamic serverId) {
     try {
-      final id = _extractServerId(serverId);
+      // Convert to String to match key type
+      final id = serverId is String
+          ? serverId
+          : (serverId is int ? serverId.toString() : serverId?.toString());
 
-      if (id == null) {
-        return false;
-      }
+      if (id == null || id.isEmpty) return false;
 
       final unlock = _unlockedServers[id];
-
-      if (unlock == null) {
-        return false;
-      }
+      if (unlock == null) return false;
 
       if (!unlock.isStillUnlocked) {
-        debugPrint(
-          '   ⏰ Unlock expired: $id',
-        );
-
         _unlockedServers.remove(id);
-
-        // Save cleanup asynchronously.
-        _saveUnlocksToStorage();
-
+        // Save updated state (fire and forget is OK here since it's just cleanup)
+        // But we log it
+        debugPrint('   🗑️  Removed expired unlock for $id, saving state...');
+        _saveUnlocksToStorage(); // Safe to not await cleanup saves
         return false;
       }
 
       return true;
     } catch (e) {
-      debugPrint(
-        '❌ Error checking premium unlock: $e',
-      );
-
+      debugPrint('❌ Error checking unlock status: $e');
       return false;
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // GET UNLOCK INFO
-  // ---------------------------------------------------------------------------
-
-  /// Returns unlock information if the server is currently unlocked.
-  UnlockedPremiumServer? getUnlockInfo(
-      dynamic serverId,
-      ) {
+  /// Get unlock info for a server (if unlocked)
+  UnlockedPremiumServer? getUnlockInfo(dynamic serverId) {
     try {
-      final id = _extractServerId(serverId);
+      // Convert to String to match key type
+      final id = serverId is String
+          ? serverId
+          : (serverId is int ? serverId.toString() : serverId?.toString());
 
-      if (id == null) {
-        return null;
-      }
+      if (id == null || id.isEmpty) return null;
 
       final unlock = _unlockedServers[id];
 
-      if (unlock == null) {
-        return null;
+      if (unlock != null && unlock.isStillUnlocked) {
+        return unlock;
       }
 
-      if (!unlock.isStillUnlocked) {
-        _unlockedServers.remove(id);
-
-        _saveUnlocksToStorage();
-
-        return null;
-      }
-
-      return unlock;
+      return null;
     } catch (e) {
-      debugPrint(
-        '❌ Error getting unlock info: $e',
-      );
-
+      debugPrint('❌ Error getting unlock info: $e');
       return null;
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // REMAINING TIME
-  // ---------------------------------------------------------------------------
-
-  /// Remaining unlock time in seconds.
-  int getRemainingUnlockTime(
-      dynamic serverId,
-      ) {
+  /// Get remaining unlock time in seconds
+  int getRemainingUnlockTime(dynamic serverId) {
     final unlock = getUnlockInfo(serverId);
-
     return unlock?.remainingSeconds ?? 0;
   }
 
-  /// Remaining unlock time in minutes.
-  ///
-  /// Uses ceil:
-  /// 5.2 minutes => 6 minutes
-  /// 0.5 minutes => 1 minute
-  int getRemainingMinutes(
-      dynamic serverId,
-      ) {
+  /// Get remaining unlock time in minutes (rounded up)
+  int getRemainingMinutes(dynamic serverId) {
     final seconds = getRemainingUnlockTime(serverId);
-
-    if (seconds <= 0) {
-      return 0;
-    }
-
-    return (seconds / 60).ceil();
+    if (seconds <= 0) return 0;
+    return (seconds / 60).ceil(); // Ceil to round up (5.2 min becomes 6m)
   }
 
-  // ---------------------------------------------------------------------------
-  // ALL UNLOCKED SERVERS
-  // ---------------------------------------------------------------------------
-
-  /// Get all currently unlocked servers.
+  /// Get all currently unlocked servers
   Map<String, UnlockedPremiumServer> getAllUnlockedServers() {
-    // Remove expired entries.
-    final expiredIds = <String>[];
+    // Clean expired unlocks
+    _unlockedServers.removeWhere((_, unlock) => !unlock.isStillUnlocked);
+    return Map.from(_unlockedServers);
+  }
 
-    _unlockedServers.forEach(
-          (key, unlock) {
-        if (!unlock.isStillUnlocked) {
-          expiredIds.add(key);
-        }
-      },
-    );
+  /// Remove unlock for a specific server
+  Future<void> removeUnlock(dynamic serverId) async {
+    try {
+      // Convert to String to match key type
+      final id = serverId is String
+          ? serverId
+          : (serverId is int ? serverId.toString() : serverId?.toString());
 
-    if (expiredIds.isNotEmpty) {
-      for (final id in expiredIds) {
+      if (id != null && id.isNotEmpty) {
         _unlockedServers.remove(id);
+        await _saveUnlocksToStorage();
+        debugPrint('✅ Removed unlock for server $id');
       }
-
-      // Persist cleanup.
-      _saveUnlocksToStorage();
-    }
-
-    return Map<String, UnlockedPremiumServer>.from(
-      _unlockedServers,
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // REMOVE ONE
-  // ---------------------------------------------------------------------------
-
-  /// Remove unlock for a specific server.
-  Future<bool> removeUnlock(
-      dynamic serverId,
-      ) async {
-    try {
-      await _ensureInitialized();
-
-      final id = _extractServerId(serverId);
-
-      if (id == null) {
-        debugPrint(
-          '   ❌ Invalid server ID for removeUnlock',
-        );
-
-        return false;
-      }
-
-      final existed = _unlockedServers.remove(id);
-
-      if (existed == null) {
-        debugPrint(
-          '   ℹ️ No unlock found for server $id',
-        );
-
-        return false;
-      }
-
-      await _saveUnlocksToStorage();
-
-      debugPrint(
-        '   ✅ Removed unlock for server $id',
-      );
-
-      return true;
     } catch (e) {
-      debugPrint(
-        '❌ Error removing unlock: $e',
-      );
-
-      return false;
+      debugPrint('❌ Error removing unlock: $e');
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // CLEAR ALL
-  // ---------------------------------------------------------------------------
-
-  /// Clear all premium server unlocks.
-  Future<bool> clearAllUnlocks() async {
+  /// Clear all unlocks
+  Future<void> clearAllUnlocks() async {
     try {
-      await _ensureInitialized();
-
       _unlockedServers.clear();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey);
+      debugPrint('✅ All unlocks cleared');
+    } catch (e) {
+      debugPrint('❌ Error clearing unlocks: $e');
+    }
+  }
+
+  /// Save unlocks to storage
+  Future<void> _saveUnlocksToStorage() async {
+    try {
+      debugPrint('\n💾 Saving unlocks to SharedPreferences...');
+      debugPrint('   [SAVE START] _unlockedServers content:');
+      debugPrint('      Map length: ${_unlockedServers.length}');
+      debugPrint('      Map keys: ${_unlockedServers.keys.toList()}');
+
+      _unlockedServers.forEach((key, unlock) {
+        debugPrint(
+          '      [$key] -> serverId=${unlock.serverId}, isStillUnlocked=${unlock.isStillUnlocked}, until=${unlock.unlockedUntil.toLocal()}',
+        );
+      });
 
       final prefs = await SharedPreferences.getInstance();
+      final data = <String, dynamic>{};
 
-      final result = await prefs.remove(
-        _storageKey,
-      );
-
-      debugPrint(
-        '   🗑️ All premium unlocks cleared.',
-      );
-
-      debugPrint(
-        '   Storage remove result: $result',
-      );
-
-      return result;
-    } catch (e, st) {
-      debugPrint(
-        '❌ Error clearing unlocks: $e',
-      );
-
-      debugPrint(
-        '   Stack trace: $st',
-      );
-
-      return false;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // SAVE
-  // ---------------------------------------------------------------------------
-
-  /// Save unlocks to SharedPreferences.
-  ///
-  /// Writes are queued so multiple save operations cannot
-  /// overwrite each other unpredictably.
-  Future<bool> _saveUnlocksToStorage() {
-    final completer = _SaveCompleter();
-
-    _saveQueue = _saveQueue
-        .catchError(
-          (Object error, StackTrace stackTrace) {
+      _unlockedServers.forEach((serverId, unlock) {
         debugPrint(
-          '⚠️ Previous save failed: $error',
+          '   Processing unlock: serverId=$serverId, isStillUnlocked=${unlock.isStillUnlocked}',
         );
-      },
-    )
-        .then(
-          (_) async {
-        try {
-          final result =
-          await _performSaveUnlocks();
-
-          completer.complete(result);
-        } catch (e, st) {
-          debugPrint(
-            '❌ Save operation failed: $e',
-          );
-
-          debugPrint(
-            '   Stack trace: $st',
-          );
-
-          completer.complete(false);
-        }
-      },
-    );
-
-    return completer.future;
-  }
-
-  Future<bool> _performSaveUnlocks() async {
-    debugPrint(
-      '\n💾 Saving premium server unlocks...',
-    );
-
-    final prefs = await SharedPreferences.getInstance();
-
-    final data = <String, dynamic>{};
-
-    final expiredIds = <String>[];
-
-    _unlockedServers.forEach(
-          (serverId, unlock) {
         if (unlock.isStillUnlocked) {
-          data[serverId] = unlock.toJson();
+          final jsonData = unlock.toJson();
+          data[serverId.toString()] = jsonData;
+          debugPrint('      ✅ Added to save data: $serverId -> $jsonData');
         } else {
-          expiredIds.add(serverId);
+          debugPrint('      ⏰ Unlock expired, skipping: $serverId');
         }
-      },
-    );
+      });
 
-    // Remove expired entries from memory too.
-    for (final id in expiredIds) {
-      _unlockedServers.remove(id);
-    }
+      debugPrint('   Total items to save: ${data.length}');
+      final jsonStr = jsonEncode(data);
+      debugPrint('   Data to save: $jsonStr');
+      debugPrint('   JSON length: ${jsonStr.length} chars');
 
-    final jsonString = jsonEncode(data);
+      // CRITICAL: Actually save to SharedPreferences
+      debugPrint('   [SAVE POINT] Calling prefs.setString()...');
+      final saveResult = await prefs.setString(_storageKey, jsonStr);
+      debugPrint('   [SAVE RESULT] setString returned: $saveResult');
 
-    debugPrint(
-      '   Active unlocks: ${data.length}',
-    );
-
-    debugPrint(
-      '   Server IDs: ${data.keys.toList()}',
-    );
-
-    final saveResult = await prefs.setString(
-      _storageKey,
-      jsonString,
-    );
-
-    debugPrint(
-      '   setString result: $saveResult',
-    );
-
-    if (!saveResult) {
+      // VERIFY: Read back immediately
+      final verifyRead = prefs.getString(_storageKey);
       debugPrint(
-        '   ❌ SharedPreferences setString returned false.',
+        '   [VERIFY READ AFTER SAVE] SharedPreferences contains: ${verifyRead != null ? "${verifyRead.length} chars" : "null"}',
       );
 
-      return false;
-    }
-
-    // Verify immediately.
-    final verifyData = prefs.getString(
-      _storageKey,
-    );
-
-    final verified = verifyData == jsonString;
-
-    debugPrint(
-      '   🔎 Verification: '
-          '${verified ? "SUCCESS" : "FAILED"}',
-    );
-
-    if (!verified) {
+      debugPrint('✅ Unlocks saved to SharedPreferences (key: $_storageKey)');
       debugPrint(
-        '   Expected length: ${jsonString.length}',
+        '   Verification - Saved JSON length: ${jsonStr.length} chars',
       );
-
-      debugPrint(
-        '   Actual length: ${verifyData?.length ?? 0}',
-      );
-    }
-
-    if (verified) {
-      debugPrint(
-        '   ✅ Premium unlocks saved successfully.',
-      );
-    }
-
-    return verified;
-  }
-
-  // ---------------------------------------------------------------------------
-  // DEBUG / UTILITY
-  // ---------------------------------------------------------------------------
-
-  /// Returns number of currently active unlocked servers.
-  int get unlockedServerCount {
-    return getAllUnlockedServers().length;
-  }
-
-  /// Returns whether service has finished initialization.
-  bool get isInitialized {
-    return _initialized;
-  }
-
-  /// Debug information.
-  void debugPrintStatus() {
-    debugPrint(
-      '\n================ PREMIUM UNLOCK STATUS ================',
-    );
-
-    debugPrint(
-      'Initialized: $_initialized',
-    );
-
-    debugPrint(
-      'Active servers: ${_unlockedServers.length}',
-    );
-
-    if (_unlockedServers.isEmpty) {
-      debugPrint(
-        'No premium servers currently unlocked.',
-      );
-    } else {
-      _unlockedServers.forEach(
-            (id, unlock) {
-          debugPrint(
-            'Server ID: $id',
-          );
-
-          debugPrint(
-            '  Name: ${unlock.serverName}',
-          );
-
-          debugPrint(
-            '  Until: ${unlock.unlockedUntil.toLocal()}',
-          );
-
-          debugPrint(
-            '  Remaining: ${unlock.remainingSeconds}s',
-          );
-
-          debugPrint(
-            '  By: ${unlock.unlockedBy}',
-          );
-
-          debugPrint(
-            '  Active: ${unlock.isStillUnlocked}',
-          );
-        },
-      );
-    }
-
-    debugPrint(
-      '========================================================\n',
-    );
-  }
-}
-
-/// Small helper used to return the result of a queued save.
-class _SaveCompleter {
-  final Completer<bool> _completer =
-  Completer<bool>();
-
-  Future<bool> get future => _completer.future;
-
-  void complete(bool value) {
-    if (!_completer.isCompleted) {
-      _completer.complete(value);
+    } catch (e, st) {
+      debugPrint('❌ Error saving unlocks: $e');
+      debugPrint('   Stack trace: $st');
     }
   }
 }

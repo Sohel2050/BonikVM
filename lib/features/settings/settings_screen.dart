@@ -12,8 +12,6 @@ import '../../providers/auth_providers.dart';
 import '../../core/api/api_service.dart';
 import '../../core/services/purchase_service.dart';
 import '../about/about_screen.dart';
-import '../privacy/privacy_policy_screen.dart';
-import '../terms/terms_of_service_screen.dart';
 import '../support/support_screen.dart';
 import 'admin_notifications_screen.dart';
 import '../../screens/profile/purchase_history_screen.dart';
@@ -56,7 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       },
     );
 
-    //_bannerAd?.load();
+    _bannerAd?.load();
   }
 
   void _disposeBannerAd() {
@@ -95,6 +93,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
+              Container(
+                height: 60,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AdWidget(ad: _bannerAd!),
+                ),
+              ),
+            ],
+
             // Connection Settings
             _buildSectionTitle(localizations.connection, isDarkMode),
             const SizedBox(height: 8),
@@ -132,7 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   isDarkMode: isDarkMode,
                   trailing: Switch(
                     value: ref.watch(autoConnectProvider),
-                    onChanged: (_) {
+                    onChanged: (value) {
                       ref.read(autoConnectProvider.notifier).toggle();
                     },
                   ),
@@ -179,67 +192,170 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 24),
 
             // Account Settings
-
-
-           // _buildSectionTitle(localizations.account, isDarkMode),
-
-           // const SizedBox(height: 8),
-
-
-           /* _buildSettingCard(
+            _buildSectionTitle(localizations.account, isDarkMode),
+            const SizedBox(height: 8),
+            _buildSettingCard(
               isDarkMode: isDarkMode,
               children: [
                 _buildSettingTile(
                   title: localizations.premiumStatus,
-                  subtitle: isPremium ? 'Active' : 'Free Plan',
+                  subtitle: ref.watch(premiumStatusProvider)
+                      ? 'Active'
+                      : 'Free Plan',
                   icon: Icons.star,
                   isDarkMode: isDarkMode,
-                  onTap: isPremium
-                      ? null
-                      : () => Navigator.pushNamed(context, '/premium'),
-                  trailing: isPremium
+                  onTap: () => Navigator.pushNamed(context, '/premium'),
+                  trailing: ref.watch(premiumStatusProvider)
                       ? Icon(
                           Icons.check_circle,
                           color: ref.watch(themeColorProvider),
                         )
-                      : ElevatedButton.icon(
-                          icon: const Icon(Icons.workspace_premium, size: 14),
-                          label: const Text(
-                            'UPGRADE',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/premium'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ref.watch(themeColorProvider),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
+                      : const Icon(Icons.upgrade, color: Colors.orange),
+                ),
+                _buildDivider(isDarkMode),
+                _buildSettingTile(
+                  title: localizations.accountManagement,
+                  subtitle: authState.firebaseUser != null
+                      ? 'Signed in as ${authState.firebaseUser?.email ?? "User"}'
+                      : 'Sign in with Google account',
+                  icon: authState.firebaseUser != null
+                      ? Icons.person
+                      : Icons.login,
+                  isDarkMode: isDarkMode,
+                  trailing: authState.firebaseUser != null
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (authState.firebaseUser?.emailVerified == true)
+                              Icon(
+                                Icons.verified,
+                                color: Colors.green,
+                                size: 16,
+                              ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.check_circle, color: Colors.green),
+                          ],
+                        )
+                      : Icon(Icons.login, color: Colors.blue),
+                  onTap: () => _handleAccountManagement(),
+                ),
+                if (authState.firebaseUser != null) ...[
+                  _buildDivider(isDarkMode),
+                  _buildSettingTile(
+                    title: localizations.purchaseHistory,
+                    subtitle: 'View your subscription history',
+                    icon: Icons.history,
+                    isDarkMode: isDarkMode,
+                    onTap: () => _navigateToPurchaseHistory(),
+                  ),
+                  _buildDivider(isDarkMode),
+                  _buildSettingTile(
+                    title: localizations.restorePurchases,
+                    subtitle:
+                        'Restore previous purchases from Play Store or App Store',
+                    icon: Icons.restore,
+                    isDarkMode: isDarkMode,
+                    onTap: () => _handleRestorePurchases(),
+                  ),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Miscellaneous Settings
+            _buildSectionTitle(localizations.miscellaneous, isDarkMode),
+            const SizedBox(height: 8),
+            _buildSettingCard(
+              isDarkMode: isDarkMode,
+              children: [
+                _buildSettingTile(
+                  title: localizations.notifications,
+                  subtitle: 'Manage push notifications',
+                  icon: Icons.notifications,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminNotificationsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
-*/
-            // Bottom banner ad
-            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
-              const SizedBox(height: 24),
-              Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+
+            const SizedBox(height: 24),
+
+            // Other Settings
+            _buildSectionTitle('Other', isDarkMode),
+            const SizedBox(height: 8),
+            _buildSettingCard(
+              isDarkMode: isDarkMode,
+              children: [
+                _buildSettingTile(
+                  title: localizations.privacyPolicy,
+                  subtitle: 'Read our privacy policy',
+                  icon: Icons.privacy_tip,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.pushNamed(context, '/privacy');
+                  },
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  //child: AdWidget(ad: _bannerAd!),
+                _buildDivider(isDarkMode),
+                _buildSettingTile(
+                  title: localizations.termsOfService,
+                  subtitle: 'Read our terms',
+                  icon: Icons.description,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.pushNamed(context, '/terms');
+                  },
                 ),
-              ),
-            ],
+                _buildDivider(isDarkMode),
+                _buildSettingTile(
+                  title: localizations.support,
+                  subtitle: 'Get help with the app',
+                  icon: Icons.support_agent,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SupportScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDivider(isDarkMode),
+                _buildSettingTile(
+                  title: localizations.about,
+                  subtitle: 'App information and credits',
+                  icon: Icons.info,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutScreen(),
+                      ),
+                    );
+                  },
+                ),
+                // Add debug option (always available for Play Store testing)
+                // _buildDivider(isDarkMode),
+                // _buildSettingTile(
+                //   title: 'VPN Debug & Testing',
+                //   subtitle: 'Test VPN configuration and Play Store readiness',
+                //   icon: Icons.bug_report,
+                //   isDarkMode: isDarkMode,
+                //   onTap: () {
+                //     Navigator.pushNamed(context, '/debug');
+                //   },
+                // ),
+              ],
+            ),
 
             const SizedBox(height: 100), // Bottom padding
           ],
@@ -249,7 +365,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSectionTitle(String title, bool isDarkMode) {
-    final themeColor = ref.watch(themeColorProvider);
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
@@ -258,7 +373,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
-          color: themeColor,
+          color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
         ),
       ),
     );
@@ -340,11 +455,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildDivider(bool isDarkMode) {
-    return const Divider(
+    return Divider(
       height: 1,
-      color: Color(0xFF1E1E1E),
-      indent: 76,
-      endIndent: 20,
+      color: isDarkMode ? const Color(0xFF334155) : Colors.grey[200],
+      indent: 60,
+      endIndent: 16,
     );
   }
 
@@ -1064,10 +1179,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.delete_forever_rounded,
-                    color: Color(0xFFEF4444),
-                  ),
+                  child: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444)),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -1182,17 +1294,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
 
           // Hard reset to splash to rebuild shell/auth flow cleanly.
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/splash', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
         }
       } else {
         // Backend error other than "user not found" — still attempt Firebase deletion
         await ref.read(authStateProvider.notifier).deleteAccount();
         if (mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/splash', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
         }
       }
     } catch (e) {
@@ -1232,9 +1340,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Force full route reset to prevent stale shell causing black screens.
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/splash', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
         }
       }
     } catch (e) {

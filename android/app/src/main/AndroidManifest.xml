@@ -2,105 +2,137 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ✅ CRITICAL: Support 16KB memory page sizes for Google Play (Android 15+) -->
-    <supports-screens
-        android:anyDensity="true"
-        android:largeScreens="true"
-        android:normalScreens="true"
-        android:resizeable="true"
-        android:smallScreens="true"
-        android:xlargeScreens="true" />
+    <supports-screens android:resizeable="true"
+                      android:smallScreens="true"
+                      android:normalScreens="true"
+                      android:largeScreens="true"
+                      android:xlargeScreens="true"
+                      android:anyDensity="true" />
 
-
-    <!-- Network -->
+    <!-- VPN Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- VPN -->
-    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" /> <!-- Foreground Service -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- Notifications -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Utility -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> <!-- Ads -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" /> <!-- Billing -->
-    <uses-permission android:name="com.android.vending.BILLING" /> <!-- Remove unwanted permissions -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- EXPLICITLY REMOVE location permissions — not required for VPN functionality -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove" />
+
+    <!-- Critical VPN Permission -->
+    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
+
+    <!-- CRITICAL: Missing VPN Service permission for App Bundle -->
+    <uses-permission android:name="android.permission.VPN" />
+
+    <!-- Additional VPN Permissions for production -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+    <!-- Notification permission for VPN status -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        Android 14+ VPN Foreground Service Permission.
+        specialUse is the correct type for third-party VPN tunnels (no dedicated "vpn"
+        type exists). Do NOT use FOREGROUND_SERVICE_CONNECTED_DEVICE/connectedDevice here —
+        that type is for companion/wearable device links, not VPN, and Play review flags it.
+    -->
     <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        tools:node="remove" />
-    <uses-permission
-        android:name="android.permission.ACCESS_COARSE_LOCATION"
-        tools:node="remove" />
-    <uses-permission
-        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
-        tools:node="remove" />
+        android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+        android:minSdkVersion="34" />
+
+    <!-- AdMob Permissions -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
+    <!-- Google Play Billing Permission -->
+    <uses-permission android:name="com.android.vending.BILLING" />
 
     <application
-        android:name="${applicationName}"
-        android:extractNativeLibs="true"
-        android:icon="@mipmap/launcher_icon"
         android:label="VPN MASTER"
-        android:usesCleartextTraffic="false"> <!-- AdMob -->
+        android:name="${applicationName}"
+        android:icon="@mipmap/launcher_icon"
+        android:extractNativeLibs="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false">
+
+        <!-- ✅ CRITICAL: 16KB page size support metadata -->
+        <meta-data android:name="android.max_aspect" android:value="2.4" />
+        <meta-data android:name="android.allow_multiple_resumed_activities" android:value="true" />
+
+        <!-- AdMob App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-9189896335015331~9603802785" /> <!-- Flutter -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" /> <!-- Main Activity -->
+            android:value="ca-app-pub-9189896335015331~9603802785"/>
+
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:exported="true"
-            android:hardwareAccelerated="true"
             android:launchMode="singleTop"
+            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
             <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme" />
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity> <!-- OpenVPN Launch -->
-        <activity
-            android:name="de.blinkt.openvpn.LaunchVPN"
-            android:excludeFromRecents="true"
+        </activity>
+
+        <!-- ✅ CRITICAL: OpenVPN Activities for App Bundle -->
+        <activity android:name="de.blinkt.openvpn.LaunchVPN"
             android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:launchMode="singleTask"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-        <activity
-            android:name="de.blinkt.openvpn.activities.DisconnectVPN"
             android:excludeFromRecents="true"
+            tools:replace="android:exported,android:theme" />
+
+        <activity android:name="de.blinkt.openvpn.activities.DisconnectVPN"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-        <activity
-            android:name="de.blinkt.openvpn.DisconnectVPNActivity"
-            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
+
+        <activity android:name="de.blinkt.openvpn.DisconnectVPNActivity"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" /> <!-- OpenVPN Service -->
-        <service
-            android:name="de.blinkt.openvpn.core.OpenVPNService"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
+
+        <!-- ✅ CRITICAL: OpenVPN Service Declaration for App Bundle -->
+        <service android:name="de.blinkt.openvpn.core.OpenVPNService"
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE"
-            android:stopWithTask="false">
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false"
+            tools:replace="android:foregroundServiceType">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn" />
             <intent-filter>
-                <action android:name="android.net.VpnService" />
-            </intent-filter>
-        </service> <!-- WireGuard Background Service -->
-        <service
-            android:name="com.axevpn.flutter.wireguard.AxeWireGuardService"
-            android:exported="false"
-            android:stopWithTask="false" /> <!-- WireGuard VPN Service -->
-        <service
-            android:name="com.axevpn.flutter.wireguard.AxeWireGuardVpnService"
-            android:exported="false"
-            android:permission="android.permission.BIND_VPN_SERVICE"
-            android:stopWithTask="false">
-            <intent-filter>
-                <action android:name="android.net.VpnService" />
+                <action android:name="android.net.VpnService"/>
             </intent-filter>
         </service>
+
+        <!--
+            AxeWireGuardService / AxeWireGuardVpnService are declared identically in
+            axevpn_flutter's own manifest (specialUse + the FGS subtype property) and
+            merge in automatically — redeclaring them here without tools:replace caused
+            the manifest merger to concatenate the type into "specialUse|specialUse".
+        -->
 
         <!-- ============================================ -->
         <!-- Unity LevelPlay (IronSource) Required Activities -->
@@ -122,11 +154,22 @@
             android:theme="@android:style/Theme.Translucent" />
         <!-- ============================================ -->
 
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
     </application>
+
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT" />
-            <data android:mimeType="text/plain" />
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
         </intent>
     </queries>
 </manifest>

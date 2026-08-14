@@ -7,7 +7,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 1.1.5+22
 
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.12.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -16,9 +16,6 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  flutter_launcher_icons: ^0.14.4
-  change_app_package_name: ^1.5.0
-  rename_app: ^1.6.6
   flutter:
     sdk: flutter
 
@@ -37,10 +34,7 @@ dependencies:
   shimmer: ^3.0.0
 
   # VPN & Network
-  axevpn_flutter:
-    git:
-      url: https://github.com/Arsl143/axevpn_flutter
-      ref: main
+  axevpn_flutter: ^3.0.3
   network_info_plus: ^7.0.0
   flutter_local_notifications: ^17.2.3
   connectivity_plus: ^7.0.0
@@ -48,12 +42,12 @@ dependencies:
   http: ^1.1.0
 
   # AdMob & Monetization
-  google_mobile_ads: ^7.0.0
-  # Unity LevelPlay (IronSource) Mediation
-  ironsource_mediation: ^3.1.2
-  in_app_purchase: ^3.2.3
-  in_app_purchase_android: ^0.4.0+4
-  in_app_purchase_storekit: ^0.4.4
+  google_mobile_ads: ^9.1.0
+  # Unity LevelPlay Mediation (successor to the discontinued ironsource_mediation)
+  unity_levelplay_mediation: ^9.2.0
+  in_app_purchase: ^3.3.0
+  in_app_purchase_android: ^0.5.2
+  in_app_purchase_storekit: ^0.4.11+1
   in_app_review: ^2.0.9
 
   # Payment Processing
@@ -70,10 +64,10 @@ dependencies:
   share_plus: ^12.0.1
 
   # Firebase
-  firebase_core: ^4.4.0
-  firebase_messaging: ^16.1.1
-  firebase_analytics: ^12.1.1
-  firebase_auth: ^6.1.4
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
+  firebase_analytics: ^12.4.6
+  firebase_auth: ^6.5.7
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.4
 
@@ -100,9 +94,15 @@ dependencies:
     sdk: flutter
   intl: any
   flutter_dotenv: ^6.0.0
+  country_flags: ^4.1.2
+  file_picker: ^8.1.4
+
+  # Windows desktop
+  window_manager: ^0.5.2
+  tray_manager: ^0.5.3
+  flutter_secure_storage: ^10.3.1
 
 dev_dependencies:
-  onesignal_flutter: ^5.5.4
   flutter_test:
     sdk: flutter
 
@@ -116,6 +116,7 @@ dev_dependencies:
   # Linting
   flutter_lints: ^6.0.0
   change_app_package_name: any
+  flutter_launcher_icons: any
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -144,3 +145,7 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/app_trn.png"
   min_sdk_android: 21
+  windows:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    icon_size: 256

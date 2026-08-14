@@ -174,6 +174,17 @@
 -dontwarn dev.flutterplaza.in_app_update.**
 
 # -------------------------------
+# V2RAY / AXEVPN V2RAY PLUGIN
+# -------------------------------
+# libv2ray classes are loaded via native Go binding at runtime (gomobile AAR)
+# R8 cannot see them during compilation — suppress missing class errors
+-dontwarn libv2ray.Libv2ray
+-dontwarn libv2ray.V2RayPoint
+-dontwarn libv2ray.V2RayVPNServiceSupportsSet
+-keep class libv2ray.** { *; }
+-keep class com.axevpn.flutter.v2ray.** { *; }
+
+# -------------------------------
 # UNITY LEVELPLAY (IRONSOURCE) SDK
 # -------------------------------
 -keep class com.ironsource.** { *; }

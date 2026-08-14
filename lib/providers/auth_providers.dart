@@ -143,9 +143,6 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
       // SECURITY: Account ID Immutability Check
       // Ensure the authenticated user UID matches the previously authenticated UID
       if (state.firebaseUser != null && state.firebaseUser!.uid != user.uid) {
-        print('[Auth] ❌ SECURITY ALERT: Attempted account ID change!');
-        print('[Auth] Previous UID: ${state.firebaseUser!.uid}');
-        print('[Auth] New UID: ${user.uid}');
 
         // This is a critical security issue - log and reject silently
         // Force logout to prevent account hijacking
@@ -181,14 +178,11 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
       NotificationService().updateUserId(user.uid);
 
       // Check subscription status after authentication
-      print('[Auth] User authenticated: ${user.uid}, checking subscription...');
       try {
         await _ref
             .read(subscriptionProvider.notifier)
             .checkSubscriptionStatus(user.uid);
-        print('[Auth] Subscription check completed');
       } catch (e) {
-        print('[Auth] Error checking subscription: $e');
         // Don't block authentication if subscription check fails
       }
     } catch (e) {
@@ -348,8 +342,13 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   // Sign in anonymously / continue as guest
   Future<void> signInAnonymously() async {
-    // Guest mode: allow access to home screen without authentication
-    state = const AuthState(
+    // Guest mode: allow access to home screen without authentication.
+    // Deliberately not `const` — state_notifier's default change-detection
+    // uses `identical(old, new)`, and a `const` literal here would
+    // canonicalize to the same instance on every call, so tapping "Continue
+    // as Guest" a second time (already in guest mode) would silently produce
+    // no state change and no listener notification.
+    state = AuthState(
       status: AuthStatus.unauthenticated,
       isLoading: false,
       lastAction: 'guest',
