@@ -70,11 +70,19 @@ Future<void> _initializeApp() async {
       // Continue without Firebase - app can still work
       debugPrint('Firebase initialization error: $e');
     }
-    // Initialize Mobile Ads with timeout
+    // Initialize Mobile Ads with timeout.
+    //
+    // 3 seconds was too tight: on a cold start (especially on emulators)
+    // MobileAds.instance.initialize() routinely hadn't finished by then, so
+    // this timeout fired on essentially every launch, we moved on assuming
+    // ads were ready, and every AdMob request made afterward (banner,
+    // native, interstitial, rewarded, app open) failed with error code 1
+    // (invalid request) because the native SDK genuinely wasn't done
+    // initializing yet. 10s gives it a real chance to finish first.
     try {
       final initFuture = MobileAds.instance.initialize();
       await initFuture.timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 10),
         onTimeout: () {
           debugPrint(
             '⚠️ Mobile Ads initialization timed out - continuing without ads',
@@ -135,7 +143,7 @@ Future<void> _initializeApp() async {
     // Initialize AdMob service with timeout
     try {
       await AdMobService.instance.initialize().timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 10),
         onTimeout: () {
           debugPrint('⚠️ AdMob service initialization timed out');
         },

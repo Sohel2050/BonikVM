@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_service.dart';
@@ -291,6 +292,19 @@ class AdMobService {
   }
 
   Future<void> _loadAdMobIds() async {
+    // Debug builds always use Google's official test ad unit IDs, never
+    // real ones from the backend — avoids serving live production ads
+    // (and getting the AdMob account flagged for invalid traffic) while
+    // developing/testing.
+    if (kDebugMode) {
+      _bannerAdUnitId = _testBannerAdUnitId;
+      _interstitialAdUnitId = _testInterstitialAdUnitId;
+      _rewardedAdUnitId = _testRewardedAdUnitId;
+      _nativeAdUnitId = _testNativeAdUnitId;
+      _appOpenAdUnitId = _testAppOpenAdUnitId;
+      return;
+    }
+
     try {
       // Check cache first to prevent rapid API calls
       const cacheKey = 'admob_ad_ids';

@@ -49,6 +49,11 @@
     <!-- AdMob Permissions -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
+    <!-- Chartboost mediation adapter (legacy storage access, no-op on API 33+) -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <!-- Google Play Billing Permission -->
     <uses-permission android:name="com.android.vending.BILLING" />
 
@@ -153,6 +158,16 @@
             android:hardwareAccelerated="true"
             android:theme="@android:style/Theme.Translucent" />
         <!-- ============================================ -->
+        <!--
+            Meta Audience Network, Unity Ads, Chartboost, AppLovin, and InMobi
+            all ship as AARs whose own bundled manifests already declare their
+            required activities — Unity's per-network docs list them for the
+            legacy JAR-based integration path, which doesn't apply here since
+            all adapters are pulled via Gradle `implementation(...)` coordinates.
+            Redeclaring them manually caused manifest-merge conflicts (mismatched
+            configChanges vs. the AAR's own declaration), so they're intentionally
+            left out.
+        -->
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -165,11 +180,27 @@
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+
+         Also covers the InMobi mediation adapter's need to see the device's
+         custom-tabs service and browsable http(s) handlers for ad clickthroughs. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
         </intent>
     </queries>
 </manifest>

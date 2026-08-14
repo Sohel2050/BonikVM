@@ -1497,6 +1497,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
               // Refresh IP address when disconnected (delayed to let normal interface restore)
               Future.delayed(const Duration(milliseconds: 1500), () {
+                if (!mounted) return;
                 if (ref.read(vpnStateProvider).value == VpnState.disconnected) {
                   ref.invalidate(ipAddressProvider);
                 }
