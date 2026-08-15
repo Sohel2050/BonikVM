@@ -55,7 +55,6 @@ dependencies:
   flutter_stripe: ^11.5.0
   paypal_checkout: 0.0.4
   uuid: ^4.4.0
-  crypto: ^3.0.3
 
   # Receipt & PDF Generation
   pdf: ^3.10.8
@@ -95,7 +94,6 @@ dependencies:
   intl: any
   flutter_dotenv: ^6.0.0
   country_flags: ^4.1.2
-  file_picker: ^8.1.4
 
   # Secure storage (cross-platform: used for token/credential storage on
   # Android/iOS/web, not Windows-only — see api_client.dart,
