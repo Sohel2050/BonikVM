@@ -5,10 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Available theme colors
 class AppThemeColors {
   static const Map<String, Color> colors = {
+    'green': Color(0xFF4CAF50),
     'blue': Color(0xFF2196F3),
     'red': Color(0xFFE53E3E),
     'purple': Color(0xFF7C3AED),
-    'green': Color(0xFF10B981),
     'orange': Color(0xFFF59E0B),
     'pink': Color(0xFFEC4899),
     'indigo': Color(0xFF4338CA),
@@ -140,7 +140,7 @@ ThemeData _buildDarkTheme(Color primaryColor) {
 }
 
 class ThemeColorKeyNotifier extends StateNotifier<String> {
-  ThemeColorKeyNotifier() : super('blue') {
+  ThemeColorKeyNotifier() : super('green') {
     _loadThemeColorKey();
   }
 
@@ -154,7 +154,7 @@ class ThemeColorKeyNotifier extends StateNotifier<String> {
         state = colorKey;
       }
     } catch (e) {
-      state = 'blue';
+      state = 'green';
     }
   }
 
@@ -172,7 +172,7 @@ class ThemeColorKeyNotifier extends StateNotifier<String> {
 }
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
+  ThemeModeNotifier() : super(ThemeMode.dark) {
     _loadThemeMode();
   }
 
@@ -181,10 +181,12 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   Future<void> _loadThemeMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final themeModeIndex = prefs.getInt(_themeModeKey) ?? 0;
-      state = ThemeMode.values[themeModeIndex];
+      final themeModeIndex = prefs.getInt(_themeModeKey);
+      state = themeModeIndex != null
+          ? ThemeMode.values[themeModeIndex]
+          : ThemeMode.dark;
     } catch (e) {
-      state = ThemeMode.system;
+      state = ThemeMode.dark;
     }
   }
 
@@ -214,7 +216,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 }
 
 class ThemeColorNotifier extends StateNotifier<Color> {
-  ThemeColorNotifier() : super(AppThemeColors.colors['blue']!) {
+  ThemeColorNotifier() : super(AppThemeColors.colors['green']!) {
     _loadThemeColor();
   }
 
@@ -223,12 +225,12 @@ class ThemeColorNotifier extends StateNotifier<Color> {
   Future<void> _loadThemeColor() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final colorKey = prefs.getString(_themeColorKey) ?? 'blue';
+      final colorKey = prefs.getString(_themeColorKey) ?? 'green';
       if (AppThemeColors.colors.containsKey(colorKey)) {
         state = AppThemeColors.colors[colorKey]!;
       }
     } catch (e) {
-      state = AppThemeColors.colors['blue']!;
+      state = AppThemeColors.colors['green']!;
     }
   }
 
