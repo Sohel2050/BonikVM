@@ -1205,7 +1205,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444)),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: Color(0xFFEF4444),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -1320,13 +1323,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
 
           // Hard reset to splash to rebuild shell/auth flow cleanly.
-          Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/splash', (route) => false);
         }
       } else {
         // Backend error other than "user not found" — still attempt Firebase deletion
         await ref.read(authStateProvider.notifier).deleteAccount();
         if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/splash', (route) => false);
         }
       }
     } catch (e) {
@@ -1366,7 +1373,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Force full route reset to prevent stale shell causing black screens.
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/splash', (route) => false);
         }
       }
     } catch (e) {
@@ -1543,35 +1552,41 @@ class _AccountManagementSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: dividerColor),
               ),
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(
-                      Icons.delete_forever,
-                      color: Colors.red,
-                    ),
-                    title: const Text(
-                      'Delete Account',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w500,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.red,
+                        ),
+                        title: const Text(
+                          'Delete Account',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Permanently remove your account',
+                          style: TextStyle(color: textSecondary, fontSize: 12),
+                        ),
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Colors.red,
+                        ),
+                        onTap: onDelete,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
                       ),
-                    ),
-                    subtitle: Text(
-                      'Permanently remove your account',
-                      style: TextStyle(color: textSecondary, fontSize: 12),
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.red,
-                    ),
-                    onTap: onDelete,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
 

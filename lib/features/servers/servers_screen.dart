@@ -257,7 +257,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 Container(
                   margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   decoration: BoxDecoration(
-                    color: isDarkMode ? const Color(0xFF1E293B) : Colors.black.withOpacity(0.05),
+                    color: isDarkMode
+                        ? const Color(0xFF1E293B)
+                        : Colors.black.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: TabBar(
@@ -275,9 +277,17 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: Colors.white,
-                    unselectedLabelColor: isDarkMode ? const Color(0xFF94A3B8) : Colors.black54,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    unselectedLabelColor: isDarkMode
+                        ? const Color(0xFF94A3B8)
+                        : Colors.black54,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                     tabs: [
                       Tab(
                         icon: const Icon(Icons.wifi, size: 14),
@@ -530,7 +540,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     child: Center(
                       child: server.countryCode.trim().length == 2
                           ? FlagIcon(countryCode: server.countryCode, size: 30)
-                          : Text(server.flag, style: const TextStyle(fontSize: 26)),
+                          : Text(
+                              server.flag,
+                              style: const TextStyle(fontSize: 26),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -548,7 +561,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: isDarkMode ? Colors.white : const Color(0xFF111827),
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : const Color(0xFF111827),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -556,22 +571,28 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                             const SizedBox(width: 8),
                             // Protocol Badge
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: (server.isOneConnect
-                                        ? const Color(0xFF8B5CF6)
-                                        : server.isV2Ray
-                                        ? const Color(0xFF9333EA)
-                                        : server.isOpenConnect
-                                        ? const Color(0xFFF97316)
-                                        : server.supportsWireGuard
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFF3B82F6))
-                                    .withOpacity(0.12),
+                                color:
+                                    (server.isOneConnect
+                                            ? const Color(0xFF8B5CF6)
+                                            : server.isV2Ray
+                                            ? const Color(0xFF9333EA)
+                                            : server.isOpenConnect
+                                            ? const Color(0xFFF97316)
+                                            : server.supportsWireGuard
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFF3B82F6))
+                                        .withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                server.isOneConnect ? 'OC' : server.protocolDisplayName,
+                                server.isOneConnect
+                                    ? 'OC'
+                                    : server.protocolDisplayName,
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
@@ -598,7 +619,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                                  color: isDarkMode
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF6B7280),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -606,9 +629,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                             if (latencyMs != null) ...[
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _getLatencyColor(latencyMs).withOpacity(0.1),
+                                  color: _getLatencyColor(
+                                    latencyMs,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Row(
@@ -636,23 +664,35 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                               const SizedBox(width: 8),
                               Consumer(
                                 builder: (context, ref, child) {
-                                  final unlockedServers = ref.watch(premiumServerUnlocksProvider);
+                                  final unlockedServers = ref.watch(
+                                    premiumServerUnlocksProvider,
+                                  );
                                   final serverId = server.id.toString();
                                   final unlock = unlockedServers[serverId];
                                   final remainingMinutes =
                                       unlock != null && unlock.isStillUnlocked
-                                          ? (unlock.remainingTime.inSeconds / 60).ceil()
-                                          : 0;
+                                      ? (unlock.remainingTime.inSeconds / 60)
+                                            .ceil()
+                                      : 0;
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: remainingMinutes > 0
-                                          ? const Color(0xFF10B981).withOpacity(0.12)
-                                          : const Color(0xFFF59E0B).withOpacity(0.12),
+                                          ? const Color(
+                                              0xFF10B981,
+                                            ).withOpacity(0.12)
+                                          : const Color(
+                                              0xFFF59E0B,
+                                            ).withOpacity(0.12),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      remainingMinutes > 0 ? '${remainingMinutes}m' : 'VIP',
+                                      remainingMinutes > 0
+                                          ? '${remainingMinutes}m'
+                                          : 'VIP',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w800,
@@ -692,7 +732,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+                                color: isDarkMode
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF9CA3AF),
                               ),
                             ),
                           ],
@@ -714,10 +756,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                           GestureDetector(
                             onTap: () => _toggleFavorite(server.id),
                             child: Icon(
-                              isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                              isFavorite
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
                               color: isFavorite
                                   ? const Color(0xFFF59E0B)
-                                  : (isDarkMode ? const Color(0xFF475569) : const Color(0xFF9CA3AF)),
+                                  : (isDarkMode
+                                        ? const Color(0xFF475569)
+                                        : const Color(0xFF9CA3AF)),
                               size: 20,
                             ),
                           ),
@@ -738,7 +784,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                             Icon(
                               Icons.arrow_forward_ios_rounded,
                               size: 12,
-                              color: isDarkMode ? const Color(0xFF475569) : const Color(0xFF9CA3AF),
+                              color: isDarkMode
+                                  ? const Color(0xFF475569)
+                                  : const Color(0xFF9CA3AF),
                             ),
                         ],
                       ),
@@ -746,9 +794,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       GestureDetector(
                         onTap: () => _showServerDetailsBottomSheet(server),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                            color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
+                            color: isDarkMode
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
@@ -757,7 +810,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                               Icon(
                                 Icons.info_outline_rounded,
                                 size: 10,
-                                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF6B7280),
+                                color: isDarkMode
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF6B7280),
                               ),
                               const SizedBox(width: 3),
                               Text(
@@ -765,7 +820,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
-                                  color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF6B7280),
+                                  color: isDarkMode
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF6B7280),
                                 ),
                               ),
                             ],
@@ -1376,7 +1433,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           20,
           12,
           20,
-          MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
+          MediaQuery.of(ctx).viewInsets.bottom +
+              MediaQuery.of(ctx).padding.bottom +
+              20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1982,27 +2041,35 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
               : (isDarkMode ? Colors.grey[700]! : Colors.grey[200]!),
         ),
       ),
-      child: CheckboxListTile(
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isDarkMode ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w500,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Material(
+          type: MaterialType.transparency,
+          child: CheckboxListTile(
+            title: Text(
+              title,
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+            secondary: Icon(icon, color: color, size: 22),
+            value: value,
+            activeColor: color,
+            checkColor: Colors.white,
+            onChanged: onChanged,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-            fontSize: 12,
-          ),
-        ),
-        secondary: Icon(icon, color: color, size: 22),
-        value: value,
-        activeColor: color,
-        checkColor: Colors.white,
-        onChanged: onChanged,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
