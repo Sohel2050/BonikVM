@@ -48,8 +48,8 @@ class SupportScreen extends ConsumerWidget {
                         ),
                         child: const Icon(
                           Icons.support_agent,
-                          size: 40,
-                          color: Colors.white,
+                          size: 80,
+                          color: Colors.yellow,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -58,7 +58,7 @@ class SupportScreen extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.black,
+                          color: isDarkMode ? Colors.white : Colors.green,
                         ),
                       ),
                       const SizedBox(height: 8),
