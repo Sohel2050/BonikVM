@@ -141,7 +141,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: 'Axe ',
+                            text: 'VPN ',
                             style: TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w900,
@@ -150,7 +150,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ),
                           ),
                           TextSpan(
-                            text: 'VPN',
+                            text: 'MASTER',
                             style: TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w900,
