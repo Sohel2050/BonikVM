@@ -21,7 +21,6 @@ import '../../providers/ip_address_provider.dart';
 import '../../services/ads_popup_config_service.dart';
 import '../../services/premium_server_unlock_service.dart';
 import '../../providers/subscription_provider.dart';
-import '../../widgets/connection_map_widget.dart';
 import '../../shared/widgets/flag_icon.dart';
 import 'utils/country_emoji.dart';
 import 'widgets/home_small_widgets.dart';
@@ -1679,14 +1678,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Tech Map Section
-            FadeInDown(
-              duration: const Duration(milliseconds: 800),
-              child: const ConnectionMapWidget(),
-            ),
-
-            const SizedBox(height: 12),
-
             // Connection Button Section
             FadeInDown(
               delay: const Duration(milliseconds: 100),

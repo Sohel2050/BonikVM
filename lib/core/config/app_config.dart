@@ -11,19 +11,10 @@ class AppConfig {
   // app binary, defeating the purpose of keeping it out of source control.
   static String get apiKey => dotenv.env['API_TOKEN_MOBILE'] ?? '';
 
-  // Google OAuth client ID used only on Windows (see
-  // windows_google_auth.dart) since google_sign_in has no Windows
-  // implementation. A real "Desktop app" client ID is required — Google
-  // exempts Desktop clients from needing every loopback port
-  // pre-registered, unlike a Web client type which requires each exact
-  // redirect URI to be allow-listed.
-  //
-  // Managed dynamically from the admin panel (App Config → Social Login →
-  // "Google Client ID (Windows Desktop App)"), fetched at startup by
-  // GoogleLoginConfigService and cached here via [setRemoteGoogleDesktopClientId].
-  // Falls back to .env (GOOGLE_DESKTOP_CLIENT_ID / GOOGLE_CLIENT_ID_WEB) so
-  // this still works before the first successful fetch or if the backend
-  // is unreachable.
+  // Legacy Google Desktop OAuth client ID, previously used by the removed
+  // Windows desktop build. Kept only so AppConfig.setRemoteGoogleDesktopClientId
+  // and google_login_config_service.dart continue to compile; unused on
+  // Android/iOS since google_sign_in has native support there.
   static String? _remoteGoogleDesktopClientId;
 
   static void setRemoteGoogleDesktopClientId(String? clientId) {
@@ -38,10 +29,8 @@ class AppConfig {
       dotenv.env['GOOGLE_CLIENT_ID_WEB'] ??
       '';
 
-  // Google requires this in the token-exchange request even for Desktop
-  // app clients ("invalid_request: client_secret is missing" otherwise) —
-  // see windows_google_auth.dart. Same admin-managed + .env-fallback
-  // pattern as the client ID above.
+  // Legacy Google Desktop OAuth client secret — same status as
+  // googleDesktopClientId above.
   static String? _remoteGoogleDesktopClientSecret;
 
   static void setRemoteGoogleDesktopClientSecret(String? secret) {

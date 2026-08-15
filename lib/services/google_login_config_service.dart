@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../core/config/app_config.dart';
 
-/// Fetches the Windows "Desktop app" Google OAuth client ID from the admin
-/// panel (App Config → Social Login) so it can be changed there without a
-/// Windows app rebuild — see AppConfig.googleDesktopClientId and
-/// windows_google_auth.dart.
+/// Legacy: previously fetched the Windows "Desktop app" Google OAuth
+/// client ID from the admin panel for the now-removed Windows desktop
+/// build. No longer called from app startup; kept only so
+/// AppConfig.setRemoteGoogleDesktopClientId continues to compile.
 class GoogleLoginConfigService {
   static final GoogleLoginConfigService _instance =
       GoogleLoginConfigService._internal();

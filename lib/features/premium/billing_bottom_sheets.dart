@@ -8,9 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../services/billing_service.dart';
 import '../../core/services/purchase_service.dart';
 import '../../core/services/admob_service.dart';
@@ -18,7 +16,6 @@ import '../../shared/providers/theme_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../screens/auth/sign_in_screen.dart';
-import 'windows_checkout.dart';
 
 // ─── PAYMENT METHOD SHEET ─────────────────────────────────────────────────────
 
@@ -213,9 +210,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
       );
     }
     // Google Play IAP — keyed as 'iap' or 'in_app_purchase' from the API.
-    // No Play Store on Windows, so this method never applies there.
-    if (!Platform.isWindows &&
-        (_isEnabled('iap') || _isEnabled('in_app_purchase'))) {
+    if (_isEnabled('iap') || _isEnabled('in_app_purchase')) {
       addTile(
         _MethodTile(brand: _Brand.googlePlay, isDark: isDark, onTap: _doIap),
       );
@@ -262,43 +257,30 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         return;
       }
 
-      final bool ok;
-      if (Platform.isWindows) {
-        // webview_flutter has no Windows backend — Stripe's own
-        // /payment/success page activates the subscription server-side
-        // when the system browser loads it, so we just poll for that.
-        // ignore: use_build_context_synchronously
-        ok = await launchWindowsCheckoutAndWait(
-          context: context,
-          ref: widget.externalRef,
-          checkoutUrl: result['checkout_url'] as String,
-          providerName: 'Stripe',
-        );
-      } else {
-        // ignore: use_build_context_synchronously
-        ok = await showModalBottomSheet<bool>(
-              context: context,
-              isScrollControlled: true,
-              enableDrag:
-                  false, // prevent sheet drag from intercepting WebView scroll
-              backgroundColor: Colors.transparent,
-              useSafeArea: false,
-              builder: (_) => _WebViewSheet(
-                url: result['checkout_url'] as String,
-                title: 'Stripe Checkout',
-                successPattern: '/payment/success',
-                cancelPattern: '/payment/cancel',
-                onSuccess: (url) async {
-                  final sid = Uri.parse(url).queryParameters['session_id'];
-                  if (sid != null) {
-                    await BillingService().confirmStripeSession(sid);
-                  }
-                  return true;
-                },
-              ),
-            ) ??
-            false;
-      }
+      // ignore: use_build_context_synchronously
+      final bool ok =
+          await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            enableDrag:
+                false, // prevent sheet drag from intercepting WebView scroll
+            backgroundColor: Colors.transparent,
+            useSafeArea: false,
+            builder: (_) => _WebViewSheet(
+              url: result['checkout_url'] as String,
+              title: 'Stripe Checkout',
+              successPattern: '/payment/success',
+              cancelPattern: '/payment/cancel',
+              onSuccess: (url) async {
+                final sid = Uri.parse(url).queryParameters['session_id'];
+                if (sid != null) {
+                  await BillingService().confirmStripeSession(sid);
+                }
+                return true;
+              },
+            ),
+          ) ??
+          false;
       if (ok && mounted) {
         widget.externalRef.read(subscriptionProvider.notifier).refresh();
         // ignore: use_build_context_synchronously
@@ -344,46 +326,29 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
       }
       final orderId = result['order_id'] as String?;
 
-      final bool ok;
-      if (Platform.isWindows) {
-        // PayPal requires an explicit capture call after the user
-        // approves in the browser — there's no way to detect that
-        // automatically without WebView URL interception, so the user
-        // confirms manually and we capture at that point.
-        // ignore: use_build_context_synchronously
-        ok = await launchWindowsCheckoutAndWait(
-          context: context,
-          ref: widget.externalRef,
-          checkoutUrl: result['approve_url'] as String,
-          providerName: 'PayPal',
-          onManualConfirm: orderId == null
-              ? null
-              : () => BillingService().capturePaypalOrder(orderId),
-        );
-      } else {
-        // ignore: use_build_context_synchronously
-        ok = await showModalBottomSheet<bool>(
-              context: context,
-              isScrollControlled: true,
-              enableDrag:
-                  false, // prevent sheet drag from intercepting WebView scroll
-              backgroundColor: Colors.transparent,
-              useSafeArea: false,
-              builder: (_) => _WebViewSheet(
-                url: result['approve_url'] as String,
-                title: 'PayPal Checkout',
-                successPattern: '/payment/paypal/return',
-                cancelPattern: '/payment/paypal/cancel',
-                onSuccess: (url) async {
-                  if (orderId != null) {
-                    await BillingService().capturePaypalOrder(orderId);
-                  }
-                  return true;
-                },
-              ),
-            ) ??
-            false;
-      }
+      // ignore: use_build_context_synchronously
+      final bool ok =
+          await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            enableDrag:
+                false, // prevent sheet drag from intercepting WebView scroll
+            backgroundColor: Colors.transparent,
+            useSafeArea: false,
+            builder: (_) => _WebViewSheet(
+              url: result['approve_url'] as String,
+              title: 'PayPal Checkout',
+              successPattern: '/payment/paypal/return',
+              cancelPattern: '/payment/paypal/cancel',
+              onSuccess: (url) async {
+                if (orderId != null) {
+                  await BillingService().capturePaypalOrder(orderId);
+                }
+                return true;
+              },
+            ),
+          ) ??
+          false;
       if (ok && mounted) {
         widget.externalRef.read(subscriptionProvider.notifier).refresh();
         // ignore: use_build_context_synchronously
@@ -1245,15 +1210,6 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
   }
 
   Future<void> _pickProof() async {
-    // image_picker has no Windows implementation — file_picker does.
-    if (Platform.isWindows) {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-      );
-      final path = result?.files.single.path;
-      if (path != null && mounted) setState(() => _proofPath = path);
-      return;
-    }
     final f = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,

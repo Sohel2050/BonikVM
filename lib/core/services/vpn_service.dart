@@ -11,9 +11,6 @@ import '../api/api_service.dart';
 import 'purchase_service.dart';
 import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
-import 'windows_vpn_service.dart';
-import 'windows_wireguard_service.dart';
-import 'windows_v2ray_service.dart';
 
 class VpnService {
   static final VpnService _instance = VpnService._internal();
@@ -29,13 +26,6 @@ class VpnService {
   WireGuard? _wireGuard;
   V2Ray? _v2ray;
   OpenConnect? _openConnect;
-  final WindowsVpnService _windowsVpn = WindowsVpnService.instance;
-  final WindowsWireGuardService _windowsWireGuard =
-      WindowsWireGuardService.instance;
-  final WindowsV2RayService _windowsV2Ray = WindowsV2RayService.instance;
-  StreamSubscription<VpnState>? _windowsVpnSub;
-  StreamSubscription<VpnState>? _windowsWireGuardSub;
-  StreamSubscription<VpnState>? _windowsV2RaySub;
   Completer<bool>? _ocCompleter;
   VpnState _vpnState = VpnState.disconnected;
   VpnServer? _currentServer;
@@ -94,14 +84,6 @@ class VpnService {
       // Initialize local notifications
       await _initializeNotifications();
 
-      if (Platform.isWindows) {
-        _windowsVpnSub ??= _windowsVpn.stateStream.listen(_bridgeWindowsState);
-        _windowsWireGuardSub ??=
-            _windowsWireGuard.stateStream.listen(_bridgeWindowsState);
-        _windowsV2RaySub ??=
-            _windowsV2Ray.stateStream.listen(_bridgeWindowsState);
-      }
-
       // Initialize OpenVPN plugin immediately for iOS
       if (Platform.isIOS) {
         try {
@@ -142,25 +124,6 @@ class VpnService {
       // Even on error, emit disconnected state
       _vpnState = VpnState.disconnected;
       _stateController.add(_vpnState);
-    }
-  }
-
-  /// Shared state-stream bridge for all three Windows backends (OpenVPN,
-  /// WireGuard, V2Ray) into the single cross-platform VpnState the rest of
-  /// the app watches.
-  void _bridgeWindowsState(VpnState state) {
-    _updateVpnState(state);
-    if (state == VpnState.connected) {
-      _connectionStartTime ??= DateTime.now();
-      _cancelConnectionTimer();
-      _logConnection();
-      _startStatusUpdater();
-    } else if (state == VpnState.disconnected || state == VpnState.error) {
-      _cancelConnectionTimer();
-      _stopStatusUpdater();
-      _logDisconnection();
-      _currentServer = null;
-      _connectionStartTime = null;
     }
   }
 
@@ -591,10 +554,6 @@ class VpnService {
         await initialize();
       }
 
-      if (Platform.isWindows) {
-        return await _connectWindows(server);
-      }
-
       // DEBUG: Log protocol detection
 
       // CRITICAL: Check protocol type and route to appropriate engine
@@ -973,183 +932,6 @@ persist-tun
 verb 1
 pull
 ''';
-    }
-  }
-
-  // ── Windows engine ─────────────────────────────────────────────────────
-  // OpenVPN, WireGuard and V2Ray/Xray servers are supported on Windows via
-  // windows_vpn_service.dart / windows_wireguard_service.dart /
-  // windows_v2ray_service.dart. OpenConnect has no available Windows
-  // binary and is not yet supported here.
-
-  Future<bool> _connectWindows(VpnServer server) async {
-    final canAccess = await canAccessServer(server);
-    if (!canAccess) {
-      throw Exception('Premium subscription required to access this server');
-    }
-
-    switch (server.vpnProtocolType) {
-      case 'wireguard':
-        return _connectWindowsWireGuard(server);
-      case 'v2ray':
-        return _connectWindowsV2Ray(server);
-      case 'openconnect':
-        _updateVpnState(VpnState.error);
-        return false;
-      case 'openvpn':
-      default:
-        return _connectWindowsOpenVpn(server);
-    }
-  }
-
-  Future<bool> _connectWindowsOpenVpn(VpnServer server) async {
-    _currentServer = server;
-    _updateVpnState(VpnState.connecting);
-    _startConnectionTimer();
-
-    String config;
-    try {
-      config = await _fetchServerConfig(server);
-      if (config.isEmpty) throw Exception('Empty config');
-    } catch (e) {
-      config = _createMinimalWorkingConfig(server);
-    }
-
-    final effectiveUsername = server.isOneConnect
-        ? _decryptOneConnect(server.vpnUsername)
-        : server.vpnUsername;
-    final effectivePassword = server.isOneConnect
-        ? _decryptOneConnect(server.vpnPassword)
-        : server.vpnPassword;
-
-    try {
-      final started = await _windowsVpn.connect(
-        config: config,
-        name: server.name,
-        username: effectiveUsername.isNotEmpty ? effectiveUsername : null,
-        password: effectivePassword.isNotEmpty ? effectivePassword : null,
-      );
-      if (!started) {
-        _cancelConnectionTimer();
-        _updateVpnState(VpnState.error);
-        _currentServer = null;
-      }
-      return started;
-    } catch (e) {
-      _cancelConnectionTimer();
-      _updateVpnState(VpnState.error);
-      _currentServer = null;
-      return false;
-    }
-  }
-
-  Future<bool> _connectWindowsWireGuard(VpnServer server) async {
-    _currentServer = server;
-    _updateVpnState(VpnState.connecting);
-    _startConnectionTimer();
-
-    String config;
-    try {
-      final serverId = int.tryParse(server.id) ?? 0;
-      config = await ApiService.instance.getServerConfig(serverId);
-      if (config.isEmpty || !config.contains('[Interface]')) {
-        throw Exception('Invalid or missing WireGuard configuration');
-      }
-    } catch (e) {
-      _cancelConnectionTimer();
-      _updateVpnState(VpnState.error);
-      _currentServer = null;
-      return false;
-    }
-
-    try {
-      final started = await _windowsWireGuard.connect(
-        config: config,
-        name: server.name,
-      );
-      if (!started) {
-        _cancelConnectionTimer();
-        _updateVpnState(VpnState.error);
-        _currentServer = null;
-      }
-      return started;
-    } catch (e) {
-      _cancelConnectionTimer();
-      _updateVpnState(VpnState.error);
-      _currentServer = null;
-      return false;
-    }
-  }
-
-  Future<bool> _connectWindowsV2Ray(VpnServer server) async {
-    _currentServer = server;
-    _updateVpnState(VpnState.connecting);
-    _startConnectionTimer();
-
-    final configJson = _buildV2RayConfigJson(server);
-
-    try {
-      final started = await _windowsV2Ray.connect(
-        configJson: configJson,
-        name: server.name,
-      );
-      if (!started) {
-        _cancelConnectionTimer();
-        _updateVpnState(VpnState.error);
-        _currentServer = null;
-      }
-      return started;
-    } catch (e) {
-      _cancelConnectionTimer();
-      _updateVpnState(VpnState.error);
-      _currentServer = null;
-      return false;
-    }
-  }
-
-  /// Builds the Xray-core JSON config for [server] — shared by the mobile
-  /// axevpn_flutter V2Ray engine and the Windows xray.exe backend, since
-  /// V2Ray's static config builders are pure Dart with no native
-  /// dependency.
-  String _buildV2RayConfigJson(VpnServer server) {
-    final sub = server.v2raySubProtocol ?? 'vless';
-    switch (sub) {
-      case 'vmess':
-        return V2Ray.buildVmessConfig(
-          address: server.ip,
-          port: server.v2rayPort ?? server.port,
-          uuid: server.v2rayUuid ?? '',
-          network: server.v2rayNetwork ?? 'tcp',
-          security: server.v2raySecurity ?? 'tls',
-          serverName: server.v2rayHost,
-          path: server.v2rayPath,
-        );
-      case 'trojan':
-        return V2Ray.buildTrojanConfig(
-          address: server.ip,
-          port: server.v2rayPort ?? server.port,
-          password: server.v2rayUuid ?? '',
-          serverName: server.v2rayHost,
-        );
-      case 'shadowsocks':
-        return V2Ray.buildShadowsocksConfig(
-          address: server.ip,
-          port: server.v2rayPort ?? server.port,
-          password: server.v2rayUuid ?? '',
-          method: server.v2raySecurity ?? 'chacha20-ietf-poly1305',
-        );
-      case 'vless':
-      default:
-        return V2Ray.buildVlessConfig(
-          address: server.ip,
-          port: server.v2rayPort ?? server.port,
-          uuid: server.v2rayUuid ?? '',
-          network: server.v2rayNetwork ?? 'tcp',
-          security: server.v2raySecurity ?? 'reality',
-          serverName: server.v2rayHost,
-          publicKey: server.v2rayPublicKey,
-          shortId: server.v2rayShortId,
-        );
     }
   }
 
@@ -1563,23 +1345,6 @@ pull
   }
 
   Future<void> disconnect() async {
-    if (Platform.isWindows) {
-      _isUserDisconnecting = true;
-      try {
-        // Disconnect all three — cheap no-ops for the ones that weren't
-        // active, and avoids needing to track which engine is "current"
-        // separately from _currentServer.
-        await Future.wait([
-          _windowsVpn.disconnect(),
-          _windowsWireGuard.disconnect(),
-          _windowsV2Ray.disconnect(),
-        ]);
-      } finally {
-        _isUserDisconnecting = false;
-      }
-      return;
-    }
-
     _isUserDisconnecting = true;
     try {
       final protocol = _currentServer?.vpnProtocolType.toLowerCase();

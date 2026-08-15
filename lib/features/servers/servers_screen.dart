@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -6,7 +5,6 @@ import '../../core/api/api_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/vpn_state.dart' as multi_vpn;
 import '../../core/services/admob_service.dart';
-import '../../core/services/windows_vpn_service.dart';
 import '../../services/ads_popup_config_service.dart';
 import '../../services/premium_server_unlock_service.dart';
 import '../../shared/providers/app_providers.dart';
@@ -15,26 +13,6 @@ import '../../shared/widgets/loading_widget.dart';
 import '../../shared/widgets/error_widget.dart';
 import '../../shared/widgets/flag_icon.dart';
 import '../../widgets/unified_ads_popup_simple.dart';
-
-/// Whether [server]'s protocol can actually be connected to on the current
-/// platform. On Windows: WireGuard and V2Ray are supported (see
-/// windows_wireguard_service.dart / windows_v2ray_service.dart); OpenVPN
-/// only works once openvpn.exe has been added to windows/vpn_bin/ (see its
-/// README); OpenConnect has no Windows backend at all. Every protocol is
-/// supported on Android/iOS via the native axevpn_flutter plugin.
-bool isServerProtocolSupportedOnPlatform(VpnServer server) {
-  if (!Platform.isWindows) return true;
-  switch (server.vpnProtocolType) {
-    case 'wireguard':
-    case 'v2ray':
-      return true;
-    case 'openconnect':
-      return false;
-    case 'openvpn':
-    default:
-      return WindowsVpnService.instance.isAvailable;
-  }
-}
 
 class ServersScreen extends ConsumerStatefulWidget {
   const ServersScreen({super.key});
@@ -271,7 +249,6 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 child: AdWidget(ad: _bannerAd!),
               ),
             ),
-          if (Platform.isWindows) _buildWindowsProtocolBanner(isDarkMode),
           // Main Content
           Expanded(
             child: Column(
@@ -360,49 +337,6 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     );
   }
 
-  /// Explains to Windows users why some servers are hidden — OpenVPN needs
-  /// a manually-added binary (see windows/vpn_bin/README.md) and
-  /// OpenConnect has no Windows backend at all, while WireGuard and V2Ray
-  /// work out of the box.
-  Widget _buildWindowsProtocolBanner(bool isDarkMode) {
-    final openVpnReady = WindowsVpnService.instance.isAvailable;
-    final message = openVpnReady
-        ? 'Windows supports OpenVPN, WireGuard, and V2Ray servers. OpenConnect servers aren\'t shown.'
-        : 'Windows supports WireGuard and V2Ray servers now. OpenVPN servers are hidden until openvpn.exe is set up — see windows/vpn_bin/README.md. OpenConnect isn\'t supported.';
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: (openVpnReady ? Colors.blue : Colors.amber).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: (openVpnReady ? Colors.blue : Colors.amber).withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            openVpnReady ? Icons.info_outline : Icons.warning_amber_rounded,
-            size: 18,
-            color: openVpnReady ? Colors.blue : Colors.amber.shade800,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? Colors.grey[300] : Colors.grey[800],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildServerList(
     List<VpnServer> allServers,
     bool? premiumFilter,
@@ -434,11 +368,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           server.supportsWireGuard ||
           server.isOneConnect;
 
-      return matchesSearch &&
-          matchesPremium &&
-          server.isActive &&
-          hasProtocol &&
-          isServerProtocolSupportedOnPlatform(server);
+      return matchesSearch && matchesPremium && server.isActive && hasProtocol;
     }).toList();
 
     // Sort: favorites first, full/at-capacity servers last, then by order
