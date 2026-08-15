@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,17 +174,17 @@ class _MainShellState extends ConsumerState<MainShell> {
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.exit_to_app, color: Colors.white, size: 20),
+              Icon(Icons.exit_to_app, color: Colors.redAccent, size: 22),
               const SizedBox(width: 8),
               const Text(
-                'Press back again to exit VPN MASTER',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                'Double Press Back  To Exit VPN MASTER',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
           ),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.black87,
+          backgroundColor: Colors.lightGreen,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           margin: const EdgeInsets.all(16),
         ),
@@ -337,92 +336,98 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
       child: Scaffold(
         key: _scaffoldKey,
-        body: Column(
+        body: Stack(
           children: [
-            // Modern AppBar for each screen
-            _buildModernAppBar(
-              _currentIndex,
-              isDarkMode,
-              isPremium,
-              localizations,
+            // Background Image
+            Positioned.fill(
+              child: Image.asset("assets/images/bg2.png", fit: BoxFit.cover),
             ),
-            // Screen content
-            Expanded(
-              child: SafeArea(
-                top: false, // We handle top padding in AppBar
-                child: PageView(
-                  key: const Key('main_page_view'),
-                  controller: _pageController,
-                  onPageChanged: _onPageChanged,
-                  physics: const ClampingScrollPhysics(),
-                  children: _screens,
+
+            // Dark overlay
+            Positioned.fill(
+              child: Container(color: Colors.black.withOpacity(0.2)),
+            ),
+
+            // Main Content
+            Column(
+              children: [
+                // Modern AppBar for each screen
+                _buildModernAppBar(
+                  _currentIndex,
+                  isDarkMode,
+                  isPremium,
+                  localizations,
                 ),
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: SafeArea(
-          bottom: true,
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            height: 68,
-            decoration: BoxDecoration(
-              color: isDarkMode
-                  ? const Color(0xFF1E293B).withOpacity(0.85)
-                  : Colors.white.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isDarkMode
-                    ? Colors.white.withOpacity(0.08)
-                    : Colors.black.withOpacity(0.05),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDarkMode ? 0.25 : 0.06),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
+                // Screen content
+                Expanded(
+                  child: SafeArea(
+                    top: false, // We handle top padding in AppBar
+                    child: PageView(
+                      key: const Key('main_page_view'),
+                      controller: _pageController,
+                      onPageChanged: _onPageChanged,
+                      physics: const ClampingScrollPhysics(),
+                      children: _screens,
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildFloatingNavItem(
-                        icon: Icons.home_rounded,
-                        label: localizations.home,
-                        index: 0,
-                        isDarkMode: isDarkMode,
-                      ),
-                      _buildFloatingNavItem(
-                        icon: Icons.dns_rounded,
-                        label: localizations.servers,
-                        index: 1,
-                        isDarkMode: isDarkMode,
-                      ),
-                      _buildFloatingNavItem(
-                        icon: Icons.star_rounded,
-                        label: isPremium ? localizations.premium : 'Premium',
-                        index: 2,
-                        isDarkMode: isDarkMode,
-                      ),
-                      _buildFloatingNavItem(
-                        icon: Icons.settings_rounded,
-                        label: localizations.settings,
-                        index: 3,
-                        isDarkMode: isDarkMode,
-                      ),
-                    ],
-                  ),
-                ),
+          ],
+        ),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
               ),
+            ],
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: _onTabTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: isDarkMode
+                ? const Color(0xFF1E293B)
+                : Colors.white,
+            selectedItemColor: ref.watch(themeColorProvider),
+            unselectedItemColor: isDarkMode
+                ? Colors.grey[400]
+                : Colors.grey[600],
+            elevation: 0,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w400,
+              fontSize: 11,
+            ),
+            items: [
+              _buildBottomNavItem(
+                icon: Icons.home_rounded,
+                label: localizations.home,
+                index: 0,
+              ),
+              _buildBottomNavItem(
+                icon: Icons.dns_rounded,
+                label: localizations.servers,
+                index: 1,
+              ),
+              _buildBottomNavItem(
+                icon: Icons.workspace_premium_rounded,
+                label: isPremium ? localizations.premium : 'Premium',
+                index: 2,
+                badge: !isPremium,
+              ),
+              _buildBottomNavItem(
+                icon: Icons.settings_rounded,
+                label: localizations.settings,
+                index: 3,
+              ),
+            ],
           ),
         ),
         drawer: _buildDrawer(context, isDarkMode, isPremium, localizations),
@@ -539,57 +544,35 @@ class _MainShellState extends ConsumerState<MainShell> {
     }
   }
 
-  Widget _buildFloatingNavItem({
+  BottomNavigationBarItem _buildBottomNavItem({
     required IconData icon,
     required String label,
     required int index,
-    required bool isDarkMode,
+    bool badge = false,
   }) {
-    final themeColor = ref.watch(themeColorProvider);
-    final isSelected = _currentIndex == index;
-    final activeColor = themeColor;
-    
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _onTabTapped(index),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? activeColor.withOpacity(0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: isSelected
-                    ? activeColor
-                    : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+    return BottomNavigationBarItem(
+      icon: Stack(
+        children: [
+          FadeInUp(
+            delay: Duration(milliseconds: index * 100),
+            child: Icon(icon, size: _currentIndex == index ? 28 : 24),
+          ),
+          if (badge)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? activeColor
-                    : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+        ],
       ),
+      label: label,
     );
   }
 
@@ -607,124 +590,118 @@ class _MainShellState extends ConsumerState<MainShell> {
         bottom: false,
         child: Column(
           children: [
-            // Modernized Profile Header with Gradient Background
+            // Header with gradient
             Container(
+              height: 200,
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isDarkMode
                       ? [
-                          themeColor.withOpacity(0.15),
                           const Color(0xFF1E293B),
+                          const Color(0xFF334155),
+                          themeColor.withOpacity(0.8),
                         ]
                       : [
-                          themeColor.withOpacity(0.08),
-                          const Color(0xFFF3F4F6),
+                          themeColor,
+                          themeColor.withOpacity(0.8),
+                          themeColor.withOpacity(0.6),
                         ],
                 ),
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDarkMode
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE5E7EB),
-                    width: 1,
-                  ),
-                ),
               ),
-              child: Row(
-                children: [
-                  // Avatar with glowing gradient border
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [themeColor, themeColor.withOpacity(0.6)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: themeColor.withOpacity(0.3),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(2),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Logo with glow effect
+                    Container(
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
                       ),
-                      child: Center(
-                        child: Text(
-                          'A',
-                          style: TextStyle(
-                            color: themeColor,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          width: 31,
+                          height: 31,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to icon if image fails to load
+                            return const Icon(
+                              Icons.vpn_lock_sharp,
+                              size: 32,
+                              color: Colors.white,
+                            );
+                          },
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 17),
+                    // App name with modern typography
+                    const Text(
+                      'VPN MASTER',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 23,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // User status with premium badge
+                    Row(
                       children: [
-                        Text(
-                          'VPN MASTER User',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.white : const Color(0xFF111827),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
+                            horizontal: 8,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: isPremium
-                                ? const Color(0xFFFFD700).withOpacity(0.15)
-                                : themeColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isPremium
-                                  ? const Color(0xFFFFD700).withOpacity(0.6)
-                                  : themeColor.withOpacity(0.3),
+                                ? const Color(0xFF65645E)
+                                : Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isPremium ? 'PREMIUM' : 'FREE',
+                            style: TextStyle(
+                              color: isPremium ? Colors.black : Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isPremium ? Icons.star_rounded : Icons.person_outline,
-                                size: 12,
-                                color: isPremium ? const Color(0xFFD97706) : themeColor,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                isPremium ? 'Premium User' : 'Free User',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: isPremium ? const Color(0xFFD97706) : themeColor,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
+                        if (isPremium) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.verified,
+                            color: Color(0xFF3C3B38),
+                            size: 16,
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Fast & Secure VPN',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
