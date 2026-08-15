@@ -85,7 +85,7 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
     }
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: Colors.transparent,
       body: sub.isLoading
           ? Center(child: CircularProgressIndicator(color: theme))
           : sub.isPremium
