@@ -127,7 +127,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   delay: const Duration(milliseconds: 300),
                   child: _buildInfoCard(
                     'Developer',
-                    'Axe Technologies',
+                    'ALBONIK LLC',
                     Icons.developer_mode,
                     isDarkMode,
                   ),
