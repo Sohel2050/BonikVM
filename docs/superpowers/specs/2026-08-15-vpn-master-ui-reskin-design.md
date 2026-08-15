@@ -120,6 +120,13 @@ Remove from `pubspec.yaml`: `window_manager`, `tray_manager`,
 `flutter_secure_storage`, the `windows:` block under
 `flutter_launcher_icons`.
 
+**Correction (discovered during execution):** `flutter_secure_storage` is NOT
+Windows-only — it's used unconditionally in `lib/core/api_client.dart`,
+`lib/core/services/notification_service.dart`, and `lib/services/api_service.dart`
+for cross-platform token storage. It was removed here in error and restored in
+a follow-up commit. Only `window_manager` and `tray_manager` were correctly
+Windows-only.
+
 Sweep every remaining file with a `Platform.isWindows` or `dart:io`
 branch and collapse it to the non-Windows path:
 - `lib/core/api/api_service.dart`

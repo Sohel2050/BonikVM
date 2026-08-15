@@ -510,6 +510,13 @@ git rm lib/core/services/windows_google_auth.dart lib/core/services/windows_tray
 
 Remove the `window_manager`, `tray_manager`, and `flutter_secure_storage` dependency lines, and the `windows:` sub-block under `flutter_launcher_icons:` (the `generate: true` / `image_path` / `icon_size` block noted in the spec).
 
+**Correction (discovered during execution):** `flutter_secure_storage` is NOT
+Windows-only — it's used unconditionally in `lib/core/api_client.dart`,
+`lib/core/services/notification_service.dart`, and `lib/services/api_service.dart`
+for cross-platform token storage. It was removed here in error and restored in
+a follow-up commit. Only `window_manager` and `tray_manager` were correctly
+Windows-only.
+
 - [ ] **Step 4: Run `flutter pub get`**
 
 Run: `flutter pub get`
