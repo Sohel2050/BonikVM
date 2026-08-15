@@ -411,7 +411,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
         ),
       ),
-      child: Column(children: children),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(children: children),
+        ),
+      ),
     );
   }
 
