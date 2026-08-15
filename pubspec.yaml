@@ -97,6 +97,11 @@ dependencies:
   country_flags: ^4.1.2
   file_picker: ^8.1.4
 
+  # Secure storage (cross-platform: used for token/credential storage on
+  # Android/iOS/web, not Windows-only — see api_client.dart,
+  # notification_service.dart, api_service.dart)
+  flutter_secure_storage: ^10.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
