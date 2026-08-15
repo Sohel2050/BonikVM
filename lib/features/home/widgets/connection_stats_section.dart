@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:axevpn_flutter/openvpn_flutter.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../shared/providers/app_providers.dart';
+import '../../../shared/providers/theme_provider.dart';
 import 'home_small_widgets.dart';
 
 /// Duration / download-speed / upload-speed row shown on the Home screen
@@ -15,26 +16,17 @@ class ConnectionStatsSection extends ConsumerWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final vpnService = ref.read(vpnServiceProvider);
     final speedData = ref.watch(networkSpeedProvider);
+    final themeColor = ref.watch(themeColorProvider);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
-        color: isDarkMode
-            ? const Color(0xFF0A0E1A).withValues(alpha: 0.55)
-            : Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(18),
+        color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: const Color(0xFF10B981).withValues(alpha: 0.18),
-          width: 1.2,
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
       ),
       child: StreamBuilder<VpnStatus?>(
         stream: vpnService.vpnStatusStream,
@@ -67,16 +59,14 @@ class ConnectionStatsSection extends ConsumerWidget {
                 // Download speed
                 Expanded(
                   child: StatItem(
-                    icon: Icons.download_outlined,
+                    icon: Icons.arrow_downward,
                     value: speedData.when(
                       data: (data) => data.formattedDownloadSpeed,
                       loading: () => '--.-',
                       error: (_, __) => '0.0',
                     ),
                     label: 'Download',
-                    color: isDarkMode
-                        ? Colors.lightBlue[300] ?? Colors.lightBlue
-                        : Colors.blueAccent,
+                    color: themeColor,
                   ),
                 ),
 
@@ -91,16 +81,14 @@ class ConnectionStatsSection extends ConsumerWidget {
                 // Upload speed
                 Expanded(
                   child: StatItem(
-                    icon: Icons.upload_outlined,
+                    icon: Icons.arrow_upward,
                     value: speedData.when(
                       data: (data) => data.formattedUploadSpeed,
                       loading: () => '--.-',
                       error: (_, __) => '0.0',
                     ),
                     label: 'Upload',
-                    color: isDarkMode
-                        ? Colors.lightGreen[300] ?? Colors.lightGreen
-                        : Colors.greenAccent,
+                    color: const Color(0xFFF59E0B),
                   ),
                 ),
               ],

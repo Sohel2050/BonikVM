@@ -1674,7 +1674,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -1695,98 +1695,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: AnimatedBuilder(
                   animation: isConnected ? _pulseAnimation : _scaleAnimation,
                   builder: (context, child) {
-                    final pulse = isConnected ? _pulseAnimation.value : _scaleAnimation.value;
-                    final connColor = _getConnectionColor(vpnState, themeColor: themeColor);
-                    
+                    final pulse = isConnected
+                        ? _pulseAnimation.value
+                        : _scaleAnimation.value;
+                    final ringA = isConnected
+                        ? ((_pulseAnimation.value - 1.0) * 6).clamp(0.06, 0.20)
+                        : 0.07;
+                    final connColor = _getConnectionColor(
+                      vpnState,
+                      themeColor: themeColor,
+                    );
                     return SizedBox(
-                      width: 200,
-                      height: 200,
+                      width: 214,
+                      height: 214,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Glow rings
-                          if (isConnected)
-                            ...List.generate(2, (index) {
-                              final delayValue = (index + 1) * 0.4;
-                              final scaleVal = 1.0 + (_pulseAnimation.value - 1.0) * delayValue * 3;
-                              final opacityVal = (0.25 - (_pulseAnimation.value - 1.0) * 1.25 * delayValue).clamp(0.0, 1.0);
-                              return Transform.scale(
-                                scale: scaleVal,
-                                child: Container(
-                                  width: 140,
-                                  height: 140,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.transparent,
-                                    border: Border.all(
-                                      color: const Color(0xFF10B981).withOpacity(opacityVal),
-                                      width: 2.0,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-
-                          // Outer sleek breathing neon border
                           Container(
-                            width: 172,
-                            height: 172,
+                            width: 210,
+                            height: 210,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: connColor.withOpacity(isConnecting ? 0.3 : 0.15),
+                                color: connColor.withOpacity(ringA),
                                 width: 1.5,
                               ),
                             ),
                           ),
-
-                          // Second breathing border
                           Container(
-                            width: 156,
-                            height: 156,
+                            width: 182,
+                            height: 182,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: connColor.withOpacity(isConnecting ? 0.5 : 0.25),
-                                width: 2.0,
+                                color: connColor.withOpacity(
+                                  (ringA * 1.7).clamp(0.0, 1.0),
+                                ),
+                                width: 1.2,
                               ),
                             ),
                           ),
-
-                          // Main button body
                           Transform.scale(
                             scale: pulse,
                             child: Container(
-                              width: 128,
-                              height: 128,
+                              width: 150,
+                              height: 150,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: _getConnectionGradient(vpnState, themeColor: themeColor),
+                                gradient: _getConnectionGradient(
+                                  vpnState,
+                                  themeColor: themeColor,
+                                ),
                                 border: vpnState == VpnState.disconnected
-                                    ? Border.all(color: themeColor.withOpacity(0.4), width: 2.0)
+                                    ? Border.all(color: themeColor, width: 3.0)
                                     : null,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: connColor.withOpacity(isConnected ? 0.4 : 0.25),
-                                    blurRadius: isConnected ? 30 : 15,
-                                    spreadRadius: isConnected ? 8 : 2,
+                                    color: connColor.withOpacity(
+                                      vpnState == VpnState.disconnected
+                                          ? 0.2
+                                          : 0.45,
+                                    ),
+                                    blurRadius: vpnState == VpnState.disconnected
+                                        ? 20
+                                        : 36,
+                                    spreadRadius: vpnState == VpnState.disconnected
+                                        ? 4
+                                        : 12,
                                   ),
                                 ],
                               ),
                               child: Stack(
                                 children: [
-                                  // Glossy overlay
                                   Container(
-                                    decoration: BoxDecoration(
+                                    decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.white.withOpacity(0.12),
-                                          Colors.transparent,
-                                        ],
-                                      ),
+                                      color: Colors.black12,
                                     ),
                                   ),
                                   Center(
@@ -1795,12 +1779,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   if (isConnecting)
                                     Center(
                                       child: SizedBox(
-                                        width: 140,
-                                        height: 140,
+                                        width: 170,
+                                        height: 170,
                                         child: CircularProgressIndicator(
-                                          strokeWidth: 3.0,
+                                          strokeWidth: 2.5,
                                           valueColor: AlwaysStoppedAnimation<Color>(
-                                            connColor,
+                                            Colors.white,
                                           ),
                                         ),
                                       ),
@@ -1817,7 +1801,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // Status Text
             FadeInUp(
@@ -1825,28 +1809,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               child: Text(
                 _getStatusText(vpnState),
                 style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                   color: _getConnectionColor(vpnState, themeColor: themeColor),
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
-            
-            const SizedBox(height: 4),
-            
+            const SizedBox(height: 6),
             FadeInUp(
               delay: const Duration(milliseconds: 250),
               child: Text(
                 isConnected
                     ? AppLocalizations.of(context).connectionSecure
                     : isConnecting
-                        ? 'Securing connection path...'
+                        ? 'Setting secure connection...'
                         : AppLocalizations.of(context).connectionNotSecure,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w500,
                   color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
                 ),
                 textAlign: TextAlign.center,
@@ -1937,17 +1917,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return const Icon(
           Icons.power_settings_new,
           size: 44,
-          color: Colors.white,
+          color: Colors.white60,
         );
       case VpnState.connecting:
       case VpnState.authenticating:
         return const Icon(
           Icons.power_settings_new,
           size: 44,
-          color: Colors.white,
+          color: Colors.white60,
         );
       case VpnState.error:
-        return const Icon(Icons.error_outline, size: 44, color: Colors.white);
+        return const Icon(Icons.error_outline, size: 44, color: Colors.white60);
       default:
         return Icon(
           Icons.power_settings_new,

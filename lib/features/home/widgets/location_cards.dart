@@ -162,7 +162,7 @@ class SelectionLocationCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
           width: 1,
