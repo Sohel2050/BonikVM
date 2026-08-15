@@ -11,39 +11,6 @@ class AppConfig {
   // app binary, defeating the purpose of keeping it out of source control.
   static String get apiKey => dotenv.env['API_TOKEN_MOBILE'] ?? '';
 
-  // Legacy Google Desktop OAuth client ID, previously used by the removed
-  // Windows desktop build. Kept only so AppConfig.setRemoteGoogleDesktopClientId
-  // and google_login_config_service.dart continue to compile; unused on
-  // Android/iOS since google_sign_in has native support there.
-  static String? _remoteGoogleDesktopClientId;
-
-  static void setRemoteGoogleDesktopClientId(String? clientId) {
-    if (clientId != null && clientId.isNotEmpty) {
-      _remoteGoogleDesktopClientId = clientId;
-    }
-  }
-
-  static String get googleDesktopClientId =>
-      _remoteGoogleDesktopClientId ??
-      dotenv.env['GOOGLE_DESKTOP_CLIENT_ID'] ??
-      dotenv.env['GOOGLE_CLIENT_ID_WEB'] ??
-      '';
-
-  // Legacy Google Desktop OAuth client secret — same status as
-  // googleDesktopClientId above.
-  static String? _remoteGoogleDesktopClientSecret;
-
-  static void setRemoteGoogleDesktopClientSecret(String? secret) {
-    if (secret != null && secret.isNotEmpty) {
-      _remoteGoogleDesktopClientSecret = secret;
-    }
-  }
-
-  static String get googleDesktopClientSecret =>
-      _remoteGoogleDesktopClientSecret ??
-      dotenv.env['GOOGLE_DESKTOP_CLIENT_SECRET'] ??
-      '';
-
   // AdMob Configuration
   static String get admobAppIdAndroid =>
       dotenv.env['ADMOB_APP_ID_ANDROID'] ?? '';
