@@ -751,13 +751,17 @@ class _MainShellState extends ConsumerState<MainShell> {
                     isDarkMode: isDarkMode,
                   ),
 
-                  if (!isPremium && _isDrawerNativeAdLoaded && _drawerNativeAd != null)
+                  if (!isPremium &&
+                      _isDrawerNativeAdLoaded &&
+                      _drawerNativeAd != null)
                     Container(
                       margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       height: 80,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        color: isDarkMode
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC),
                         border: Border.all(
                           color: isDarkMode
                               ? Colors.white.withOpacity(0.06)
@@ -774,7 +778,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                   Container(
                     margin: const EdgeInsets.symmetric(vertical: 12),
                     child: Divider(
-                      color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
+                      color: isDarkMode
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE5E7EB),
                       thickness: 1.0,
                       indent: 20,
                       endIndent: 20,
@@ -832,11 +838,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                       width: 24,
                       height: 24,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.shield,
-                        size: 24,
-                        color: themeColor,
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          Icon(Icons.shield, size: 24, color: themeColor),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -845,7 +848,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                      color: isDarkMode
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF6B7280),
                       letterSpacing: 1.5,
                     ),
                   ),
@@ -879,63 +884,79 @@ class _MainShellState extends ConsumerState<MainShell> {
                 ? themeColor.withOpacity(0.12)
                 : Colors.transparent,
           ),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? themeColor.withOpacity(0.18)
-                    : (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF3F4F6)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: isSelected
-                    ? themeColor
-                    : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? themeColor.withOpacity(0.18)
+                        : (isDarkMode
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF3F4F6)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected
+                        ? themeColor
+                        : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+                  ),
+                ),
+                title: Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected
+                        ? themeColor
+                        : (isDarkMode ? Colors.white : const Color(0xFF1F2937)),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: isDarkMode
+                        ? Colors.grey[450] ?? Colors.grey[400]
+                        : Colors.grey[500],
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: badge != null
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badge,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                onTap: onTap,
               ),
             ),
-            title: Text(
-              title,
-              style: TextStyle(
-                color: isSelected
-                    ? themeColor
-                    : (isDarkMode ? Colors.white : const Color(0xFF1F2937)),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 15,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              subtitle,
-              style: TextStyle(
-                color: isDarkMode ? Colors.grey[450] ?? Colors.grey[400] : Colors.grey[500],
-                fontSize: 11,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: badge != null
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      badge,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            onTap: onTap,
           ),
         ),
         if (isSelected)
@@ -947,7 +968,9 @@ class _MainShellState extends ConsumerState<MainShell> {
             child: Container(
               decoration: BoxDecoration(
                 color: themeColor,
-                borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
+                borderRadius: const BorderRadius.horizontal(
+                  right: Radius.circular(4),
+                ),
               ),
             ),
           ),
