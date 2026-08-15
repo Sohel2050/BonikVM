@@ -97,11 +97,6 @@ dependencies:
   country_flags: ^4.1.2
   file_picker: ^8.1.4
 
-  # Windows desktop
-  window_manager: ^0.5.2
-  tray_manager: ^0.5.3
-  flutter_secure_storage: ^10.3.1
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -145,7 +140,3 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/app_trn.png"
   min_sdk_android: 21
-  windows:
-    generate: true
-    image_path: "assets/images/app_icon.png"
-    icon_size: 256
