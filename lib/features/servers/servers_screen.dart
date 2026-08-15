@@ -302,8 +302,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     tabs: [
-                      Tab(text: AppLocalizations.of(context).freeServers),
-                      Tab(text: AppLocalizations.of(context).premiumServers),
+                      Tab(
+                        icon: const Icon(Icons.wifi, size: 14),
+                        text: AppLocalizations.of(context).freeServers,
+                      ),
+                      Tab(
+                        icon: const Icon(Icons.workspace_premium, size: 14),
+                        text: AppLocalizations.of(context).premiumServers,
+                      ),
                     ],
                   ),
                 ),
