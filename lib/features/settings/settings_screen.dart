@@ -93,21 +93,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
-              Container(
-                height: 60,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AdWidget(ad: _bannerAd!),
-                ),
-              ),
-            ],
-
             // Connection Settings
             _buildSectionTitle(localizations.connection, isDarkMode),
             const SizedBox(height: 8),
@@ -199,18 +184,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 _buildSettingTile(
                   title: localizations.premiumStatus,
-                  subtitle: ref.watch(premiumStatusProvider)
-                      ? 'Active'
-                      : 'Free Plan',
+                  subtitle: isPremium ? 'Active' : 'Free Plan',
                   icon: Icons.star,
                   isDarkMode: isDarkMode,
-                  onTap: () => Navigator.pushNamed(context, '/premium'),
-                  trailing: ref.watch(premiumStatusProvider)
+                  onTap: isPremium
+                      ? null
+                      : () => Navigator.pushNamed(context, '/premium'),
+                  trailing: isPremium
                       ? Icon(
                           Icons.check_circle,
                           color: ref.watch(themeColorProvider),
                         )
-                      : const Icon(Icons.upgrade, color: Colors.orange),
+                      : ElevatedButton.icon(
+                          icon: const Icon(Icons.workspace_premium, size: 14),
+                          label: const Text(
+                            'UPGRADE',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/premium'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ref.watch(themeColorProvider),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingTile(
@@ -357,6 +360,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
 
+            // Bottom banner ad
+            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
+              const SizedBox(height: 24),
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AdWidget(ad: _bannerAd!),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 100), // Bottom padding
           ],
         ),
@@ -365,6 +384,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSectionTitle(String title, bool isDarkMode) {
+    final themeColor = ref.watch(themeColorProvider);
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
@@ -373,7 +393,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
-          color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+          color: themeColor,
         ),
       ),
     );
