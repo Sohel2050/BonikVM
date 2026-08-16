@@ -291,11 +291,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     tabs: [
                       Tab(
                         icon: const Icon(Icons.wifi, size: 14),
-                        text: AppLocalizations.of(context).freeServers,
+                        text: "FREE SERVER",
                       ),
                       Tab(
-                        icon: const Icon(Icons.workspace_premium, size: 14),
-                        text: AppLocalizations.of(context).premiumServers,
+                        icon: const Icon(Icons.currency_exchange, size: 14),
+                        text: "VIP SERVER / ADS",
                       ),
                     ],
                   ),
@@ -570,44 +570,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                             ),
                             const SizedBox(width: 8),
                             // Protocol Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    (server.isOneConnect
-                                            ? const Color(0xFF8B5CF6)
-                                            : server.isV2Ray
-                                            ? const Color(0xFF9333EA)
-                                            : server.isOpenConnect
-                                            ? const Color(0xFFF97316)
-                                            : server.supportsWireGuard
-                                            ? const Color(0xFF10B981)
-                                            : const Color(0xFF3B82F6))
-                                        .withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                server.isOneConnect
-                                    ? 'OC'
-                                    : server.protocolDisplayName,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  color: server.isOneConnect
-                                      ? const Color(0xFF8B5CF6)
-                                      : server.isV2Ray
-                                      ? const Color(0xFF9333EA)
-                                      : server.isOpenConnect
-                                      ? const Color(0xFFF97316)
-                                      : server.supportsWireGuard
-                                      ? const Color(0xFF10B981)
-                                      : const Color(0xFF3B82F6),
-                                ),
-                              ),
-                            ),
+
                           ],
                         ),
                         const SizedBox(height: 6),
@@ -776,7 +739,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                             )
                           else if (!canConnect)
                             const Icon(
-                              Icons.lock_rounded,
+                              Icons.video_collection,
                               color: Color(0xFFD97706),
                               size: 18,
                             )
@@ -804,29 +767,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                                 : const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.info_outline_rounded,
-                                size: 10,
-                                color: isDarkMode
-                                    ? const Color(0xFF64748B)
-                                    : const Color(0xFF6B7280),
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                'Details',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDarkMode
-                                      ? const Color(0xFF64748B)
-                                      : const Color(0xFF6B7280),
-                                ),
-                              ),
-                            ],
-                          ),
+
                         ),
                       ),
                     ],
@@ -1220,8 +1161,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
             );
             return UnifiedAdsPopupSimple(
               customText: adsConfig.premiumUnlockText,
-              adCount: 3,
-              title: 'Unlock Premium Server',
+              adCount: 1,
+              title: 'WATCH ADS TO ACCESS',
               onAction: (action) async {
                 try {
                   debugPrint('🔔 onAction called with action: $action');

@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -34,6 +35,13 @@ void main() async {
   await _initializeApp();
 
   runApp(const ProviderScope(child: AxeVPNApp()));
+  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+  // Initialize with your OneSignal App ID
+  OneSignal.initialize("662ec5db-a9df-416a-8585-584d68ec9919");
+  // Use this method to prompt for push notifications.
+  // We recommend removing this method after testing and instead use In-App Messages to prompt for notification permission.
+  OneSignal.Notifications.requestPermission(false);
+
 }
 
 Future<void> _initializeApp() async {
@@ -89,7 +97,7 @@ Future<void> _initializeApp() async {
 
     // Initialize Stripe
     try {
-      Stripe.publishableKey = "pk_test_TYooMQauvdEDq54NiTphI7jx";
+      Stripe.publishableKey = "pk_test_TYooMQauvdEDgjgj00q54NiTphI7jx";
       await Stripe.instance.applySettings();
     } catch (e) {
       debugPrint('⚠️ Stripe initialization failed: $e');

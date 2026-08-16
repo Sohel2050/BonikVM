@@ -1,4 +1,4 @@
-// lib/features/premium/premium_screen.dart
+﻿// lib/features/premium/premium_screen.dart
 // Quickro-POS-style subscription screen.
 
 import 'dart:io';
@@ -39,25 +39,33 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
     if (sub.planCatalog.isNotEmpty) return sub.planCatalog;
     return [
       {
-        'product_id': '1m',
-        'display_name': '1 Month',
-        'web_price': '4.99',
+        'product_id': 'albonikvpn30days',
+        'display_name': 'Monthly Premium',
+        'web_price': '3.49',
         'is_popular': false,
         'is_lifetime': false,
         'duration_days': 30,
       },
       {
-        'product_id': '3m',
-        'display_name': '3 Months',
-        'web_price': '11.99',
-        'is_popular': true,
+        'product_id': 'albonikvpn90days',
+        'display_name': '3 Months Premium',
+        'web_price': '9.49',
+        'is_popular': false,
         'is_lifetime': false,
         'duration_days': 90,
       },
       {
-        'product_id': '1y',
-        'display_name': '1 Year',
-        'web_price': '29.99',
+        'product_id': 'albonikvpn180days',
+        'display_name': '6 Months Premium',
+        'web_price': '16.99',
+        'is_popular': false,
+        'is_lifetime': false,
+        'duration_days': 365,
+      },
+      {
+        'product_id': 'albonikvpn365days',
+        'display_name': '1 year Premium',
+        'web_price': '27.99',
         'is_popular': false,
         'is_lifetime': false,
         'duration_days': 365,
@@ -174,7 +182,7 @@ class _ActiveView extends StatelessWidget {
                     Row(
                       children: [
                         _CircleIcon(
-                          icon: Icons.workspace_premium,
+                          icon: Icons.currency_exchange,
                           bg: Colors.white.withValues(alpha: 0.18),
                         ),
                         const SizedBox(width: 14),
@@ -185,7 +193,7 @@ class _ActiveView extends StatelessWidget {
                               Text(
                                 name,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Colors.white70,
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -194,7 +202,7 @@ class _ActiveView extends StatelessWidget {
                               _Pill(
                                 label: source,
                                 bg: Colors.white.withValues(alpha: 0.2),
-                                textColor: Colors.white,
+                                textColor: Colors.white70,
                               ),
                             ],
                           ),
@@ -202,7 +210,7 @@ class _ActiveView extends StatelessWidget {
                         _Pill(
                           label: '✓  ACTIVE',
                           bg: Colors.white.withValues(alpha: 0.2),
-                          textColor: Colors.white,
+                          textColor: Colors.white70,
                           fontSize: 12,
                         ),
                       ],
@@ -210,7 +218,7 @@ class _ActiveView extends StatelessWidget {
                     // Expiry / lifetime info
                     if (isLife) ...[
                       const SizedBox(height: 18),
-                      const Divider(color: Colors.white24),
+                      const Divider(),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -223,7 +231,7 @@ class _ActiveView extends StatelessWidget {
                           Text(
                             AppLocalizations.of(context).lifetimeAccess,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Colors.white70,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -232,7 +240,6 @@ class _ActiveView extends StatelessWidget {
                       ),
                     ] else if (expiresAt != null) ...[
                       const SizedBox(height: 18),
-                      const Divider(color: Colors.white24),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -259,7 +266,7 @@ class _ActiveView extends StatelessWidget {
                                   ? Colors.red.shade200
                                   : (daysLeft! <= 7
                                         ? Colors.orange.shade200
-                                        : Colors.white),
+                                        : Colors.white70),
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
@@ -276,7 +283,7 @@ class _ActiveView extends StatelessWidget {
                               alpha: 0.2,
                             ),
                             valueColor: const AlwaysStoppedAnimation(
-                              Colors.white,
+                              Colors.white70,
                             ),
                             minHeight: 7,
                           ),
@@ -383,7 +390,7 @@ class _ActiveView extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: isDark
-                                    ? Colors.white
+                                    ? Colors.white70
                                     : const Color(0xFF1A1A2E),
                               ),
                             ),
@@ -482,7 +489,7 @@ class _SelectView extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.workspace_premium_rounded,
+                      Icons.currency_exchange,
                       color: theme,
                       size: 34,
                     ),
@@ -493,7 +500,7 @@ class _SelectView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF111827),
+                      color: isDark ? Colors.white70 : const Color(0xFF111827),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -523,7 +530,7 @@ class _SelectView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : const Color(0xFF111827),
+                      color: isDark ? Colors.white70 : const Color(0xFF111827),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -583,7 +590,7 @@ class _SelectView extends StatelessWidget {
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme,
-                          foregroundColor: Colors.white,
+                          foregroundColor: Colors.white70,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
                           ),
@@ -592,14 +599,14 @@ class _SelectView extends StatelessWidget {
                         ),
                         icon: const Icon(
                           Icons.lock_open_rounded,
-                          color: Colors.white,
+                          color: Colors.white70,
                         ),
                         label: Text(
                           AppLocalizations.of(context).continueToCheckout,
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: Colors.white70,
                           ),
                         ),
                         onPressed: selectedId == null
@@ -722,7 +729,7 @@ class _SubscriptionLegalLinks extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF161B22) : Colors.white,
+        color: isDark ? const Color(0xFF161B22) : Colors.white70,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF30363D) : Colors.grey.shade200,
@@ -736,7 +743,7 @@ class _SubscriptionLegalLinks extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : const Color(0xFF111827),
+              color: isDark ? Colors.white70 : const Color(0xFF111827),
             ),
           ),
           const SizedBox(height: 6),
@@ -903,7 +910,7 @@ class _PlanCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF111827),
+                          color: isDark ? Colors.white70 : const Color(0xFF111827),
                         ),
                       ),
                       if (hasBadge) ...[
@@ -929,13 +936,13 @@ class _PlanCard extends StatelessWidget {
                               Icon(
                                 isPopular ? Icons.local_fire_department_rounded : Icons.star_rounded,
                                 size: 10,
-                                color: Colors.white,
+                                color: Colors.white70,
                               ),
                               const SizedBox(width: 2),
                               Text(
                                 badgeLabel.toUpperCase(),
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Colors.white70,
                                   fontSize: 8,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 0.5,
@@ -1015,7 +1022,7 @@ class _CircleIcon extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(11),
     decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-    child: Icon(icon, color: Colors.white, size: size),
+    child: Icon(icon, color: Colors.white70, size: size),
   );
 }
 
@@ -1064,7 +1071,7 @@ class _ActionCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: isDark ? const Color(0xFF161B22) : Colors.white,
+    color: isDark ? const Color(0xFF161B22) : Colors.white70,
     borderRadius: BorderRadius.circular(16),
     child: InkWell(
       onTap: onTap,
@@ -1087,7 +1094,7 @@ class _ActionCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                color: isDark ? Colors.white70 : const Color(0xFF1A1A2E),
               ),
             ),
           ],
@@ -1121,7 +1128,7 @@ class _CancelInfoSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1F2E) : Colors.white,
+        color: isDark ? const Color(0xFF1A1F2E) : Colors.white70,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
@@ -1180,7 +1187,7 @@ class _CancelInfoSheet extends StatelessWidget {
               child: const Text(
                 'Got it',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.white70,
                   fontWeight: FontWeight.w600,
                   fontSize: 15,
                 ),
@@ -1203,7 +1210,7 @@ class _CancelConfirmSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1F2E) : Colors.white,
+        color: isDark ? const Color(0xFF1A1F2E) : Colors.white70,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
@@ -1238,7 +1245,7 @@ class _CancelConfirmSheet extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              color: isDark ? Colors.white70 : Colors.black87,
             ),
           ),
           const SizedBox(height: 12),
@@ -1268,7 +1275,7 @@ class _CancelConfirmSheet extends StatelessWidget {
               child: const Text(
                 'Keep Subscription',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.white70,
                   fontWeight: FontWeight.w600,
                   fontSize: 15,
                 ),

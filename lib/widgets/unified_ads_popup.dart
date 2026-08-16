@@ -36,7 +36,7 @@ class UnifiedAdsPopup extends ConsumerStatefulWidget {
     required this.onAction,
     this.onClosed,
     this.customText,
-    this.adCount = 3,
+    this.adCount = 1,
     this.title,
     this.subtitle,
     this.showSubscribeButton = true,
@@ -514,7 +514,7 @@ class _UnifiedAdsPopupState extends ConsumerState<UnifiedAdsPopup> {
                     }
                   },
                   icon: const Icon(Icons.shopping_cart),
-                  label: const Text('Or Go Premium'),
+                  label: const Text('BUY SUBSCRIPTION'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.yellow,
                     foregroundColor: Colors.black87,

@@ -12,8 +12,8 @@ class SupportScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final isDarkMode =
         themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            MediaQuery.of(context).platformBrightness == Brightness.dark);
+            (themeMode == ThemeMode.system &&
+                MediaQuery.of(context).platformBrightness == Brightness.dark);
 
     return Scaffold(
       body: Container(
@@ -85,7 +85,7 @@ class SupportScreen extends ConsumerWidget {
                     'Get instant help from our support team',
                     Icons.chat_bubble_outline,
                     const Color(0xFF10B981),
-                    () => _launchUrl('https://wa.me/97366994798'),
+                        () => _launchUrl('https://wa.me/+15059103477'),
                     isDarkMode,
                   ),
                 ),
@@ -99,7 +99,7 @@ class SupportScreen extends ConsumerWidget {
                     'Send us an email and we\'ll respond within 24 hours',
                     Icons.email_outlined,
                     const Color(0xFF3B82F6),
-                    () => _launchUrl('mailto:info@linkze.me'),
+                        () => _launchUrl('mailto:support@albonik.com'),
                     isDarkMode,
                   ),
                 ),
@@ -113,7 +113,7 @@ class SupportScreen extends ConsumerWidget {
                     'Find answers to frequently asked questions',
                     Icons.help_outline,
                     const Color(0xFFF59E0B),
-                    () => _showFAQ(context, isDarkMode),
+                        () => _showFAQ(context, isDarkMode),
                     isDarkMode,
                   ),
                 ),
@@ -127,8 +127,8 @@ class SupportScreen extends ConsumerWidget {
                     'Help us improve by reporting issues',
                     Icons.bug_report_outlined,
                     const Color(0xFFEF4444),
-                    () =>
-                        _launchUrl('mailto:info@linkze.me?subject=Bug Report'),
+                        () =>
+                        _launchUrl('mailto:support@albonik.com?subject=Bug Report'),
                     isDarkMode,
                   ),
                 ),
@@ -142,129 +142,14 @@ class SupportScreen extends ConsumerWidget {
                     'Suggest new features or improvements',
                     Icons.lightbulb_outline,
                     const Color(0xFF8B5CF6),
-                    () => _launchUrl(
-                      'mailto:info@linkze.me?subject=Feature Request',
+                        () => _launchUrl(
+                      'mailto:support@albonik.com?subject=Feature Request',
                     ),
                     isDarkMode,
                   ),
                 ),
 
-                const SizedBox(height: 40),
 
-                // Quick Actions
-                FadeInUp(
-                  delay: const Duration(milliseconds: 700),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? const Color(0xFF1E293B)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quick Actions',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildQuickAction(
-                          'Check Connection Status',
-                          'Verify if your VPN is working properly',
-                          Icons.network_check,
-                          () => _checkConnection(),
-                          isDarkMode,
-                        ),
-                        _buildQuickAction(
-                          'Speed Test',
-                          'Test your connection speed',
-                          Icons.speed,
-                          () => _launchUrl('https://speedtest.net'),
-                          isDarkMode,
-                        ),
-                        _buildQuickAction(
-                          'Clear App Cache',
-                          'Reset app data to fix issues',
-                          Icons.clear_all,
-                          () => _showClearCacheDialog(context),
-                          isDarkMode,
-                        ),
-                        _buildQuickAction(
-                          'Download Logs',
-                          'Export diagnostic information',
-                          Icons.download,
-                          () => _downloadLogs(context),
-                          isDarkMode,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // Response Time Info
-                FadeInUp(
-                  delay: const Duration(milliseconds: 800),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: const Color(0xFF3B82F6),
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Response Times',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF3B82F6),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Live Chat: Instant • Email: Within 24 hours • Critical Issues: Within 2 hours',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDarkMode
-                                      ? const Color(0xFF94A3B8)
-                                      : Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
                 const SizedBox(height: 20),
               ],
@@ -276,13 +161,13 @@ class SupportScreen extends ConsumerWidget {
   }
 
   Widget _buildContactOption(
-    String title,
-    String description,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-    bool isDarkMode,
-  ) {
+      String title,
+      String description,
+      IconData icon,
+      Color color,
+      VoidCallback onTap,
+      bool isDarkMode,
+      ) {
     return Container(
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
@@ -355,12 +240,12 @@ class SupportScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickAction(
-    String title,
-    String description,
-    IconData icon,
-    VoidCallback onTap,
-    bool isDarkMode,
-  ) {
+      String title,
+      String description,
+      IconData icon,
+      VoidCallback onTap,
+      bool isDarkMode,
+      ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(

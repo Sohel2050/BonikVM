@@ -41,8 +41,8 @@ class PremiumServerUnlockPopup extends ConsumerStatefulWidget {
     required this.onSubscriptionPressed,
     required this.canWatchVideo,
     this.watchedCount = 0,
-    this.maxVideos = 3,
-    this.durationMinutes = 5,
+    this.maxVideos = 2,
+    this.durationMinutes = 30,
   });
 
   @override
@@ -483,7 +483,7 @@ class _PremiumServerUnlockPopupState
                     Icon(Icons.shopping_bag, color: Colors.white, size: 20),
                     SizedBox(width: 8),
                     Text(
-                      'Upgrade',
+                      'BUY SUBSCRIPTION',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,

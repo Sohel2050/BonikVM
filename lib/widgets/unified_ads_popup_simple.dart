@@ -355,7 +355,7 @@ class _UnifiedAdsPopupSimpleState extends ConsumerState<UnifiedAdsPopupSimple> {
                   children: [
                     Icon(Icons.shopping_cart, size: 18),
                     SizedBox(width: 8),
-                    Text('Or Go Premium'),
+                    Text('OR BUY SUBSCRIPTION'),
                   ],
                 ),
               ),

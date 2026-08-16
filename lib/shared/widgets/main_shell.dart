@@ -7,7 +7,9 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../features/about/about_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/privacy/privacy_policy_screen.dart';
 import '../../features/servers/servers_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/premium/premium_screen.dart';
@@ -15,6 +17,8 @@ import '../../core/services/admob_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/vpn_state.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../features/support/support_screen.dart';
+import '../../features/terms/terms_of_service_screen.dart';
 import '../providers/app_providers.dart';
 import '../providers/theme_provider.dart';
 import 'modern_app_bar.dart';
@@ -177,14 +181,14 @@ class _MainShellState extends ConsumerState<MainShell> {
               Icon(Icons.exit_to_app, color: Colors.redAccent, size: 22),
               const SizedBox(width: 8),
               const Text(
-                'Double Press Back  To Exit VPN MASTER',
+                'Double Back To Exit',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
           ),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.lightGreen,
+          backgroundColor: Colors.cyan,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           margin: const EdgeInsets.all(16),
         ),
@@ -339,9 +343,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         body: Stack(
           children: [
             // Background Image
-            Positioned.fill(
-              child: Image.asset("assets/images/bg2.png", fit: BoxFit.cover),
-            ),
+
 
             // Dark overlay
             Positioned.fill(
@@ -412,13 +414,13 @@ class _MainShellState extends ConsumerState<MainShell> {
                 index: 0,
               ),
               _buildBottomNavItem(
-                icon: Icons.dns_rounded,
+                icon: Icons.public,
                 label: localizations.servers,
                 index: 1,
               ),
               _buildBottomNavItem(
-                icon: Icons.workspace_premium_rounded,
-                label: isPremium ? localizations.premium : 'Premium',
+                icon: Icons.currency_exchange,
+                label: isPremium ? localizations.premium : 'VIP SERVER',
                 index: 2,
                 badge: !isPremium,
               ),
@@ -450,33 +452,14 @@ class _MainShellState extends ConsumerState<MainShell> {
             icon: Icon(
               Icons.menu,
               color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
-              size: 24,
+              size: 42,
             ),
             onPressed: () {
               _scaffoldKey.currentState?.openDrawer();
             },
             tooltip: 'Menu',
           ),
-          actions: [
-            // Theme toggle button
-            IconButton(
-              onPressed: () {
-                final currentMode = ref.read(themeModeProvider);
-                final newMode = currentMode == ThemeMode.dark
-                    ? ThemeMode.light
-                    : ThemeMode.dark;
-                ref.read(themeModeProvider.notifier).setThemeMode(newMode);
-              },
-              icon: Icon(
-                isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                color: isDarkMode ? Colors.amber : const Color(0xFF1E293B),
-                size: 24,
-              ),
-              tooltip: isDarkMode
-                  ? 'Switch to Light Mode'
-                  : 'Switch to Dark Mode',
-            ),
-          ],
+
         );
       case 1: // Servers screen
         return ModernAppBar(
@@ -487,7 +470,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               icon: Icon(
                 Icons.refresh,
                 color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
-                size: 24,
+                size: 33,
               ),
               onPressed: () {
                 // Refresh the servers list.
@@ -501,15 +484,15 @@ class _MainShellState extends ConsumerState<MainShell> {
         );
       case 2: // Premium screen
         return ModernAppBar(
-          title: 'Premium',
-          showBackButton: false, // No back button for main screens
+          title: 'SUBSCRIPTION',
+          showBackButton: true, // No back button for main screens
           actions: [
             if (!isPremium)
               IconButton(
                 icon: Icon(
                   Icons.refresh,
                   color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
-                  size: 24,
+                  size: 27,
                 ),
                 tooltip: 'Refresh Products',
                 onPressed: () {
@@ -532,7 +515,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               icon: Icon(
                 Icons.menu,
                 color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
-                size: 24,
+                size: 42,
               ),
               onPressed: () {
                 _scaffoldKey.currentState?.openDrawer();
@@ -708,48 +691,19 @@ class _MainShellState extends ConsumerState<MainShell> {
             // Navigation Items
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 10),
                 children: [
-                  const SizedBox(height: 12),
 
-                  // Language Selector in drawer
-                  const LanguageSelector(showInDrawer: true),
-
-                  const SizedBox(height: 6),
 
                   _buildModernDrawerItem(
                     icon: Icons.home_rounded,
                     title: localizations.home,
                     subtitle: 'Connection dashboard',
-                    isSelected: _currentIndex == 0,
+
                     onTap: () => _navigateToTab(0),
                     isDarkMode: isDarkMode,
                   ),
-                  _buildModernDrawerItem(
-                    icon: Icons.dns_rounded,
-                    title: localizations.servers,
-                    subtitle: 'Global locations',
-                    isSelected: _currentIndex == 1,
-                    onTap: () => _navigateToTab(1),
-                    isDarkMode: isDarkMode,
-                  ),
-                  _buildModernDrawerItem(
-                    icon: Icons.workspace_premium_rounded,
-                    title: localizations.premium,
-                    subtitle: 'Unlock VIP nodes',
-                    isSelected: _currentIndex == 2,
-                    onTap: () => _navigateToTab(2),
-                    isDarkMode: isDarkMode,
-                    badge: !isPremium ? 'HOT' : null,
-                  ),
-                  _buildModernDrawerItem(
-                    icon: Icons.settings_rounded,
-                    title: localizations.settings,
-                    subtitle: 'App preferences',
-                    isSelected: _currentIndex == 3,
-                    onTap: () => _navigateToTab(3),
-                    isDarkMode: isDarkMode,
-                  ),
+
 
                   if (!isPremium &&
                       _isDrawerNativeAdLoaded &&
@@ -773,19 +727,40 @@ class _MainShellState extends ConsumerState<MainShell> {
                         child: AdWidget(ad: _drawerNativeAd!),
                       ),
                     ),
+                  _buildModernDrawerItem(
+                    icon: Icons.privacy_tip,
+                    title: 'Privacy Policy',
+                    subtitle: 'Read our privacy policy',
+                    onTap: () {
+                      Navigator.pop(context);
 
-                  // Divider
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(
-                      color: isDarkMode
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE5E7EB),
-                      thickness: 1.0,
-                      indent: 20,
-                      endIndent: 20,
-                    ),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen(),
+                        ),
+                      );
+                    },
+                    isDarkMode: isDarkMode,
                   ),
+
+                  _buildModernDrawerItem(
+                    icon: Icons.description,
+                    title: 'Terms & Conditions',
+                    subtitle: 'Read our terms of service',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TermsOfServiceScreen(),
+                        ),
+                      );
+                    },
+                    isDarkMode: isDarkMode,
+                  ),
+
+
 
                   _buildModernDrawerItem(
                     icon: Icons.share_rounded,
@@ -797,20 +772,57 @@ class _MainShellState extends ConsumerState<MainShell> {
                   _buildModernDrawerItem(
                     icon: Icons.star_rate_rounded,
                     title: localizations.rateApp,
-                    subtitle: 'Leave a review',
+                    subtitle: ' ⭐⭐⭐⭐⭐',
                     onTap: () {
                       Navigator.pop(context);
                       _triggerInAppReview();
                     },
                     isDarkMode: isDarkMode,
                   ),
-                  _buildModernDrawerItem(
+                 /* _buildModernDrawerItem(
                     icon: Icons.info_rounded,
                     title: localizations.about,
                     subtitle: 'App information',
                     onTap: () => _showAboutDialog(),
                     isDarkMode: isDarkMode,
                   ),
+
+                  */
+                  _buildModernDrawerItem(
+                    icon: Icons.headset_mic,
+                    title: 'Support',
+                    subtitle: 'Get help with the app',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SupportScreen(),
+                        ),
+                      );
+                    },
+                    isDarkMode: isDarkMode,
+                  ),
+
+
+                  _buildModernDrawerItem(
+                    icon: Icons.info_outline,
+                    title: 'About',
+                    subtitle: 'App information and credits',
+                    onTap: () {
+                      Navigator.pop(context);
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AboutScreen(),
+                        ),
+                      );
+                    },
+                    isDarkMode: isDarkMode,
+                  ),
+
+
                 ],
               ),
             ),
@@ -991,10 +1003,10 @@ class _MainShellState extends ConsumerState<MainShell> {
 
 Protect your privacy with VPN MASTER:
 ✅ Multi grade encryption
-✅ 50+ server locations worldwide
+✅ 24+ server locations worldwide
 ✅ No-logs policy
 ✅ Lightning-fast speeds
-✅ 24/7 customer support
+
 
 Download now and get premium features!
 $appUrl
@@ -1056,7 +1068,7 @@ $appUrl
               ),
               const SizedBox(width: 12),
               Text(
-                'About VPN MASTER',
+                'VPN MASTER',
                 style: TextStyle(
                   color: isDarkMode ? Colors.white : Colors.black87,
                   fontSize: 20,
@@ -1070,33 +1082,10 @@ $appUrl
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildAboutItem(
-                  icon: Icons.info_outline,
-                  title: 'Version',
-                  value: '46.0.0',
-                  isDarkMode: isDarkMode,
-                ),
-                _buildAboutItem(
-                  icon: Icons.code,
-                  title: 'Build',
-                  value: 'Flutter 3.10+',
-                  isDarkMode: isDarkMode,
-                ),
-                _buildAboutItem(
-                  icon: Icons.security,
-                  title: 'Encryption',
-                  value: 'AES-256',
-                  isDarkMode: isDarkMode,
-                ),
-                _buildAboutItem(
-                  icon: Icons.language,
-                  title: 'Servers',
-                  value: '50+ Countries',
-                  isDarkMode: isDarkMode,
-                ),
-                const SizedBox(height: 16),
+
+
                 Text(
-                  'VPN MASTER is a premium VPN service that provides secure, fast, and private internet access. We use military-grade encryption to protect your data and maintain a strict no-logs policy.',
+                  'VPN MASTER is a Premium VPN service that provides secure, fast, and private internet access. We use military-grade encryption to protect your data and maintain a strict no-logs policy.',
                   style: TextStyle(
                     color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                     fontSize: 14,

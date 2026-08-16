@@ -19,23 +19,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconBg: Color(0xFFEFF6FF),
       title: 'Secure Your\nOnline Activity',
       subtitle:
-          'Military-grade AES-256 encryption keeps your data safe from hackers and surveillance.',
+      'AES-256 encryption keeps your data safe from hackers and surveillance.',
     ),
     _OnboardingPage(
-      icon: Icons.bolt_rounded,
+      icon: Icons.lock,
       iconColor: Color(0xFF10B981),
       iconBg: Color(0xFFECFDF5),
-      title: 'Blazing Fast\nServers',
+      title: 'Secure And Fast\nServers',
       subtitle:
-          'Connect to 50+ global servers with ultra-low latency for seamless streaming and browsing.',
+      'Connect many global servers with ultra-low latency for seamless streaming and browsing.',
     ),
     _OnboardingPage(
-      icon: Icons.public_rounded,
+      icon: Icons.location_on_rounded,
       iconColor: Color(0xFF8B5CF6),
       iconBg: Color(0xFFF5F3FF),
       title: 'Access Global\nContent',
       subtitle:
-          'Bypass geo-restrictions and enjoy your favorite content from anywhere in the world.',
+      'Bypass tracking and enjoy your browsing safe -  tracking.',
     ),
   ];
 
@@ -107,7 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
                 _pages.length,
-                (i) => AnimatedContainer(
+                    (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   width: i == _currentPage ? 24 : 8,
@@ -141,7 +141,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   onPressed: _nextPage,
                   child: Text(
-                    isLast ? 'Get Started' : 'Next',
+                    isLast ? 'Enjoy' : 'Next',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,

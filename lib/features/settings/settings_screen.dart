@@ -93,6 +93,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            // Bottom banner ad
+            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
+              const SizedBox(height: 24),
+              Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AdWidget(ad: _bannerAd!),
+                ),
+              ),
+            ],
+
+
             // Connection Settings
             _buildSectionTitle(localizations.connection, isDarkMode),
             const SizedBox(height: 8),
@@ -182,39 +200,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _buildSettingCard(
               isDarkMode: isDarkMode,
               children: [
-                _buildSettingTile(
-                  title: localizations.premiumStatus,
-                  subtitle: isPremium ? 'Active' : 'Free Plan',
-                  icon: Icons.star,
-                  isDarkMode: isDarkMode,
-                  onTap: isPremium
-                      ? null
-                      : () => Navigator.pushNamed(context, '/premium'),
-                  trailing: isPremium
-                      ? Icon(
-                          Icons.check_circle,
-                          color: ref.watch(themeColorProvider),
-                        )
-                      : ElevatedButton.icon(
-                          icon: const Icon(Icons.workspace_premium, size: 14),
-                          label: const Text(
-                            'UPGRADE',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/premium'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ref.watch(themeColorProvider),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                ),
+
                 _buildDivider(isDarkMode),
                 _buildSettingTile(
                   title: localizations.accountManagement,
@@ -286,98 +272,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     );
                   },
                 ),
+                _buildDivider(isDarkMode),
+                // Dark Mode toggle
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  child: ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? Colors.grey[800]
+                            : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                        size: 20,
+                        color: isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
+                      ),
+                    ),
+
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                    ),
+                    subtitle: Text(
+                      isDarkMode ? 'Currently enabled' : 'Currently disabled',
+                      style: TextStyle(
+                        color: isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                    trailing: Switch(
+                      value: ref.watch(themeModeProvider) == ThemeMode.dark,
+                      onChanged: (value) {
+                        ref
+                            .read(themeModeProvider.notifier)
+                            .setThemeMode(
+                          value ? ThemeMode.dark : ThemeMode.light,
+                        );
+                      },
+
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                  ),
+                ),
               ],
             ),
 
-            const SizedBox(height: 24),
 
-            // Other Settings
-            _buildSectionTitle('Other', isDarkMode),
-            const SizedBox(height: 8),
-            _buildSettingCard(
-              isDarkMode: isDarkMode,
-              children: [
-                _buildSettingTile(
-                  title: localizations.privacyPolicy,
-                  subtitle: 'Read our privacy policy',
-                  icon: Icons.privacy_tip,
-                  isDarkMode: isDarkMode,
-                  onTap: () {
-                    Navigator.pushNamed(context, '/privacy');
-                  },
-                ),
-                _buildDivider(isDarkMode),
-                _buildSettingTile(
-                  title: localizations.termsOfService,
-                  subtitle: 'Read our terms',
-                  icon: Icons.description,
-                  isDarkMode: isDarkMode,
-                  onTap: () {
-                    Navigator.pushNamed(context, '/terms');
-                  },
-                ),
-                _buildDivider(isDarkMode),
-                _buildSettingTile(
-                  title: localizations.support,
-                  subtitle: 'Get help with the app',
-                  icon: Icons.support_agent,
-                  isDarkMode: isDarkMode,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SupportScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDivider(isDarkMode),
-                _buildSettingTile(
-                  title: localizations.about,
-                  subtitle: 'App information and credits',
-                  icon: Icons.info,
-                  isDarkMode: isDarkMode,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AboutScreen(),
-                      ),
-                    );
-                  },
-                ),
-                // Add debug option (always available for Play Store testing)
-                // _buildDivider(isDarkMode),
-                // _buildSettingTile(
-                //   title: 'VPN Debug & Testing',
-                //   subtitle: 'Test VPN configuration and Play Store readiness',
-                //   icon: Icons.bug_report,
-                //   isDarkMode: isDarkMode,
-                //   onTap: () {
-                //     Navigator.pushNamed(context, '/debug');
-                //   },
-                // ),
-              ],
-            ),
-
-            // Bottom banner ad
-            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
-              const SizedBox(height: 24),
-              Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AdWidget(ad: _bannerAd!),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 100), // Bottom padding
           ],
+
         ),
       ),
     );

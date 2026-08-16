@@ -272,7 +272,7 @@ We encourage you to review these Terms periodically for any updates.''',
 • Email: support@albonik.com
 • Support: Through the app's support section
 • Website: https://albonik.com
-• Address: New Mexico,US
+• Address : 1209 Mountain Road Pl NE Ste R,Albuquerque, NM 87110-7845
 
 We will respond to inquiries within 48 hours during business days.''',
                     isDarkMode,

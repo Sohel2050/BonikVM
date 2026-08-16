@@ -209,6 +209,7 @@ Continued use of our service after changes constitutes acceptance of the updated
 • Email: support@albonik.com
 • Support: Through the app's support section
 • Website: https://albonik.com
+• Address : 1209 Mountain Road Pl NE Ste R,Albuquerque, NM 87110-7845
 
 We're committed to addressing your privacy concerns promptly and transparently.''',
                     isDarkMode,

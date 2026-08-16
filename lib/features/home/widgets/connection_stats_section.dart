@@ -39,22 +39,8 @@ class ConnectionStatsSection extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 // Duration
-                Expanded(
-                  child: StatItem(
-                    icon: Icons.timer_outlined,
-                    value: durationString,
-                    label: AppLocalizations.of(context).duration,
-                    color: const Color(0xFF10B981),
-                  ),
-                ),
 
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: isDarkMode ? Colors.white12 : Colors.black12,
-                  indent: 8,
-                  endIndent: 8,
-                ),
+
 
                 // Download speed
                 Expanded(

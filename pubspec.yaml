@@ -16,6 +16,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  onesignal_flutter: ^5.5.4
   flutter:
     sdk: flutter
 

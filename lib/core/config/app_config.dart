@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppConfig {
   // API Configuration
   static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'https://your-domain.com'; // Default to local server for development
+      dotenv.env['API_BASE_URL'] ?? 'https://vpn.albonik.com'; // Default to local server for development
   static String get baseUrl => apiBaseUrl; // Alias for compatibility
   static String get apiVersion => 'v1'; // API version
   // No hardcoded fallback — set API_TOKEN_MOBILE in .env (see .env.example).

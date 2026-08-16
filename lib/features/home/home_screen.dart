@@ -1826,27 +1826,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
             const SizedBox(height: 18),
 
-            // Server Info / Selection Card
-            if (isConnected) ...[
-              if (currentServer != null)
-                FadeInUp(
-                  delay: const Duration(milliseconds: 300),
-                  child: ConnectedServerCard(
-                    currentServer: currentServer,
-                    onTap: () => _showServerDetailsBottomSheet(currentServer),
-                  ),
-                ),
-            ] else if (!isConnecting) ...[
-              FadeInUp(
-                delay: const Duration(milliseconds: 300),
-                child: SelectionLocationCard(
-                  currentServer: currentServer,
-                  isDarkMode: isDarkMode,
-                  themeColor: themeColor,
-                  onChangePressed: _showServerSelection,
-                ),
-              ),
-            ],
+
 
             // Free Connection Timer
             if (isConnected && !isPremium) ...[
@@ -1865,6 +1845,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: const ConnectionStatsSection(),
               ),
             ],
+
+
 
             // Ads
             if (!isPremium &&
@@ -1893,9 +1875,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ],
 
+
+
+
+
+
             // IP Address Banner
             const SizedBox(height: 14),
-            const IpAddressWidget(),
+           // const IpAddressWidget(),
+
+
+
+
           ],
         ),
       ),
@@ -2185,6 +2176,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ],
           ),
+
         ],
       ),
     );
