@@ -151,6 +151,8 @@ Future<void> _initializeApp() async {
             rewardedAdUnitId: dotenv.env['LEVELPLAY_REWARDED_AD_UNIT_ID'],
             interstitialAdUnitId:
                 dotenv.env['LEVELPLAY_INTERSTITIAL_AD_UNIT_ID'],
+            bannerAdUnitId: dotenv.env['LEVELPLAY_BANNER_AD_UNIT_ID'],
+            nativeAdUnitId: dotenv.env['LEVELPLAY_NATIVE_AD_UNIT_ID'],
           )
           .timeout(
             const Duration(seconds: 5),

@@ -16,6 +16,8 @@ import '../../core/api/api_service.dart';
 import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../widgets/subscription_banner.dart';
+import '../../widgets/level_play_banner_ad.dart';
+import '../../widgets/level_play_native_ad.dart';
 import '../../widgets/ip_address_widget.dart';
 import '../../providers/ip_address_provider.dart';
 import '../../services/ads_popup_config_service.dart';
@@ -135,56 +137,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _initializeAds() {
-    // Only show ads to non-premium users
-    final isPremium = ref.read(premiumStatusProvider);
-    if (isPremium) {
-      return;
-    }
-
-    _bannerAd?.dispose();
-    _connectedNativeAd?.dispose();
-    _bannerAd = null;
-    _connectedNativeAd = null;
-    _isBannerAdLoaded = false;
-    _isConnectedNativeAdLoaded = false;
-
-    // Create top banner ad
-    _bannerAd = AdMobService.instance.createBannerAd(
-      onAdLoaded: (ad) {
-        if (mounted) {
-          setState(() {
-            _isBannerAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        ad.dispose();
-
-        // Retry loading ad after 30 seconds
-        Future.delayed(const Duration(seconds: 30), () {
-          if (mounted && !ref.read(premiumStatusProvider)) {
-            _initializeAds();
-          }
-        });
-      },
-    );
-
-    _bannerAd?.load();
-
-    _connectedNativeAd = AdMobService.instance.createNativeAd(
-      onAdLoaded: (ad) {
-        if (mounted) {
-          setState(() {
-            _isConnectedNativeAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        ad.dispose();
-      },
-    );
-
-    _connectedNativeAd?.load();
+    // Banner and native placements use LevelPlay widgets. Retain this method
+    // because premium-status listeners call it when the UI is rebuilt.
   }
 
   /// Initialize premium server unlock service
@@ -1603,7 +1557,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             const SubscriptionBanner(),
 
             // Top banner ad for non-premium users
-            if (!isPremium && _isBannerAdLoaded && _bannerAd != null)
+            if (!isPremium)
               FadeInDown(
                 child: Container(
                   margin: const EdgeInsets.symmetric(
@@ -1611,7 +1565,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     vertical: 8,
                   ),
                   height: 50,
-                  child: AdWidget(ad: _bannerAd!),
+                  child: LevelPlayBannerAd(
+                    adUnitId: LevelPlayService.instance.bannerAdUnitId,
+                  ),
                 ),
               ),
 
@@ -1981,9 +1937,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
 
             // Ads
-            if (!isPremium &&
-                _isConnectedNativeAdLoaded &&
-                _connectedNativeAd != null) ...[
+            if (!isPremium) ...[
               const SizedBox(height: 16),
               FadeInUp(
                 delay: const Duration(milliseconds: 550),
@@ -2001,7 +1955,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: AdWidget(ad: _connectedNativeAd!),
+                    child: const LevelPlayNativeAdPlacement(),
                   ),
                 ),
               ),

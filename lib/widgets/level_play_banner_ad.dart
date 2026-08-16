@@ -56,8 +56,24 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
   }
 
   void _onPlatformViewCreated() {
-    if (!LevelPlayService.instance.isInitialized) return;
-    _bannerKey.currentState?.loadAd();
+    _loadWhenInitialized();
+  }
+
+  void _loadWhenInitialized([int attempts = 0]) {
+    if (!mounted || _failed) return;
+    if (LevelPlayService.instance.isInitialized) {
+      _bannerKey.currentState?.loadAd();
+      return;
+    }
+
+    // LevelPlay initialization completes through a native callback. A banner
+    // platform view can be created first, so wait for that callback instead of
+    // silently abandoning the only load request.
+    if (attempts < 120) {
+      Future.delayed(const Duration(milliseconds: 250), () {
+        _loadWhenInitialized(attempts + 1);
+      });
+    }
   }
 
   // ---- LevelPlayBannerAdViewListener ----

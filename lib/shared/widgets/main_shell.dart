@@ -13,7 +13,6 @@ import '../../features/privacy/privacy_policy_screen.dart';
 import '../../features/servers/servers_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/premium/premium_screen.dart';
-import '../../core/services/admob_service.dart';
 import '../../core/services/update_service.dart';
 import '../../core/services/vpn_state.dart';
 import '../../core/localization/app_localizations.dart';
@@ -22,7 +21,7 @@ import '../../features/terms/terms_of_service_screen.dart';
 import '../providers/app_providers.dart';
 import '../providers/theme_provider.dart';
 import 'modern_app_bar.dart';
-import 'language_selector.dart';
+import '../../widgets/level_play_native_ad.dart';
 
 class _HomeNavItemSpec {
   const _HomeNavItemSpec({
@@ -88,26 +87,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   void _initializeDrawerNativeAd() {
-    if (ref.read(premiumStatusProvider) || _drawerNativeAd != null) {
-      return;
-    }
-
-    _drawerNativeAd = AdMobService.instance.createNativeAd(
-      onAdLoaded: (ad) {
-        if (mounted) {
-          setState(() {
-            _isDrawerNativeAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        ad.dispose();
-        _drawerNativeAd = null;
-        _isDrawerNativeAdLoaded = false;
-      },
-    );
-
-    _drawerNativeAd?.load();
+    // The LevelPlay native widget below owns its own lifecycle.
   }
 
   void _disposeDrawerNativeAd() {
@@ -358,10 +338,9 @@ class _MainShellState extends ConsumerState<MainShell> {
           children: [
             // Background Image
 
-
             // Dark overlay
             Positioned.fill(
-              child: Container(color: Colors.black.withOpacity(0.2)),
+              child: Container(color: Colors.black.withValues(alpha: 0.2)),
             ),
 
             // Main Content
@@ -391,7 +370,11 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ],
         ),
-        bottomNavigationBar: _buildPillBottomNavBar(isDarkMode, isPremium, localizations),
+        bottomNavigationBar: _buildPillBottomNavBar(
+          isDarkMode,
+          isPremium,
+          localizations,
+        ),
         drawer: _buildDrawer(context, isDarkMode, isPremium, localizations),
       ),
     );
@@ -423,7 +406,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                   child: IconButton(
                     icon: Icon(
                       Icons.menu_rounded,
-                      color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                      color: isDarkMode
+                          ? Colors.white
+                          : const Color(0xFF1E293B),
                       size: 22,
                     ),
                     onPressed: () {
@@ -447,7 +432,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFF7A1A).withValues(alpha: 0.35),
+                            color: const Color(
+                              0xFFFF7A1A,
+                            ).withValues(alpha: 0.35),
                             blurRadius: 14,
                             offset: const Offset(0, 6),
                           ),
@@ -491,7 +478,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                         Text(
                           'Premium',
                           style: TextStyle(
-                            color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                            color: isDarkMode
+                                ? Colors.white
+                                : const Color(0xFF1E293B),
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),
@@ -579,10 +568,22 @@ class _MainShellState extends ConsumerState<MainShell> {
   ) {
     const activeColor = Color(0xFFAEEA1C);
     final items = <_HomeNavItemSpec>[
-      _HomeNavItemSpec(icon: Icons.home_rounded, label: localizations.home, index: 0),
-      _HomeNavItemSpec(icon: Icons.public_rounded, label: localizations.servers, index: 1),
+      _HomeNavItemSpec(
+        icon: Icons.home_rounded,
+        label: localizations.home,
+        index: 0,
+      ),
+      _HomeNavItemSpec(
+        icon: Icons.public_rounded,
+        label: localizations.servers,
+        index: 1,
+      ),
 
-      _HomeNavItemSpec(icon: Icons.settings_rounded, label: localizations.settings, index: 3),
+      _HomeNavItemSpec(
+        icon: Icons.settings_rounded,
+        label: localizations.settings,
+        index: 3,
+      ),
     ];
 
     return Container(
@@ -629,7 +630,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                         size: 22,
                         color: selected
                             ? Colors.black
-                            : (isDarkMode ? Colors.grey[500] : Colors.grey[500]),
+                            : (isDarkMode
+                                  ? Colors.grey[500]
+                                  : Colors.grey[500]),
                       ),
                       if (item.badge)
                         Positioned(
@@ -666,37 +669,37 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  BottomNavigationBarItem _buildBottomNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-    bool badge = false,
-  }) {
-    return BottomNavigationBarItem(
-      icon: Stack(
-        children: [
-          FadeInUp(
-            delay: Duration(milliseconds: index * 100),
-            child: Icon(icon, size: _currentIndex == index ? 28 : 24),
-          ),
-          if (badge)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
-              ),
-            ),
-        ],
-      ),
-      label: label,
-    );
-  }
+  // BottomNavigationBarItem _buildBottomNavItem({
+  //   required IconData icon,
+  //   required String label,
+  //   required int index,
+  //   bool badge = false,
+  // }) {
+  //   return BottomNavigationBarItem(
+  //     icon: Stack(
+  //       children: [
+  //         FadeInUp(
+  //           delay: Duration(milliseconds: index * 100),
+  //           child: Icon(icon, size: _currentIndex == index ? 28 : 24),
+  //         ),
+  //         if (badge)
+  //           Positioned(
+  //             right: 0,
+  //             top: 0,
+  //             child: Container(
+  //               padding: const EdgeInsets.all(2),
+  //               decoration: const BoxDecoration(
+  //                 color: Colors.red,
+  //                 shape: BoxShape.circle,
+  //               ),
+  //               constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+  //             ),
+  //           ),
+  //       ],
+  //     ),
+  //     label: label,
+  //   );
+  // }
 
   Widget _buildDrawer(
     BuildContext context,
@@ -724,12 +727,12 @@ class _MainShellState extends ConsumerState<MainShell> {
                       ? [
                           const Color(0xFF1E293B),
                           const Color(0xFF334155),
-                          themeColor.withOpacity(0.8),
+                          themeColor.withValues(alpha: 0.8),
                         ]
                       : [
                           themeColor,
-                          themeColor.withOpacity(0.8),
-                          themeColor.withOpacity(0.6),
+                          themeColor.withValues(alpha: 0.8),
+                          themeColor.withValues(alpha: 0.6),
                         ],
                 ),
               ),
@@ -742,10 +745,10 @@ class _MainShellState extends ConsumerState<MainShell> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -790,7 +793,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                           decoration: BoxDecoration(
                             color: isPremium
                                 ? const Color(0xFF65645E)
-                                : Colors.white.withOpacity(0.2),
+                                : Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -817,7 +820,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     Text(
                       'Fast & Secure VPN',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 13,
                         fontWeight: FontWeight.w300,
                       ),
@@ -832,8 +835,6 @@ class _MainShellState extends ConsumerState<MainShell> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 10),
                 children: [
-
-
                   _buildModernDrawerItem(
                     icon: Icons.home_rounded,
                     title: localizations.home,
@@ -843,10 +844,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     isDarkMode: isDarkMode,
                   ),
 
-
-                  if (!isPremium &&
-                      _isDrawerNativeAdLoaded &&
-                      _drawerNativeAd != null)
+                  if (!isPremium)
                     Container(
                       margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       height: 80,
@@ -857,13 +855,13 @@ class _MainShellState extends ConsumerState<MainShell> {
                             : const Color(0xFFF8FAFC),
                         border: Border.all(
                           color: isDarkMode
-                              ? Colors.white.withOpacity(0.06)
-                              : Colors.black.withOpacity(0.04),
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.black.withValues(alpha: 0.04),
                         ),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: AdWidget(ad: _drawerNativeAd!),
+                        child: const LevelPlayNativeAdPlacement(height: 80),
                       ),
                     ),
                   _buildModernDrawerItem(
@@ -899,8 +897,6 @@ class _MainShellState extends ConsumerState<MainShell> {
                     isDarkMode: isDarkMode,
                   ),
 
-
-
                   _buildModernDrawerItem(
                     icon: Icons.share_rounded,
                     title: localizations.shareApp,
@@ -918,7 +914,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     },
                     isDarkMode: isDarkMode,
                   ),
-                 /* _buildModernDrawerItem(
+                  /* _buildModernDrawerItem(
                     icon: Icons.info_rounded,
                     title: localizations.about,
                     subtitle: 'App information',
@@ -943,7 +939,6 @@ class _MainShellState extends ConsumerState<MainShell> {
                     isDarkMode: isDarkMode,
                   ),
 
-
                   _buildModernDrawerItem(
                     icon: Icons.info_outline,
                     title: 'About',
@@ -953,15 +948,11 @@ class _MainShellState extends ConsumerState<MainShell> {
 
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const AboutScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
                       );
                     },
                     isDarkMode: isDarkMode,
                   ),
-
-
                 ],
               ),
             ),
@@ -1032,7 +1023,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: isSelected
-                ? themeColor.withOpacity(0.12)
+                ? themeColor.withValues(alpha: 0.12)
                 : Colors.transparent,
           ),
           child: ClipRRect(
@@ -1044,7 +1035,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? themeColor.withOpacity(0.18)
+                        ? themeColor.withValues(alpha: 0.18)
                         : (isDarkMode
                               ? const Color(0xFF1E293B)
                               : const Color(0xFFF3F4F6)),
@@ -1221,8 +1212,6 @@ $appUrl
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-
-
                 Text(
                   'VPN MASTER is a Premium VPN service that provides secure, fast, and private internet access. We use military-grade encryption to protect your data and maintain a strict no-logs policy.',
                   style: TextStyle(

@@ -397,6 +397,12 @@ class LevelPlayService {
   static const String _fallbackInterstitialUnitId =
       'ecq5j5znboq5x54v';
 
+  static const String _fallbackBannerUnitId =
+      'hqe7skeqt5vp9csp';
+
+  static const String _fallbackNativeUnitId =
+      '52rdvpmf716zst8k';
+
 
   // ==========================================================
   // OTHER LEVELPLAY IDS
@@ -462,6 +468,10 @@ class LevelPlayService {
   String _interstitialAdUnitId =
       _fallbackInterstitialUnitId;
 
+  String _bannerAdUnitId = _fallbackBannerUnitId;
+
+  String _nativeAdUnitId = _fallbackNativeUnitId;
+
 
   // ==========================================================
   // MADU AD OBJECTS
@@ -499,6 +509,10 @@ class LevelPlayService {
     return _isInterstitialReady;
   }
 
+  String get bannerAdUnitId => _bannerAdUnitId;
+
+  String get nativeAdUnitId => _nativeAdUnitId;
+
 
   // ==========================================================
   // INITIALIZE
@@ -509,6 +523,8 @@ class LevelPlayService {
     String? iosAppKey,
     String? rewardedAdUnitId,
     String? interstitialAdUnitId,
+    String? bannerAdUnitId,
+    String? nativeAdUnitId,
   }) async {
     try {
       // ------------------------------------------------------
@@ -534,6 +550,14 @@ class LevelPlayService {
           interstitialAdUnitId.isNotEmpty) {
         _interstitialAdUnitId =
             interstitialAdUnitId;
+      }
+
+      if (bannerAdUnitId != null && bannerAdUnitId.isNotEmpty) {
+        _bannerAdUnitId = bannerAdUnitId;
+      }
+
+      if (nativeAdUnitId != null && nativeAdUnitId.isNotEmpty) {
+        _nativeAdUnitId = nativeAdUnitId;
       }
 
 

@@ -16,6 +16,8 @@ import '../support/support_screen.dart';
 import 'admin_notifications_screen.dart';
 import '../../screens/profile/purchase_history_screen.dart';
 import '../../screens/auth/sign_in_screen.dart';
+import '../../widgets/level_play_banner_ad.dart';
+import '../../core/services/level_play_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -35,26 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _initializeBannerAd() {
-    if (ref.read(premiumStatusProvider) || _bannerAd != null) {
-      return;
-    }
-
-    _bannerAd = AdMobService.instance.createBannerAd(
-      onAdLoaded: (ad) {
-        if (mounted) {
-          setState(() {
-            _isBannerAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        ad.dispose();
-        _bannerAd = null;
-        _isBannerAdLoaded = false;
-      },
-    );
-
-    _bannerAd?.load();
+    // The LevelPlay widget owns its own lifecycle and load callback.
   }
 
   void _disposeBannerAd() {
@@ -95,7 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
 
             // Bottom banner ad
-            if (!isPremium && _isBannerAdLoaded && _bannerAd != null) ...[
+            if (!isPremium) ...[
               const SizedBox(height: 24),
               Container(
                 height: 60,
@@ -105,7 +88,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: AdWidget(ad: _bannerAd!),
+                  child: LevelPlayBannerAd(
+                    adUnitId: LevelPlayService.instance.bannerAdUnitId,
+                  ),
                 ),
               ),
             ],

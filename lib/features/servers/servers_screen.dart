@@ -13,6 +13,9 @@ import '../../shared/widgets/loading_widget.dart';
 import '../../shared/widgets/error_widget.dart';
 import '../../shared/widgets/flag_icon.dart';
 import '../../widgets/unified_ads_popup_simple.dart';
+import '../../widgets/level_play_banner_ad.dart';
+import '../../widgets/level_play_native_ad.dart';
+import '../../core/services/level_play_service.dart';
 
 class ServersScreen extends ConsumerStatefulWidget {
   const ServersScreen({super.key});
@@ -59,21 +62,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   void _initializeAds() {
-    // Create top banner ad
-    _bannerAd = AdMobService.instance.createBannerAd(
-      onAdLoaded: (ad) {
-        if (mounted) {
-          setState(() {
-            _isBannerAdLoaded = true;
-          });
-        }
-      },
-      onAdFailedToLoad: (ad, error) {
-        debugPrint('Top banner ad failed to load: $error');
-        ad.dispose();
-      },
-    );
-    _bannerAd?.load();
+    // Visible placements are mediated by LevelPlay, not direct AdMob.
   }
 
   @override
@@ -236,7 +225,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       child: Column(
         children: [
           // Top Banner Ad
-          if (!isPremium && _isBannerAdLoaded && _bannerAd != null)
+          if (!isPremium)
             Container(
               height: 60,
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -246,7 +235,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: AdWidget(ad: _bannerAd!),
+                child: LevelPlayBannerAd(
+                  adUnitId: LevelPlayService.instance.bannerAdUnitId,
+                ),
               ),
             ),
           // Main Content
@@ -2036,34 +2027,8 @@ class _NativeAdCard extends StatefulWidget {
 }
 
 class _NativeAdCardState extends State<_NativeAdCard> {
-  NativeAd? _ad;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ad = AdMobService.instance.createNativeAd(
-      onAdLoaded: (ad) {
-        if (mounted) setState(() => _loaded = true);
-      },
-      onAdFailedToLoad: (ad, error) {
-        debugPrint('NativeAdCard failed: $error');
-        ad.dispose();
-      },
-    );
-    _ad?.load();
-  }
-
-  @override
-  void dispose() {
-    _ad?.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (!_loaded || _ad == null) return const SizedBox.shrink();
-
     return Container(
       height: 320,
       margin: const EdgeInsets.only(bottom: 12),
@@ -2085,7 +2050,7 @@ class _NativeAdCardState extends State<_NativeAdCard> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: AdWidget(ad: _ad!),
+        child: const LevelPlayNativeAdPlacement(),
       ),
     );
   }
