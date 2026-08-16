@@ -1595,7 +1595,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     return Container(
-      color: isDarkMode ? const Color(0xFF0F172A) : Colors.white,
+      color: isDarkMode ? Colors.black : Colors.white,
       child: SafeArea(
         child: Column(
           children: [
@@ -1678,6 +1678,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Location / selected server pill
+            FadeInDown(
+              delay: const Duration(milliseconds: 50),
+              child: LocationSelectorPill(
+                flag: (currentServer?.countryCode.trim().length == 2)
+                    ? FlagIcon(
+                        countryCode: currentServer!.countryCode,
+                        size: 34,
+                      )
+                    : Center(
+                        child: Text(
+                          currentServer != null
+                              ? countryEmoji(currentServer.countryCode)
+                              : '🌍',
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                      ),
+                title: currentServer?.country ?? 'Select Location',
+                subtitle: currentServer?.name ?? 'Tap to Select Server',
+                pingText:
+                    currentServer != null &&
+                        ref.watch(serverLatencyProvider)[currentServer.id] !=
+                            null
+                    ? '${ref.watch(serverLatencyProvider)[currentServer.id]} ms'
+                    : null,
+                isDarkMode: isDarkMode,
+                accentColor: _getConnectionColor(vpnState, themeColor: themeColor),
+                onTap: () => Navigator.pushNamed(context, '/servers'),
+              ),
+            ),
+
+            const SizedBox(height: 22),
+
             // Connection Button Section
             FadeInDown(
               delay: const Duration(milliseconds: 100),
@@ -1780,6 +1813,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         ),
                                       ),
                                     ),
+                                  if (isConnected)
+                                    Positioned(
+                                      bottom: 26,
+                                      left: 0,
+                                      right: 0,
+                                      child: Center(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [
+                                                Color(0xFFFF7A1A),
+                                                Color(0xFFFF9F1C),
+                                              ],
+                                            ),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: const Text(
+                                            'Tap To Disconnect',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -1826,7 +1890,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
             const SizedBox(height: 18),
 
-
+            // Connected pill + big session timer + IP address
+            if (isConnected) ...[
+              FadeInUp(
+                delay: const Duration(milliseconds: 280),
+                child: ConnectedPill(
+                  text: AppLocalizations.of(context).connected,
+                  color: _getConnectionColor(vpnState, themeColor: themeColor),
+                ),
+              ),
+              const SizedBox(height: 18),
+              FadeInUp(
+                delay: const Duration(milliseconds: 320),
+                child: StreamBuilder<VpnStatus?>(
+                  stream: ref.read(vpnServiceProvider).vpnStatusStream,
+                  builder: (context, snapshot) {
+                    final duration = snapshot.data?.duration ?? '00:00:00';
+                    return Text(
+                      duration,
+                      style: TextStyle(
+                        fontSize: 44,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: isDarkMode ? Colors.white : const Color(0xFF111827),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              FadeInUp(
+                delay: const Duration(milliseconds: 360),
+                child: Builder(
+                  builder: (context) {
+                    final ipAsync = ref.watch(ipAddressProvider);
+                    return Column(
+                      children: [
+                        Text(
+                          'IP Address',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _getConnectionColor(
+                              vpnState,
+                              themeColor: themeColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          ipAsync.when(
+                            data: (info) => info.ip,
+                            loading: () => '—',
+                            error: (_, __) => '—',
+                          ),
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode
+                                ? Colors.white
+                                : const Color(0xFF111827),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
 
             // Free Connection Timer
             if (isConnected && !isPremium) ...[
@@ -1880,13 +2012,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
 
 
-            // IP Address Banner
+            // Fast & Secure Connection banner
             const SizedBox(height: 14),
-           // const IpAddressWidget(),
-
-
-
-
+            FadeInUp(
+              delay: const Duration(milliseconds: 600),
+              child: SecureConnectionBanner(
+                isDarkMode: isDarkMode,
+                accentColor: _getConnectionColor(vpnState, themeColor: themeColor),
+              ),
+            ),
           ],
         ),
       ),
@@ -1899,7 +2033,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return const Icon(
           Icons.power_settings_new,
           size: 44,
-          color: Colors.white60,
+          color: Colors.black87,
         );
       case VpnState.connecting:
       case VpnState.authenticating:
@@ -1928,7 +2062,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+          colors: [Color(0xFFAEEA1C), Color(0xFF7ED321)],
         );
       case VpnState.connecting:
       case VpnState.authenticating:
@@ -1952,7 +2086,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Color _getConnectionColor(VpnState vpnState, {Color? themeColor}) {
     switch (vpnState) {
       case VpnState.connected:
-        return const Color(0xFF22C55E);
+        return const Color(0xFFAEEA1C);
       case VpnState.connecting:
       case VpnState.authenticating:
         return const Color(0xFFF59E0B);

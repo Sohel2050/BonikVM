@@ -24,6 +24,20 @@ import '../providers/theme_provider.dart';
 import 'modern_app_bar.dart';
 import 'language_selector.dart';
 
+class _HomeNavItemSpec {
+  const _HomeNavItemSpec({
+    required this.icon,
+    required this.label,
+    required this.index,
+    this.badge = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final int index;
+  final bool badge;
+}
+
 class MainShell extends ConsumerStatefulWidget {
   final int initialIndex;
 
@@ -377,61 +391,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ],
         ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: _onTabTapped,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: isDarkMode
-                ? const Color(0xFF1E293B)
-                : Colors.white,
-            selectedItemColor: ref.watch(themeColorProvider),
-            unselectedItemColor: isDarkMode
-                ? Colors.grey[400]
-                : Colors.grey[600],
-            elevation: 0,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w400,
-              fontSize: 11,
-            ),
-            items: [
-              _buildBottomNavItem(
-                icon: Icons.home_rounded,
-                label: localizations.home,
-                index: 0,
-              ),
-              _buildBottomNavItem(
-                icon: Icons.public,
-                label: localizations.servers,
-                index: 1,
-              ),
-              _buildBottomNavItem(
-                icon: Icons.currency_exchange,
-                label: isPremium ? localizations.premium : 'VIP SERVER',
-                index: 2,
-                badge: !isPremium,
-              ),
-              _buildBottomNavItem(
-                icon: Icons.settings_rounded,
-                label: localizations.settings,
-                index: 3,
-              ),
-            ],
-          ),
-        ),
+        bottomNavigationBar: _buildPillBottomNavBar(isDarkMode, isPremium, localizations),
         drawer: _buildDrawer(context, isDarkMode, isPremium, localizations),
       ),
     );
@@ -445,21 +405,104 @@ class _MainShellState extends ConsumerState<MainShell> {
   ) {
     switch (currentIndex) {
       case 0: // Home screen
-        return MainAppBar(
-          title: 'VPN MASTER',
-          showLogo: true,
-          leading: IconButton(
-            icon: Icon(
-              Icons.menu,
-              color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
-              size: 42,
+        return Container(
+          color: isDarkMode ? Colors.black : Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: SafeArea(
+            bottom: false,
+            child: Row(
+              children: [
+                // Hamburger menu
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.menu_rounded,
+                      color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                      size: 22,
+                    ),
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
+                    tooltip: 'Menu',
+                  ),
+                ),
+                // Center brand pill
+                Expanded(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF7A1A), Color(0xFFFF9F1C)],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF7A1A).withValues(alpha: 0.35),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'VPN Master',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Premium pill
+                GestureDetector(
+                  onTap: () => _onTabTapped(2),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.workspace_premium_rounded,
+                          color: Color(0xFFFFB020),
+                          size: 17,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Premium',
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            onPressed: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-            tooltip: 'Menu',
           ),
-
         );
       case 1: // Servers screen
         return ModernAppBar(
@@ -525,6 +568,102 @@ class _MainShellState extends ConsumerState<MainShell> {
           ],
         );
     }
+  }
+
+  /// Bottom nav bar restyled to match the reference "VPN Master" design —
+  /// a black bar with the active tab rendered as a rounded lime pill.
+  Widget _buildPillBottomNavBar(
+    bool isDarkMode,
+    bool isPremium,
+    AppLocalizations localizations,
+  ) {
+    const activeColor = Color(0xFFAEEA1C);
+    final items = <_HomeNavItemSpec>[
+      _HomeNavItemSpec(icon: Icons.home_rounded, label: localizations.home, index: 0),
+      _HomeNavItemSpec(icon: Icons.public_rounded, label: localizations.servers, index: 1),
+
+      _HomeNavItemSpec(icon: Icons.settings_rounded, label: localizations.settings, index: 3),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.black : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.only(
+        left: 14,
+        right: 14,
+        top: 10,
+        bottom: 10 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: items.map((item) {
+          final selected = _currentIndex == item.index;
+          return GestureDetector(
+            onTap: () => _onTabTapped(item.index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: EdgeInsets.symmetric(
+                horizontal: selected ? 18 : 12,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: selected ? activeColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        item.icon,
+                        size: 22,
+                        color: selected
+                            ? Colors.black
+                            : (isDarkMode ? Colors.grey[500] : Colors.grey[500]),
+                      ),
+                      if (item.badge)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (selected) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      item.label,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 
   BottomNavigationBarItem _buildBottomNavItem({
