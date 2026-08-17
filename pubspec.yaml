@@ -41,9 +41,7 @@ dependencies:
   connectivity_plus: ^7.0.0
   permission_handler: ^12.0.1
   http: ^1.1.0
-
-  # AdMob & Monetization
-  google_mobile_ads: ^9.1.0
+  # Monetization
   # Unity LevelPlay Mediation (successor to the discontinued ironsource_mediation)
   unity_levelplay_mediation: ^9.2.0
   in_app_purchase: ^3.3.0
