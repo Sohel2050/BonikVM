@@ -1370,17 +1370,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // Subscription notification banner
             const SubscriptionBanner(),
 
-            // Top banner ad for non-premium users
+            // LevelPlay Banner stays in the Home BODY, directly
+            // below the MainShell AppBar. No fixed-height parent.
             if (!isPremium)
               FadeInDown(
-                child: Container(
-                  margin: const EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 2,
-                    bottom: 8,
-                  ),
-                  height: 50,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: LevelPlayBannerAd(
                     adUnitId: LevelPlayService.instance.bannerAdUnitId,
                   ),
@@ -1585,7 +1580,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         ),
                                       ),
                                     ),
-
                                 ],
                               ),
                             ),
@@ -1600,19 +1594,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
             const SizedBox(height: 16),
 
-            // Connected pill + big session timer
-
+            // Connection status shown BELOW the VPN button.
             if (isConnected) ...[
+              const SizedBox(height: 16),
               FadeInUp(
-                delay: const Duration(milliseconds: 280),
+                delay: const Duration(milliseconds: 200),
                 child: ConnectedPill(
                   text: AppLocalizations.of(context).connected,
                   color: _getConnectionColor(vpnState, themeColor: themeColor),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 8),
               FadeInUp(
-                delay: const Duration(milliseconds: 320),
+                delay: const Duration(milliseconds: 250),
                 child: StreamBuilder<VpnStatus?>(
                   stream: ref.read(vpnServiceProvider).vpnStatusStream,
                   builder: (context, snapshot) {
@@ -1620,7 +1614,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     return Text(
                       duration,
                       style: TextStyle(
-                        fontSize: 44,
+                        fontSize: 30,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -1630,8 +1624,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   },
                 ),
               ),
+            ] else if (isConnecting) ...[
               const SizedBox(height: 16),
-
+              FadeInUp(
+                delay: const Duration(milliseconds: 200),
+                child: Text(
+                  'VPN CONNECTING...',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _getConnectionColor(vpnState, themeColor: themeColor),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 16),
+              FadeInUp(
+                delay: const Duration(milliseconds: 200),
+                child: Text(
+                  'NOT PROTECTED',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _getConnectionColor(vpnState, themeColor: themeColor),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Your connection is not secure',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Builder(
+                builder: (context) {
+                  final ipAsync = ref.watch(ipAddressProvider);
+                  return Column(
+                    children: [
+                      Text(
+                        'IP Address',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        ipAsync.when(
+                          data: (info) => info.ip,
+                          loading: () => '—',
+                          error: (_, __) => '—',
+                        ),
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? Colors.white : const Color(0xFF111827),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
 
             // Free Connection Timer

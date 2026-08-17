@@ -96,7 +96,15 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
   void onAdDisplayed(LevelPlayAdInfo adInfo) {}
 
   @override
-  void onAdDisplayFailed(LevelPlayAdInfo adInfo, LevelPlayAdError error) {}
+  void onAdDisplayFailed(LevelPlayAdInfo adInfo, LevelPlayAdError error) {
+    debugPrint(
+      '[LevelPlayBannerAd] Display failed: '
+          '${error.errorCode} – ${error.errorMessage}',
+    );
+    if (mounted) {
+      setState(() => _failed = true);
+    }
+  }
 
   @override
   void onAdClicked(LevelPlayAdInfo adInfo) {}
