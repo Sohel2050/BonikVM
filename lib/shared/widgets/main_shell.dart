@@ -400,7 +400,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                       children: [
                         SizedBox(
                           width: 42,
-                          height: 42,
+                          height: 40,
                           child: Image.asset(
                             'assets/icon.png',
                             fit: BoxFit.contain,
