@@ -126,11 +126,11 @@ flutter:
   # Assets
   assets:
     - assets/images/app_trn.png
-    - assets/images/bg2.png
     - assets/images/
     - assets/images//
     - assets/images/icon/icon.png
     - assets/images/app_icon.png
+    - assets/icon/icon.png
     - assets/animations/
     - assets/flags/
     - assets/certs/
