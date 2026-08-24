@@ -193,7 +193,37 @@
         <!-- OpenVPN Foreground VPN Service                        -->
         <!-- ===================================================== -->
 
+        <!--
+            Android 14+ requires a declared foregroundServiceType. There is no
+            dedicated "vpn" FGS type, so specialUse is the correct type for
+            third-party VPN tunnels (per Play Console policy guidance).
+            tools:replace is required because axevpn_flutter's own manifest
+            declares this service too (without a type, which is what caused
+            the Play rejection) — this forces our specialUse declaration to win
+            during manifest merging instead of being dropped or concatenated.
+        -->
+        <service
+            android:name="de.blinkt.openvpn.core.OpenVPNService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false"
+            tools:replace="android:foregroundServiceType">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn" />
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
 
+        <!--
+            AxeWireGuardService / AxeWireGuardVpnService are declared identically
+            in axevpn_flutter's own manifest (specialUse + the FGS subtype
+            property) and merge in automatically. Do NOT redeclare them here
+            without tools:replace — doing so previously caused the manifest
+            merger to concatenate the type into "specialUse|specialUse".
+        -->
 
 
         <!-- ===================================================== -->

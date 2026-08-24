@@ -1,65 +1,54 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_update/in_app_update.dart';
+
 import '../api/api_service.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
+
   factory UpdateService() => _instance;
+
   UpdateService._internal();
 
   static UpdateService get instance => _instance;
 
-  // Update check intervals
-  static const Duration _checkInterval = Duration(hours: 6);
-  static const String _lastCheckKey = 'last_update_check';
+  // Only used for periodic checks while app is running.
+  // App startup always checks immediately.
+  static const Duration _periodicCheckInterval = Duration(hours: 6);
+
   static const String _skipVersionKey = 'skip_update_version';
 
   Timer? _periodicCheckTimer;
+
   bool _isCheckingForUpdates = false;
 
-  /// Initialize the update service
+  // ============================================================
+  // INITIALIZE
+
+  // ============================================================
+
   Future<void> initialize() async {
     try {
-
-
-      // Check for updates on app start
-      await _checkForUpdatesIfNeeded();
-
-      // Schedule periodic checks
-      _schedulePeriodicChecks();
-
-
-    } catch (e) {
-
-    }
-  }
-
-  /// Check for updates with automatic scheduling
-  Future<void> _checkForUpdatesIfNeeded() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final lastCheck = prefs.getInt(_lastCheckKey) ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch;
-
-      // Check if enough time has passed since last check
-      if (now - lastCheck < _checkInterval.inMilliseconds) {
-
-        return;
-      }
-
-      await prefs.setInt(_lastCheckKey, now);
+      // প্রতিবার app start হলে update check হবে
       await checkForUpdates();
-    } catch (e) {
 
+      // App চলমান অবস্থায় periodic check
+      _schedulePeriodicChecks();
+    } catch (e) {
+      debugPrint('UpdateService: Initialize error: $e');
     }
   }
 
-  /// Check for updates through API and Google Play
+  // ============================================================
+  // CHECK FOR UPDATES
+  // ============================================================
+
   Future<void> checkForUpdates({
     BuildContext? context,
     bool showNoUpdateDialog = false,
@@ -72,30 +61,60 @@ class UpdateService {
     _isCheckingForUpdates = true;
 
     try {
-      // Admin-controlled force update check runs on every platform first —
-      // Play Store's own in-app-update prompt has no idea about our
-      // force_update/min_version settings, so it can't be relied on alone.
-      final forcedUpdate = await _checkAdminForceUpdate();
-      if (forcedUpdate != null && forcedUpdate.isForceUpdate) {
+      // ----------------------------------------------------------
+      // 1. ALWAYS check admin/backend first
+      // ----------------------------------------------------------
+
+      final adminUpdate = await _checkAdminForceUpdate();
+
+      debugPrint(
+        'UpdateService: Admin update = '
+        '${adminUpdate?.latestVersion}, '
+        'force = ${adminUpdate?.isForceUpdate}',
+      );
+
+      // ----------------------------------------------------------
+      // 2. FORCE UPDATE
+      // ----------------------------------------------------------
+
+      if (adminUpdate != null && adminUpdate.isForceUpdate) {
         if (context != null && context.mounted) {
-          await _showUpdateDialog(context, forcedUpdate);
+          await _showUpdateDialog(context, adminUpdate);
+        } else {
+          debugPrint(
+            'UpdateService: Force update detected but no context available',
+          );
         }
+
+        // VERY IMPORTANT:
+        // Do NOT check Google Play here.
+        // Do NOT save skip/update state.
         return;
       }
 
+      // ----------------------------------------------------------
+      // 3. OPTIONAL UPDATE
+      //
+
+      // ----------------------------------------------------------
+
       if (Platform.isAndroid) {
-        // Use Google Play In-App Updates for Android (optional update UX)
         await _checkGooglePlayUpdate(context, showNoUpdateDialog);
-      } else if (forcedUpdate != null && forcedUpdate.shouldUpdate) {
-        if (context != null && context.mounted) {
-          await _showUpdateDialog(context, forcedUpdate);
-        }
       } else {
-        // For iOS or other platforms, use API-based check
-        await _checkWithCustomAPI(context, showNoUpdateDialog);
+        if (adminUpdate != null && adminUpdate.shouldUpdate) {
+          if (context != null && context.mounted) {
+            await _showUpdateDialog(context, adminUpdate);
+          }
+        } else if (showNoUpdateDialog && context != null && context.mounted) {
+          _showNoUpdateDialog(
+            context,
+            'You are using the latest version of VPN MASTER.',
+          );
+        }
       }
     } catch (e) {
       debugPrint('UpdateService: Error checking for updates: $e');
+
       if (showNoUpdateDialog && context != null && context.mounted) {
         _showNoUpdateDialog(
           context,
@@ -107,30 +126,40 @@ class UpdateService {
     }
   }
 
-  /// Check for updates using Google Play In-App Updates
+  // ============================================================
+  // GOOGLE PLAY OPTIONAL UPDATE
+  // ============================================================
   Future<void> _checkGooglePlayUpdate(
     BuildContext? context,
     bool showNoUpdateDialog,
   ) async {
     try {
-      // Check if update is available
       final AppUpdateInfo updateInfo = await InAppUpdate.checkForUpdate();
-      
-      debugPrint('UpdateService: Update available: ${updateInfo.updateAvailability}');
-      debugPrint('UpdateService: Immediate update allowed: ${updateInfo.immediateUpdateAllowed}');
-      debugPrint('UpdateService: Flexible update allowed: ${updateInfo.flexibleUpdateAllowed}');
+
+      debugPrint(
+        'UpdateService: Play update availability: '
+        '${updateInfo.updateAvailability}',
+      );
+
+      debugPrint(
+        'UpdateService: Immediate update allowed: '
+        '${updateInfo.immediateUpdateAllowed}',
+      );
+
+      debugPrint(
+        'UpdateService: Flexible update allowed: '
+        '${updateInfo.flexibleUpdateAllowed}',
+      );
 
       if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
         if (context != null && context.mounted) {
           await _showPlayStoreUpdateDialog(context, updateInfo);
-        } else {
-          // If no context, try immediate update
-          if (updateInfo.immediateUpdateAllowed) {
-            await InAppUpdate.performImmediateUpdate();
-          }
+        } else if (updateInfo.immediateUpdateAllowed) {
+          await _performImmediateUpdate();
         }
       } else {
-        debugPrint('UpdateService: No update available');
+        debugPrint('UpdateService: No Google Play update available');
+
         if (showNoUpdateDialog && context != null && context.mounted) {
           _showNoUpdateDialog(
             context,
@@ -140,12 +169,18 @@ class UpdateService {
       }
     } catch (e) {
       debugPrint('UpdateService: Google Play update check failed: $e');
-      // Fallback to custom API check
+
+      // If Play check fails, use backend optional update.
       await _checkWithCustomAPI(context, showNoUpdateDialog);
     }
   }
 
-  /// Show Google Play update dialog
+  //
+
+  // ============================================================
+  // GOOGLE PLAY UPDATE DIALOG
+  // ============================================================
+
   Future<void> _showPlayStoreUpdateDialog(
     BuildContext context,
     AppUpdateInfo updateInfo,
@@ -176,10 +211,7 @@ class UpdateService {
               const Expanded(
                 child: Text(
                   'Update Available',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -199,26 +231,24 @@ class UpdateService {
                   color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.2),
                   ),
                 ),
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Theme.of(context).primaryColor,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Update includes bug fixes and performance improvements',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).primaryColor,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Update includes bug fixes and performance improvements',
+                        style: TextStyle(fontSize: 14),
+                      ),
                     ),
                   ],
                 ),
@@ -237,6 +267,7 @@ class UpdateService {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(dialogContext);
+
                 if (updateInfo.immediateUpdateAllowed) {
                   await _performImmediateUpdate();
                 } else {
@@ -251,48 +282,71 @@ class UpdateService {
     );
   }
 
-  /// Perform immediate update
+  //
+
+  // ============================================================
+
   Future<void> _performImmediateUpdate() async {
     try {
       debugPrint('UpdateService: Starting immediate update');
+
       await InAppUpdate.performImmediateUpdate();
     } catch (e) {
       debugPrint('UpdateService: Immediate update failed: $e');
+
       await _openPlayStore();
     }
   }
 
-  /// Perform flexible update
+  // ============================================================
+  // FLEXIBLE UPDATE
+  // ============================================================
+
   Future<void> _performFlexibleUpdate() async {
     try {
       debugPrint('UpdateService: Starting flexible update');
+
       await InAppUpdate.startFlexibleUpdate();
-      
-      // Listen for download completion
-      InAppUpdate.completeFlexibleUpdate().then((_) {
-        debugPrint('UpdateService: Flexible update completed');
-      }).catchError((e) {
-        debugPrint('UpdateService: Flexible update completion failed: $e');
-      });
+
+      await InAppUpdate.completeFlexibleUpdate();
+
+      debugPrint('UpdateService: Flexible update completed');
     } catch (e) {
       debugPrint('UpdateService: Flexible update failed: $e');
+
       await _openPlayStore();
     }
   }
 
-  /// Open Play Store for manual update
+  // ============================================================
+  // OPEN PLAY STORE
+  // ============================================================
+
   Future<void> _openPlayStore() async {
-    const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.albonik.vpn';
-    final uri = Uri.parse(playStoreUrl);
-    
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      debugPrint('UpdateService: Could not open Play Store');
+    const playStoreUrl =
+        'https://play.google.com/store/apps/details?id=com.albonik.vpn';
+
+    await _openAppStore(playStoreUrl);
+  }
+
+  Future<void> _openAppStore(String downloadUrl) async {
+    try {
+      final uri = Uri.parse(downloadUrl);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint('UpdateService: Could not open store URL');
+      }
+    } catch (e) {
+      debugPrint('UpdateService: Open store failed: $e');
     }
   }
 
-  /// Check for updates with custom API (fallback method)
+  // ============================================================
+  // CUSTOM API FALLBACK
+  // ============================================================
+
   Future<void> _checkWithCustomAPI(
     BuildContext? context,
     bool showNoUpdateDialog,
@@ -303,8 +357,6 @@ class UpdateService {
       if (updateInfo != null && updateInfo.shouldUpdate) {
         if (context != null && context.mounted) {
           await _showUpdateDialog(context, updateInfo);
-        } else {
-          debugPrint('UpdateService: Update available but no context for dialog');
         }
       } else {
         debugPrint('UpdateService: No API update available');
@@ -317,6 +369,7 @@ class UpdateService {
       }
     } catch (e) {
       debugPrint('UpdateService: Custom API check failed: $e');
+
       if (showNoUpdateDialog && context != null && context.mounted) {
         _showNoUpdateDialog(
           context,
@@ -326,29 +379,51 @@ class UpdateService {
     }
   }
 
-  /// Ask the backend (admin-configured app_version / min_version /
-  /// force_update settings) whether the installed version needs updating,
-  /// and if so, whether it's a forced/blocking update.
+  // ============================================================
+  // ADMIN / BACKEND UPDATE CHECK
+  //
+
   Future<UpdateInfo?> _checkAdminForceUpdate() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
+
       final currentVersion = packageInfo.version;
+
       final platform = Platform.isIOS ? 'ios' : 'android';
+
+      debugPrint('UpdateService: Current version = $currentVersion');
+
+      debugPrint('UpdateService: Platform = $platform');
 
       final data = await ApiService.instance.getUpdateInfo(
         platform: platform,
         version: currentVersion,
       );
 
-      final updateAvailable = data['update_available'] == true;
-      if (!updateAvailable) return null;
+      debugPrint('UpdateService: Backend response = $data');
 
-      final latestVersion = data['latest_version']?.toString() ?? currentVersion;
+      final updateAvailable = data['update_available'] == true;
+
+      if (!updateAvailable) {
+        debugPrint('UpdateService: Backend says no update');
+
+        return null;
+      }
+
+      final latestVersion =
+          data['latest_version']?.toString() ?? currentVersion;
+
       final downloadUrl = (data['download_url']?.toString() ?? '').isNotEmpty
           ? data['download_url'].toString()
-          : (Platform.isAndroid
-                ? 'https://play.google.com/store/apps/details?id=com.albonik.vpn'
-                : 'https://apps.apple.com/app/axe-vpn/id123456789');
+          : Platform.isAndroid
+          ? 'https://play.google.com/store/apps/details?id=com.albonik.vpn'
+          : 'https://apps.apple.com/app/axe-vpn/id123456789';
+
+      final isForceUpdate = data['is_force_update'] == true;
+
+      debugPrint('UpdateService: Latest version = $latestVersion');
+
+      debugPrint('UpdateService: Force update = $isForceUpdate');
 
       return UpdateInfo(
         latestVersion: latestVersion,
@@ -358,15 +433,20 @@ class UpdateService {
           'Enhanced VPN connection stability',
         ],
         downloadUrl: downloadUrl,
-        isForceUpdate: data['is_force_update'] == true,
+        isForceUpdate: isForceUpdate,
       );
     } catch (e) {
       debugPrint('UpdateService: Admin update check failed: $e');
+
       return null;
     }
   }
 
-  /// Show update dialog
+  //
+
+  // UPDATE DIALOG
+  // ============================================================
+
   Future<void> _showUpdateDialog(
     BuildContext context,
     UpdateInfo updateInfo,
@@ -436,10 +516,14 @@ class UpdateService {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                      color: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Column(
@@ -447,23 +531,13 @@ class UpdateService {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Current Version:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Text(
                             packageInfo.version,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -471,14 +545,9 @@ class UpdateService {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'New Version:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Text(
                             updateInfo.latestVersion,
@@ -493,12 +562,9 @@ class UpdateService {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'What\'s New:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
+                const Text(
+                  "What's New:",
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 ...updateInfo.releaseNotes.map(
@@ -511,8 +577,8 @@ class UpdateService {
                           margin: const EdgeInsets.only(top: 6),
                           width: 4,
                           height: 4,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
+                          decoration: const BoxDecoration(
+                            color: Colors.blue,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -520,13 +586,7 @@ class UpdateService {
                         Expanded(
                           child: Text(
                             note,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                              height: 1.4,
-                            ),
+                            style: const TextStyle(fontSize: 14, height: 1.4),
                           ),
                         ),
                       ],
@@ -536,49 +596,38 @@ class UpdateService {
               ],
             ),
             actions: [
-              // Only show skip/later if not force update
+              // Optional update only
               if (!updateInfo.isForceUpdate) ...[
                 TextButton(
                   onPressed: () async {
-                    // Mark this version as skipped
                     final prefs = await SharedPreferences.getInstance();
+
                     await prefs.setInt(
                       _skipVersionKey,
                       updateInfo.latestBuildNumber,
                     );
-                    Navigator.of(dialogContext).pop();
 
-                    _showToast(
-                      context,
-                      'Update skipped. You can update manually from settings.',
-                    );
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+
+                    if (context.mounted) {
+                      _showToast(context, 'Update skipped.');
+                    }
                   },
-                  child: Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
-                    ),
-                  ),
+                  child: const Text('Skip'),
                 ),
 
                 TextButton(
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
+
                     _showToast(
                       context,
                       'Update reminder will appear again later.',
                     );
                   },
-                  child: Text(
-                    'Later',
-                    style: TextStyle(
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
-                    ),
-                  ),
+                  child: const Text('Later'),
                 ),
               ],
 
@@ -586,6 +635,13 @@ class UpdateService {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.of(dialogContext).pop();
+
+                  // IMPORTANT:
+                  // We DO NOT save anything here.
+                  //
+                  // If user opens Play Store and comes back
+                  // without updating, next app launch will
+                  // check backend again and show force dialog.
                   await _openAppStore(updateInfo.downloadUrl);
                 },
                 style: ElevatedButton.styleFrom(
@@ -613,22 +669,11 @@ class UpdateService {
     );
   }
 
-  /// Open app store for update
-  Future<void> _openAppStore(String downloadUrl) async {
-    try {
-      final uri = Uri.parse(downloadUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+  //
 
-      } else {
+  // NO UPDATE DIALOG
+  // ============================================================
 
-      }
-    } catch (e) {
-
-    }
-  }
-
-  /// Show no update dialog
   void _showNoUpdateDialog(BuildContext context, String message) {
     showDialog<void>(
       context: context,
@@ -637,17 +682,19 @@ class UpdateService {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.check_circle, color: Colors.green, size: 24),
-              const SizedBox(width: 12),
-              const Text('Up to Date'),
+              SizedBox(width: 12),
+              Text('Up to Date'),
             ],
           ),
           content: Text(message),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
               child: const Text('OK'),
             ),
           ],
@@ -656,9 +703,13 @@ class UpdateService {
     );
   }
 
-  /// Show toast message
+  // ============================================================
+  // TOAST
+  // ============================================================
+
   void _showToast(BuildContext context, String message) {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     scaffoldMessenger.showSnackBar(
       SnackBar(
         content: Text(message),
@@ -669,45 +720,58 @@ class UpdateService {
     );
   }
 
-  /// Schedule periodic update checks
+  // ============================================================
+  // PERIODIC CHECK
+  // ============================================================
+
   void _schedulePeriodicChecks() {
     _periodicCheckTimer?.cancel();
-    _periodicCheckTimer = Timer.periodic(_checkInterval, (timer) {
-      _checkForUpdatesIfNeeded();
-    });}
 
-  /// Manually check for updates (called from settings)
+    _periodicCheckTimer = Timer.periodic(_periodicCheckInterval, (_) async {
+      await checkForUpdates();
+    });
+  }
+
+  // ============================================================
+  // MANUAL CHECK
+  // ============================================================
+
   Future<void> manualUpdateCheck(BuildContext context) async {
-
     await checkForUpdates(context: context, showNoUpdateDialog: true);
   }
 
-  /// Force update check (bypass time restrictions)
+  // ============================================================
+  // FORCE CHECK
+  // ============================================================
+
   Future<void> forceUpdateCheck(BuildContext context) async {
-
-
-    // Reset last check time
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_lastCheckKey);
-
     await checkForUpdates(context: context, showNoUpdateDialog: true);
   }
 
-  /// Clear skipped version
+  // ============================================================
+  // CLEAR SKIPPED VERSION
+  // ============================================================
+
   Future<void> clearSkippedVersion() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_skipVersionKey);
 
+    await prefs.remove(_skipVersionKey);
   }
 
-  /// Dispose resources
+  // ============================================================
+  // DISPOSE
+  //
+
   void dispose() {
     _periodicCheckTimer?.cancel();
-
+    _periodicCheckTimer = null;
   }
 }
 
-/// Update information model
+// ================================================================
+// UPDATE INFO MODEL
+// ================================================================
+
 class UpdateInfo {
   final String latestVersion;
   final int latestBuildNumber;
@@ -725,4 +789,3 @@ class UpdateInfo {
 
   bool get shouldUpdate => latestBuildNumber > 0;
 }
-
