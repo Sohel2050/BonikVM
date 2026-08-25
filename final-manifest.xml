@@ -1,0 +1,947 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:compileSdkVersion="36" android:compileSdkVersionCodename="16" android:versionCode="23" android:versionName="1.1.6" package="com.albonik.vpn" platformBuildVersionCode="36" platformBuildVersionName="16">
+      
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36"/>
+      
+    
+    
+
+    
+  <supports-screens android:anyDensity="true" android:largeScreens="true" android:normalScreens="true" android:resizeable="true" android:smallScreens="true" android:xlargeScreens="true"/>
+      
+    
+    
+
+    
+  <uses-permission android:name="android.permission.INTERNET"/>
+      
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+      
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+      
+  <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+      
+  <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+      
+  <uses-permission android:name="android.permission.WAKE_LOCK"/>
+      
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+      
+    
+    
+
+
+    
+    
+
+
+    
+    
+    
+
+
+    
+    
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+      
+    
+  <uses-permission android:minSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+      
+    
+    
+
+    
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+      
+    
+    
+
+    
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+      
+    
+    
+
+    
+  <uses-permission android:name="com.android.vending.BILLING"/>
+      
+    
+    
+
+    
+  <queries>
+            
+        
+    <intent>
+                  
+      <action android:name="android.intent.action.PROCESS_TEXT"/>
+                  
+      <data android:mimeType="text/plain"/>
+              
+    </intent>
+            
+        
+    <intent>
+                  
+      <action android:name="android.support.customtabs.action.CustomTabsService"/>
+              
+    </intent>
+            
+        
+    <intent>
+                  
+      <action android:name="android.intent.action.VIEW"/>
+                  
+      <category android:name="android.intent.category.BROWSABLE"/>
+                  
+      <data android:scheme="https"/>
+              
+    </intent>
+            
+        
+    <intent>
+                  
+      <action android:name="android.intent.action.VIEW"/>
+                  
+      <category android:name="android.intent.category.BROWSABLE"/>
+                  
+      <data android:scheme="http"/>
+              
+    </intent>
+            
+        
+    <intent>
+                  
+      <action android:name="android.intent.action.VIEW"/>
+                  
+      <data android:scheme="http"/>
+              
+    </intent>
+     
+        
+    <package android:name="com.android.chrome"/>
+            
+    <intent>
+                  
+      <action android:name="com.android.vending.billing.InAppBillingService.BIND"/>
+              
+    </intent>
+            
+    <intent>
+                  
+      <action android:name="com.google.android.apps.play.billingtestcompanion.BillingOverrideService.BIND"/>
+              
+    </intent>
+     
+        
+    <package android:name="com.google.android.apps.maps"/>
+        
+  </queries>
+      
+    
+  <uses-permission android:name="android.permission.BIND_VPN_SERVICE"/>
+      
+  <uses-permission android:name="android.permission.VIBRATE"/>
+   
+    
+  <permission android:name="com.albonik.vpn.permission.C2D_MESSAGE" android:protectionLevel="0x00000002"/>
+      
+  <uses-permission android:name="com.albonik.vpn.permission.C2D_MESSAGE"/>
+   
+    
+  <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
+      
+    
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+   
+    
+    
+  <uses-permission android:name="com.sec.android.provider.badge.permission.READ"/>
+      
+  <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE"/>
+   
+    
+  <uses-permission android:name="com.htc.launcher.permission.READ_SETTINGS"/>
+      
+  <uses-permission android:name="com.htc.launcher.permission.UPDATE_SHORTCUT"/>
+   
+    
+  <uses-permission android:name="com.sonyericsson.home.permission.BROADCAST_BADGE"/>
+      
+  <uses-permission android:name="com.sonymobile.home.permission.PROVIDER_INSERT_BADGE"/>
+   
+    
+  <uses-permission android:name="com.anddoes.launcher.permission.UPDATE_COUNT"/>
+   
+    
+  <uses-permission android:name="com.majeur.launcher.permission.UPDATE_BADGE"/>
+   
+    
+  <uses-permission android:name="com.huawei.android.launcher.permission.CHANGE_BADGE"/>
+      
+  <uses-permission android:name="com.huawei.android.launcher.permission.READ_SETTINGS"/>
+      
+  <uses-permission android:name="com.huawei.android.launcher.permission.WRITE_SETTINGS"/>
+   
+    
+  <uses-permission android:name="android.permission.READ_APP_BADGE"/>
+   
+    
+  <uses-permission android:name="com.oppo.launcher.permission.READ_SETTINGS"/>
+      
+  <uses-permission android:name="com.oppo.launcher.permission.WRITE_SETTINGS"/>
+   
+    
+  <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_READ"/>
+      
+  <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_WRITE"/>
+      
+  <uses-permission android:name="com.android.vending.CHECK_LICENSE"/>
+      
+  <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"/>
+      
+  <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID"/>
+      
+  <uses-permission android:name="com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"/>
+      
+  <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
+      
+  <uses-feature android:glEsVersion="0x00020000" android:required="true"/>
+      
+  <permission android:name="com.albonik.vpn.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" android:protectionLevel="0x00000002"/>
+      
+  <uses-permission android:name="com.albonik.vpn.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
+   
+    
+    
+    
+  <application android:appComponentFactory="androidx.core.app.CoreComponentFactory" android:extractNativeLibs="true" android:icon="@mipmap/launcher_icon" android:label="VPN MASTER" android:name="android.app.Application" android:networkSecurityConfig="@xml/network_security_config" android:requestLegacyExternalStorage="true" android:usesCleartextTraffic="false">
+            
+        
+        
+
+        
+    <meta-data android:name="android.max_aspect" android:value="2.4"/>
+            
+    <meta-data android:name="android.allow_multiple_resumed_activities" android:value="true"/>
+            
+        
+        
+
+        
+    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-9189896335015331~9603802785"/>
+            
+        
+        
+
+        
+    <activity android:configChanges="0x40003fb4" android:exported="true" android:hardwareAccelerated="true" android:launchMode="1" android:name="com.albonik.vpn.MainActivity" android:taskAffinity="" android:theme="@style/LaunchTheme" android:windowSoftInputMode="0x00000010">
+                  
+      <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme"/>
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.MAIN"/>
+                        
+        <category android:name="android.intent.category.LAUNCHER"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+        
+        
+
+        
+    <activity android:excludeFromRecents="true" android:exported="false" android:launchMode="2" android:name="de.blinkt.openvpn.LaunchVPN" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="de.blinkt.openvpn.activities.DisconnectVPN" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="de.blinkt.openvpn.DisconnectVPNActivity" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+        
+        
+
+
+        
+        
+    <service android:exported="false" android:foregroundServiceType="0x40000000" android:name="de.blinkt.openvpn.core.OpenVPNService" android:permission="android.permission.BIND_VPN_SERVICE" android:stopWithTask="false">
+                  
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn"/>
+                  
+      <intent-filter>
+                        
+        <action android:name="android.net.VpnService"/>
+                    
+      </intent-filter>
+              
+    </service>
+            
+
+
+        
+        
+        
+
+        
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.ironsource.mediationsdk.sdk.RewardedVideoActivity" android:theme="@android:style/Theme.Translucent"/>
+            
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.ironsource.mediationsdk.sdk.InterstitialActivity" android:theme="@android:style/Theme.Translucent"/>
+            
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.ironsource.mediationsdk.utils.IronSourceWebViewActivity" android:theme="@android:style/Theme.Translucent"/>
+            
+        
+        
+
+        
+    <meta-data android:name="flutterEmbedding" android:value="2"/>
+            
+        
+    <meta-data android:name="android.max_page_size" android:value="16384"/>
+            
+    <meta-data android:name="axevpn.plugin.version" android:value="3.0.0"/>
+     
+        
+    <service android:exported="false" android:foregroundServiceType="0x40000000" android:name="com.axevpn.flutter.v2ray.AxeV2RayVpnService" android:permission="android.permission.BIND_VPN_SERVICE">
+                  
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn"/>
+              
+    </service>
+            
+        
+    <service android:exported="false" android:foregroundServiceType="0x40000000" android:name="com.axevpn.flutter.openconnect.AxeOpenConnectVpnService" android:permission="android.permission.BIND_VPN_SERVICE">
+                  
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn"/>
+              
+    </service>
+            
+        
+    <service android:exported="false" android:foregroundServiceType="0x40000000" android:name="com.wireguard.android.backend.GoBackend$VpnService" android:permission="android.permission.BIND_VPN_SERVICE">
+                  
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn"/>
+                  
+      <intent-filter>
+                        
+        <action android:name="android.net.VpnService"/>
+                    
+      </intent-filter>
+              
+    </service>
+            
+        
+    <service android:exported="false" android:foregroundServiceType="0x40000000" android:name="com.axevpn.flutter.wireguard.AxeWireGuardService" android:stopWithTask="false">
+                  
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn"/>
+              
+    </service>
+            
+        
+    <service android:exported="false" android:foregroundServiceType="0x40000000" android:name="com.axevpn.flutter.wireguard.AxeWireGuardVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:stopWithTask="false">
+                  
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn"/>
+                  
+      <intent-filter>
+                        
+        <action android:name="android.net.VpnService"/>
+                    
+      </intent-filter>
+              
+    </service>
+            
+    <service android:directBootAware="true" android:exported="false" android:name="com.google.firebase.components.ComponentDiscoveryService">
+                  
+      <meta-data android:name="com.google.firebase.components:io.flutter.plugins.firebase.analytics.FlutterFirebaseAppRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:io.flutter.plugins.firebase.auth.FlutterFirebaseAuthRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:io.flutter.plugins.firebase.messaging.FlutterFirebaseAppRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:io.flutter.plugins.firebase.core.FlutterFirebaseCoreRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.auth.FirebaseAuthRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.analytics.connector.internal.AnalyticsConnectorRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.FirebaseCommonKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+                  
+      <meta-data android:name="com.google.firebase.components:com.google.firebase.datatransport.TransportRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+              
+    </service>
+            
+    <service android:exported="false" android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingBackgroundService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+            
+    <service android:exported="false" android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService">
+                  
+      <intent-filter>
+                        
+        <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                    
+      </intent-filter>
+              
+    </service>
+            
+    <receiver android:exported="true" android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingReceiver" android:permission="com.google.android.c2dm.permission.SEND">
+                  
+      <intent-filter>
+                        
+        <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <provider android:authorities="com.albonik.vpn.flutterfirebasemessaginginitprovider" android:exported="false" android:initOrder="99" android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingInitProvider"/>
+            
+    <provider android:authorities="com.albonik.vpn.flutter.image_provider" android:exported="false" android:grantUriPermissions="true" android:name="io.flutter.plugins.imagepicker.ImagePickerFileProvider">
+                  
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/flutter_image_picker_file_paths"/>
+              
+    </provider>
+     
+        
+    <service android:enabled="false" android:exported="false" android:name="com.google.android.gms.metadata.ModuleDependencies">
+                  
+      <intent-filter>
+                        
+        <action android:name="com.google.android.gms.metadata.MODULE_DEPENDENCIES"/>
+                    
+      </intent-filter>
+                  
+      <meta-data android:name="photopicker_activity:0:required" android:value=""/>
+              
+    </service>
+            
+    <provider android:authorities="com.albonik.vpn.fileProvider.com.crazecoder.openfile" android:exported="false" android:grantUriPermissions="true" android:name="com.crazecoder.openfile.FileProvider">
+                  
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/filepaths"/>
+              
+    </provider>
+            
+        
+    <provider android:authorities="com.albonik.vpn.flutter.share_provider" android:exported="false" android:grantUriPermissions="true" android:name="dev.fluttercommunity.plus.share.ShareFileProvider">
+                  
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/flutter_share_file_paths"/>
+              
+    </provider>
+            
+        
+    <receiver android:exported="false" android:name="dev.fluttercommunity.plus.share.SharePlusPendingIntent">
+                  
+      <intent-filter>
+                        
+        <action android:name="EXTRA_CHOSEN_COMPONENT"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <activity android:exported="false" android:name="io.flutter.plugins.urllauncher.WebViewActivity" android:theme="@android:style/Theme.NoTitleBar.Fullscreen"/>
+            
+    <activity android:exported="true" android:launchMode="2" android:name="com.stripe.android.financialconnections.FinancialConnectionsSheetRedirectActivity">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.VIEW"/>
+                        
+        <category android:name="android.intent.category.DEFAULT"/>
+                        
+        <category android:name="android.intent.category.BROWSABLE"/>
+                        
+                
+        <data android:host="link-accounts" android:pathPrefix="/com.albonik.vpn/authentication_return" android:scheme="stripe-auth"/>
+                        
+                
+        <data android:host="link-native-accounts" android:pathPrefix="/com.albonik.vpn/authentication_return" android:scheme="stripe-auth"/>
+                        
+                
+        <data android:host="link-accounts" android:path="/com.albonik.vpn/success" android:scheme="stripe-auth"/>
+                        
+        <data android:host="link-accounts" android:path="/com.albonik.vpn/cancel" android:scheme="stripe-auth"/>
+                        
+                
+        <data android:host="native-redirect" android:pathPrefix="/com.albonik.vpn" android:scheme="stripe-auth"/>
+                        
+                
+        <data android:host="auth-redirect" android:pathPrefix="/com.albonik.vpn" android:scheme="stripe"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+    <activity android:exported="false" android:name="com.stripe.android.financialconnections.FinancialConnectionsSheetActivity" android:theme="@style/StripeFinancialConnectionsDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.financialconnections.ui.FinancialConnectionsSheetNativeActivity" android:theme="@style/StripeFinancialConnectionsDefaultTheme" android:windowSoftInputMode="0x00000010"/>
+            
+    <receiver android:exported="true" android:name="com.onesignal.notifications.receivers.FCMBroadcastReceiver" android:permission="com.google.android.c2dm.permission.SEND">
+                  
+            
+      <intent-filter android:priority="999">
+                        
+        <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+                        
+        <category android:name="com.albonik.vpn"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <service android:exported="false" android:name="com.onesignal.notifications.services.HmsMessageServiceOneSignal">
+                  
+      <intent-filter>
+                        
+        <action android:name="com.huawei.push.action.MESSAGING_EVENT"/>
+                    
+      </intent-filter>
+              
+    </service>
+     
+        
+    <activity android:exported="true" android:name="com.onesignal.NotificationOpenedActivityHMS" android:noHistory="true" android:theme="@android:style/Theme.Translucent.NoTitleBar">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.VIEW"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+    <receiver android:exported="false" android:name="com.onesignal.notifications.receivers.NotificationDismissReceiver"/>
+            
+    <receiver android:exported="false" android:name="com.onesignal.notifications.receivers.BootUpReceiver">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:exported="false" android:name="com.onesignal.notifications.receivers.UpgradeReceiver">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="com.onesignal.notifications.activities.NotificationOpenedActivity" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="com.onesignal.notifications.activities.NotificationOpenedActivityAndroid22AndOlder" android:noHistory="true" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <service android:exported="false" android:name="com.onesignal.core.services.SyncJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+     
+        
+    <service android:exported="false" android:name="com.onesignal.SyncJobService" android:permission="android.permission.BIND_JOB_SERVICE">
+        </service>
+            
+    <activity android:exported="false" android:name="com.onesignal.core.activities.PermissionsActivity" android:theme="@style/OneSignal.Theme.Translucent"/>
+            
+        
+    <provider android:authorities="com.albonik.vpn.androidx-startup" android:exported="false" android:name="androidx.startup.InitializationProvider">
+                  
+      <meta-data android:name="com.onesignal.core.internal.application.impl.ActivityLifecycleInitializer" android:value="androidx.startup"/>
+                  
+      <meta-data android:name="androidx.work.WorkManagerInitializer" android:value="androidx.startup"/>
+                  
+      <meta-data android:name="androidx.emoji2.text.EmojiCompatInitializer" android:value="androidx.startup"/>
+                  
+      <meta-data android:name="androidx.lifecycle.ProcessLifecycleInitializer" android:value="androidx.startup"/>
+                  
+      <meta-data android:name="androidx.profileinstaller.ProfileInstallerInitializer" android:value="androidx.startup"/>
+                  
+      <meta-data android:name="okhttp3.internal.platform.PlatformInitializer" android:value="androidx.startup"/>
+              
+    </provider>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.PaymentSheetActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.PaymentOptionsActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.customersheet.CustomerSheetActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.addresselement.AddressElementActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.paymentdatacollection.bacs.BacsMandateConfirmationActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.paymentdatacollection.polling.PollingActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.ui.SepaMandateActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.paymentsheet.ExternalPaymentMethodProxyActivity" android:theme="@style/StripePayLauncherDefaultTheme"/>
+            
+    <activity android:name="com.stripe.android.paymentsheet.paymentdatacollection.cvcrecollection.CvcRecollectionActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:name="com.stripe.android.paymentelement.embedded.form.FormActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:name="com.stripe.android.paymentelement.embedded.manage.ManageActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:autoRemoveFromRecents="true" android:configChanges="0x00000db0" android:exported="false" android:label="@string/stripe_link" android:name="com.stripe.android.link.LinkActivity" android:theme="@style/StripeLinkBaseTheme" android:windowSoftInputMode="0x00000010"/>
+            
+    <activity android:autoRemoveFromRecents="true" android:configChanges="0x00000db0" android:launchMode="1" android:name="com.stripe.android.link.LinkForegroundActivity" android:theme="@style/StripeTransparentTheme"/>
+            
+    <activity android:autoRemoveFromRecents="true" android:exported="true" android:launchMode="3" android:name="com.stripe.android.link.LinkRedirectHandlerActivity" android:theme="@style/StripeTransparentTheme">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.VIEW"/>
+                        
+        <category android:name="android.intent.category.DEFAULT"/>
+                        
+        <category android:name="android.intent.category.BROWSABLE"/>
+                        
+        <data android:host="complete" android:path="/com.albonik.vpn" android:scheme="link-popup"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+    <activity android:exported="false" android:name="com.stripe.android.ui.core.cardscan.CardScanActivity" android:theme="@style/StripePaymentSheetDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.view.PaymentAuthWebViewActivity" android:theme="@style/StripeDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.view.PaymentRelayActivity" android:theme="@style/StripeTransparentTheme"/>
+            
+        
+    <activity android:exported="false" android:launchMode="2" android:name="com.stripe.android.payments.StripeBrowserLauncherActivity" android:theme="@style/StripeTransparentTheme"/>
+            
+    <activity android:exported="true" android:launchMode="2" android:name="com.stripe.android.payments.StripeBrowserProxyReturnActivity" android:theme="@style/StripeTransparentTheme">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.VIEW"/>
+                        
+        <category android:name="android.intent.category.DEFAULT"/>
+                        
+        <category android:name="android.intent.category.BROWSABLE"/>
+                        
+                
+        <data android:host="payment_return_url" android:path="/com.albonik.vpn" android:scheme="stripesdk"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+    <activity android:exported="false" android:name="com.stripe.android.payments.core.authentication.threeds2.Stripe3ds2TransactionActivity" android:theme="@style/StripeDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.googlepaylauncher.GooglePayLauncherActivity" android:theme="@style/StripeGooglePayDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.googlepaylauncher.GooglePayPaymentMethodLauncherActivity" android:theme="@style/StripeGooglePayDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.payments.paymentlauncher.PaymentLauncherConfirmationActivity" android:theme="@style/StripePayLauncherDefaultTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.payments.bankaccount.ui.CollectBankAccountActivity" android:theme="@style/StripeTransparentTheme"/>
+            
+    <activity android:exported="false" android:name="com.stripe.android.stripe3ds2.views.ChallengeActivity" android:theme="@style/Stripe3DS2Theme"/>
+            
+    <provider android:authorities="com.albonik.vpn.applovininitprovider" android:exported="false" android:initOrder="101" android:name="com.applovin.sdk.AppLovinInitProvider"/>
+     
+        
+    <activity android:configChanges="0x40000fb4" android:exported="false" android:hardwareAccelerated="true" android:launchMode="1" android:name="com.applovin.adview.AppLovinFullscreenActivity" android:screenOrientation="3" android:theme="@android:style/Theme.NoTitleBar.Fullscreen"/>
+            
+    <activity android:configChanges="0x40000fb4" android:exported="false" android:hardwareAccelerated="true" android:launchMode="1" android:name="com.applovin.adview.AppLovinFullscreenImmersiveActivity" android:theme="@android:style/Theme.NoTitleBar"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.sdk.AppLovinWebViewActivity"/>
+     
+        
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerDetailActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerMultiAdActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerAdUnitsListActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerAdUnitWaterfallsListActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerAdUnitDetailActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerCmpNetworksListActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerTcfConsentStatusesListActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerTcfInfoListActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerTcfStringActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerTestLiveNetworkActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerTestModeNetworkActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerUnifiedFlowActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerWaterfallSegmentsActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.mediation.MaxDebuggerAxonEventsListActivity" android:theme="@style/com.applovin.mediation.MaxDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.creative.MaxCreativeDebuggerActivity" android:theme="@style/com.applovin.creative.CreativeDebuggerActivity.Theme"/>
+            
+    <activity android:configChanges="0x40000fb4" android:name="com.applovin.creative.MaxCreativeDebuggerDisplayedAdActivity" android:theme="@style/com.applovin.creative.CreativeDebuggerActivity.Theme"/>
+     
+        
+    <service android:exported="false" android:name="com.applovin.impl.adview.activity.FullscreenAdService" android:stopWithTask="false"/>
+            
+    <service android:exported="false" android:name="com.applovin.impl.adview.activity.AppRestartDuringAdDetectionService"/>
+            
+    <activity android:excludeFromRecents="true" android:exported="true" android:launchMode="2" android:name="com.google.firebase.auth.internal.GenericIdpActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.VIEW"/>
+                        
+        <category android:name="android.intent.category.DEFAULT"/>
+                        
+        <category android:name="android.intent.category.BROWSABLE"/>
+                        
+        <data android:host="firebase.auth" android:path="/" android:scheme="genericidp"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+    <activity android:excludeFromRecents="true" android:exported="true" android:launchMode="2" android:name="com.google.firebase.auth.internal.RecaptchaActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.VIEW"/>
+                        
+        <category android:name="android.intent.category.DEFAULT"/>
+                        
+        <category android:name="android.intent.category.BROWSABLE"/>
+                        
+        <data android:host="firebase.auth" android:path="/" android:scheme="recaptcha"/>
+                    
+      </intent-filter>
+              
+    </activity>
+            
+    <service android:enabled="true" android:exported="false" android:name="androidx.credentials.playservices.CredentialProviderMetadataHolder">
+                  
+      <meta-data android:name="androidx.credentials.CREDENTIAL_PROVIDER_KEY" android:value="androidx.credentials.playservices.CredentialProviderPlayServicesImpl"/>
+              
+    </service>
+            
+    <activity android:configChanges="0x000005a0" android:enabled="true" android:exported="false" android:fitsSystemWindows="true" android:name="androidx.credentials.playservices.HiddenActivity" android:theme="@style/Theme.Hidden">
+        </activity>
+            
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="com.google.android.gms.auth.api.signin.internal.SignInHubActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+        
+    <service android:exported="true" android:name="com.google.android.gms.auth.api.signin.RevocationBoundService" android:permission="com.google.android.gms.auth.api.signin.permission.REVOCATION_NOTIFICATION" android:visibleToInstantApps="true"/>
+            
+    <meta-data android:name="com.google.android.play.billingclient.version" android:value="8.0.0"/>
+            
+    <activity android:configChanges="0x000005b0" android:exported="false" android:name="com.android.billingclient.api.ProxyBillingActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:configChanges="0x000005b0" android:exported="false" android:name="com.android.billingclient.api.ProxyBillingActivityV2" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <receiver android:exported="true" android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver" android:permission="com.google.android.c2dm.permission.SEND">
+                  
+      <intent-filter>
+                        
+        <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+                    
+      </intent-filter>
+                  
+      <meta-data android:name="com.google.android.gms.cloudmessaging.FINISHED_AFTER_HANDLED" android:value="true"/>
+              
+    </receiver>
+            
+        
+    <service android:directBootAware="true" android:exported="false" android:name="com.google.firebase.messaging.FirebaseMessagingService">
+                  
+      <intent-filter android:priority="-500">
+                        
+        <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                    
+      </intent-filter>
+              
+    </service>
+            
+    <provider android:authorities="com.albonik.vpn.firebaseinitprovider" android:directBootAware="true" android:exported="false" android:initOrder="100" android:name="com.google.firebase.provider.FirebaseInitProvider"/>
+            
+    <receiver android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementReceiver">
+        </receiver>
+            
+    <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementService"/>
+            
+    <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+     
+        
+    <uses-library android:name="org.apache.http.legacy" android:required="false"/>
+            
+    <activity android:exported="false" android:name="com.google.android.gms.common.api.GoogleApiActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <uses-library android:name="androidx.window.extensions" android:required="false"/>
+            
+    <uses-library android:name="androidx.window.sidecar" android:required="false"/>
+            
+    <service android:directBootAware="false" android:enabled="@bool/enable_system_alarm_service_default" android:exported="false" android:name="androidx.work.impl.background.systemalarm.SystemAlarmService"/>
+            
+    <service android:directBootAware="false" android:enabled="@bool/enable_system_job_service_default" android:exported="true" android:name="androidx.work.impl.background.systemjob.SystemJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+            
+    <service android:directBootAware="false" android:enabled="@bool/enable_system_foreground_service_default" android:exported="false" android:name="androidx.work.impl.foreground.SystemForegroundService"/>
+            
+    <receiver android:directBootAware="false" android:enabled="true" android:exported="false" android:name="androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver"/>
+            
+    <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.ACTION_POWER_CONNECTED"/>
+                        
+        <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.BATTERY_OKAY"/>
+                        
+        <action android:name="android.intent.action.BATTERY_LOW"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.DEVICE_STORAGE_LOW"/>
+                        
+        <action android:name="android.intent.action.DEVICE_STORAGE_OK"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:directBootAware="false" android:enabled="false" android:exported="false" android:name="androidx.work.impl.background.systemalarm.RescheduleReceiver">
+                  
+      <intent-filter>
+                        
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                        
+        <action android:name="android.intent.action.TIME_SET"/>
+                        
+        <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:directBootAware="false" android:enabled="@bool/enable_system_alarm_service_default" android:exported="false" android:name="androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver">
+                  
+      <intent-filter>
+                        
+        <action android:name="androidx.work.impl.background.systemalarm.UpdateProxies"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <receiver android:directBootAware="false" android:enabled="true" android:exported="true" android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver" android:permission="android.permission.DUMP">
+                  
+      <intent-filter>
+                        
+        <action android:name="androidx.work.diagnostics.REQUEST_DIAGNOSTICS"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <uses-library android:name="android.ext.adservices" android:required="false"/>
+            
+    <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version"/>
+            
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.ironsource.sdk.controller.ControllerActivity" android:theme="@android:style/Theme.NoTitleBar"/>
+            
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.ironsource.sdk.controller.InterstitialActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.ironsource.sdk.controller.OpenUrlActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:configChanges="0x00000480" android:hardwareAccelerated="true" android:name="com.unity3d.ironsourceads.internal.services.InlineStoreActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+            
+    <activity android:configChanges="0x00000480" android:exported="false" android:hardwareAccelerated="true" android:name="com.ironsource.mediationsdk.testSuite.TestSuiteActivity" android:theme="@android:style/Theme.NoTitleBar">
+                  
+      <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing" android:value="true"/>
+              
+    </activity>
+            
+    <provider android:authorities="com.albonik.vpn.IronsourceLifecycleProvider" android:exported="false" android:name="com.ironsource.lifecycle.IronsourceLifecycleProvider"/>
+            
+    <provider android:authorities="com.albonik.vpn.LevelPlayActivityLifecycleProvider" android:exported="false" android:name="com.ironsource.lifecycle.LevelPlayActivityLifecycleProvider"/>
+            
+    <service android:directBootAware="true" android:exported="false" android:name="androidx.room.MultiInstanceInvalidationService"/>
+            
+    <receiver android:directBootAware="false" android:enabled="true" android:exported="true" android:name="androidx.profileinstaller.ProfileInstallReceiver" android:permission="android.permission.DUMP">
+                  
+      <intent-filter>
+                        
+        <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE"/>
+                    
+      </intent-filter>
+                  
+      <intent-filter>
+                        
+        <action android:name="androidx.profileinstaller.action.SKIP_FILE"/>
+                    
+      </intent-filter>
+                  
+      <intent-filter>
+                        
+        <action android:name="androidx.profileinstaller.action.SAVE_PROFILE"/>
+                    
+      </intent-filter>
+                  
+      <intent-filter>
+                        
+        <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION"/>
+                    
+      </intent-filter>
+              
+    </receiver>
+            
+    <service android:exported="false" android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery">
+                  
+      <meta-data android:name="backend:com.google.android.datatransport.cct.CctBackendFactory" android:value="cct"/>
+              
+    </service>
+            
+    <service android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" android:permission="android.permission.BIND_JOB_SERVICE">
+        </service>
+            
+    <receiver android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"/>
+     
+        
+    <activity android:exported="false" android:name="com.google.android.play.core.common.PlayCoreDialogWrapperActivity" android:stateNotNeeded="true" android:theme="@style/Theme.PlayCore.Transparent"/>
+            
+    <meta-data android:name="aia-compat-api-min-version" android:value="1"/>
+        
+  </application>
+  
+</manifest>

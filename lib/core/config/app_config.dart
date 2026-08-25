@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppConfig {
   // API Configuration
   static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'https://vpn.albonik.com'; // Default to local server for development
+      dotenv.env['API_BASE_URL'] ?? 'https://vm.albonik.com'; // Default to local server for development
   static String get baseUrl => apiBaseUrl; // Alias for compatibility
   static String get apiVersion => 'v1'; // API version
   // No hardcoded fallback — set API_TOKEN_MOBILE in .env (see .env.example).
@@ -39,7 +39,7 @@ class AppConfig {
       dotenv.env['FIREBASE_PROJECT_ID'] ?? '';
 
   // App Configuration
-  static String get appVersion => dotenv.env['APP_VERSION'] ?? '8.3.0';
+  static String get appVersion => dotenv.env['APP_VERSION'] ?? '1.0.0';
   static bool get isDebugMode =>
       dotenv.env['DEBUG_MODE']?.toLowerCase() == 'false' ? false : true;
 
