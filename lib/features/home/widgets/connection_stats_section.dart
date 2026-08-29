@@ -35,7 +35,7 @@ class ConnectionStatsSection extends ConsumerWidget {
               child: SpeedStat(
                 label: 'Download',
                 value: downloadValue,
-                unit: 'Mbps',
+                unit: '',
                 color: const Color(0xFFAEEA1C),
                 isDownload: true,
               ),
@@ -52,7 +52,7 @@ class ConnectionStatsSection extends ConsumerWidget {
               child: SpeedStat(
                 label: 'Upload',
                 value: uploadValue,
-                unit: 'Mbps',
+                unit: '',
                 color: const Color(0xFFF59E0B),
                 isDownload: false,
               ),

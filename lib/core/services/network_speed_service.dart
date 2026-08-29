@@ -41,7 +41,7 @@ class NetworkSpeedService {
 
   StreamSubscription<VpnStatus?>? _vpnStatusSubscription;
   final StreamController<NetworkSpeedData> _speedController =
-      StreamController<NetworkSpeedData>.broadcast();
+  StreamController<NetworkSpeedData>.broadcast();
 
   Stream<NetworkSpeedData> get speedStream => _speedController.stream;
 
@@ -92,18 +92,28 @@ class NetworkSpeedService {
           1 << 30,
         );
         final uploadDiff = (currentUpload - _lastUploadBytes).clamp(0, 1 << 30);
-        final elapsedSeconds = elapsed / 1000.0;
-        final downloadMbps = (downloadDiff / (1024 * 1024)) / elapsedSeconds;
-        final uploadMbps = (uploadDiff / (1024 * 1024)) / elapsedSeconds;
-        _speedController.add(
-          NetworkSpeedData(
-            downloadSpeedMbps: downloadMbps.clamp(0.0, 1000.0),
-            uploadSpeedMbps: uploadMbps.clamp(0.0, 1000.0),
-            downloadBytes: currentDownload,
-            uploadBytes: currentUpload,
-            timestamp: now,
-          ),
-        );
+
+        // The native plugin doesn't push a new byte-count on every tick of
+        // this 1-second local timer — sometimes it's slower. If neither
+        // counter moved since the last reading, this isn't a real "0 KB/s"
+        // moment, it's a stale/duplicate sample. Skip emitting so the UI
+        // keeps showing the last real reading instead of flashing to 0 —
+        // but still record this timestamp/byte-count below so the *next*
+        // real update measures the correct elapsed window.
+        if (!(downloadDiff == 0 && uploadDiff == 0)) {
+          final elapsedSeconds = elapsed / 1000.0;
+          final downloadMbps = (downloadDiff / (1024 * 1024)) / elapsedSeconds;
+          final uploadMbps = (uploadDiff / (1024 * 1024)) / elapsedSeconds;
+          _speedController.add(
+            NetworkSpeedData(
+              downloadSpeedMbps: downloadMbps.clamp(0.0, 1000.0),
+              uploadSpeedMbps: uploadMbps.clamp(0.0, 1000.0),
+              downloadBytes: currentDownload,
+              uploadBytes: currentUpload,
+              timestamp: now,
+            ),
+          );
+        }
       }
     }
     _lastDownloadBytes = currentDownload;

@@ -1,4 +1,5 @@
 import 'package:vpn_master/core/localization/app_localizations.dart';
+import 'package:vpn_master/core/navigation/app_navigator.dart';
 import 'package:vpn_master/widgets/premium_server_unlock_popup.dart';
 import 'package:vpn_master/widgets/unified_ads_popup_simple.dart';
 import 'package:vpn_master/widgets/extend_server_time_popup.dart';
@@ -321,7 +322,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final adsConfig = await AdsPopupConfigService().getAdsPopupConfig();
 
       if (!adsConfig.enableBuySubscriptionPrompt) {
-        if (mounted) Navigator.pushNamed(context, '/premium');
+        if (mounted) appNavigatorKey.currentState?.pushNamed('/premium');
         return;
       }
 
@@ -379,7 +380,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (!mounted) return;
             Navigator.of(context).pop(false);
             await Future.delayed(const Duration(milliseconds: 100));
-            if (mounted) Navigator.pushNamed(context, '/premium');
+            if (mounted) appNavigatorKey.currentState?.pushNamed('/premium');
           },
         ),
       );
@@ -675,6 +676,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     if (currentServer != null) {
+      // ✅ CHECK CAPACITY BEFORE CONNECTING
+      if (currentServer.isFull) {
+        debugPrint(
+          '🚫 Server at full capacity - cannot connect (home screen)',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${currentServer.name} is at full capacity (${currentServer.connectedDevices}/${currentServer.capacity} users). Please select another server.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       // ✅ CHECK ACCESS BEFORE CONNECTING
       final unlockService = PremiumServerUnlockService();
       final isPremiumUnlocked = unlockService.isPremiumServerUnlocked(
@@ -781,7 +801,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           );
           Future.delayed(const Duration(seconds: 1), () {
             if (mounted) {
-              Navigator.pushNamed(context, '/premium');
+              appNavigatorKey.currentState?.pushNamed('/premium');
             }
           });
         }
@@ -869,7 +889,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               // Then navigate to premium screen
               if (mounted) {
                 debugPrint('   📱 Navigating to /premium screen...');
-                await Navigator.of(context).pushNamed('/premium');
+                appNavigatorKey.currentState?.pushNamed('/premium');
                 debugPrint('   ✅ Navigation to premium completed');
               }
             }
@@ -1124,19 +1144,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               }
 
               if (effectiveServer != null) {
-                final previousState = previous?.value;
-                final shouldShowConnectInterstitial =
-                    previousState != null &&
-                        previousState != VpnState.connected &&
-                        !ref.read(premiumStatusProvider) &&
-                        !_hasShownConnectInterstitial;
-
-                if (shouldShowConnectInterstitial) {
-                  _hasShownConnectInterstitial = true;
-                  LevelPlayService.instance.showInterstitial(
-                    placementName: 'vpn_connect',
-                  );
-                }
+                // NOTE: the "connect" interstitial is fired exactly once,
+                // instantly, from VpnService itself (_onVpnStageChanged,
+                // VPNStage.connected) — the real native tunnel-established
+                // callback. Do NOT also fire one here from the UI-level
+                // state listener; doing so double-fires the ad (once from
+                // the native callback, once from this stream listener),
+                // which can conflict/glitch. _hasShownConnectInterstitial
+                // is still tracked/reset elsewhere for other UI logic, but
+                // no ad call is made from this listener anymore.
 
                 // Let VpnService handle connected notifications
                 _connectionAnimationController.forward();
@@ -2017,7 +2033,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                   child: TextButton.icon(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/premium');
+                      appNavigatorKey.currentState?.pushNamed('/premium');
                     },
                     icon: Icon(Icons.star, size: 18, color: themeColor),
                     label: Text(

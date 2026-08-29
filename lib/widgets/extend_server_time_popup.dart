@@ -18,7 +18,7 @@ class ExtendServerTimePopup extends ConsumerStatefulWidget {
     required this.onAdWatched,
     required this.onSubscriptionPressed,
     this.adCount =3,
-    this.durationMinutes = 30,
+    this.durationMinutes = 45,
   });
 
   @override
@@ -283,8 +283,11 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
                 height: 58,
                 child: ElevatedButton.icon(
                   onPressed: _closing ? null : () async {
+                    // onSubscriptionPressed already closes this sheet
+                    // (pop(false)) and pushes '/premium' itself — do not
+                    // pop again here, or it will immediately pop the
+                    // freshly-pushed premium screen off the stack.
                     await widget.onSubscriptionPressed();
-                    if (mounted) Navigator.of(context).pop(true);
                   },
                   icon: const Icon(Icons.shopping_bag_rounded),
                   label: const Text('BUY SUBSCRIPTION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),

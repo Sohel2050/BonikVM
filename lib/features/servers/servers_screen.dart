@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vpn_master/core/navigation/app_navigator.dart';
 import '../../core/api/api_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/vpn_state.dart' as multi_vpn;
@@ -25,7 +26,7 @@ class ServersScreen extends ConsumerStatefulWidget {
 
 // Global key to access the servers screen state from main shell
 final GlobalKey<_ServersScreenState> serversScreenKey =
-    GlobalKey<_ServersScreenState>();
+GlobalKey<_ServersScreenState>();
 
 class _ServersScreenState extends ConsumerState<ServersScreen>
     with TickerProviderStateMixin {
@@ -49,11 +50,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     PremiumServerUnlockService()
         .initialize()
         .then((_) {
-          debugPrint('✅ Premium unlock service initialized');
-        })
+      debugPrint('✅ Premium unlock service initialized');
+    })
         .catchError((e) {
-          debugPrint('❌ Error initializing premium unlock service: $e');
-        });
+      debugPrint('❌ Error initializing premium unlock service: $e');
+    });
   }
 
   void _initializeAds() {
@@ -177,9 +178,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
 
     // Listen to VPN state changes to start timer for free users
     ref.listen<AsyncValue<multi_vpn.VpnState>>(vpnStateProvider, (
-      previous,
-      next,
-    ) {
+        previous,
+        next,
+        ) {
       next.whenData((state) {
         if (state == multi_vpn.VpnState.disconnected) {
           // Only reset the free timer if it was NOT an expiry-triggered disconnect.
@@ -333,21 +334,21 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildServerList(
-    List<VpnServer> allServers,
-    bool? premiumFilter,
-    Set<String> favoriteServers,
-    bool isPremium,
-    VpnServer? currentServer,
-    bool isDarkMode, {
-    int tabIndex = 0,
-  }) {
+      List<VpnServer> allServers,
+      bool? premiumFilter,
+      Set<String> favoriteServers,
+      bool isPremium,
+      VpnServer? currentServer,
+      bool isDarkMode, {
+        int tabIndex = 0,
+      }) {
     // Filter servers
     List<VpnServer> filteredServers = allServers.where((server) {
       // Apply search filter
       bool matchesSearch =
           _searchQuery.isEmpty ||
-          server.name.toLowerCase().contains(_searchQuery) ||
-          server.country.toLowerCase().contains(_searchQuery);
+              server.name.toLowerCase().contains(_searchQuery) ||
+              server.country.toLowerCase().contains(_searchQuery);
 
       // Apply tab-level premium filter
       bool matchesPremium =
@@ -360,8 +361,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       // Ensure server supports at least one protocol (OpenVPN, WireGuard, or OneConnect)
       bool hasProtocol =
           server.supportsOpenVPN ||
-          server.supportsWireGuard ||
-          server.isOneConnect;
+              server.supportsWireGuard ||
+              server.isOneConnect;
 
       return matchesSearch && matchesPremium && server.isActive && hasProtocol;
     }).toList();
@@ -433,10 +434,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         // Only show as connected when VPN is truly connected (not just selected)
         final vpnState =
             ref.watch(vpnStateProvider).value ??
-            multi_vpn.VpnState.disconnected;
+                multi_vpn.VpnState.disconnected;
         final isConnected =
             currentServer?.id == server.id &&
-            vpnState == multi_vpn.VpnState.connected;
+                vpnState == multi_vpn.VpnState.connected;
         final isFavorite = favoriteServers.contains(server.id);
 
         return _buildServerCard(
@@ -451,18 +452,18 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildServerCard(
-    VpnServer server,
-    bool isConnected,
-    bool isFavorite,
-    bool isPremium,
-    bool isDarkMode,
-  ) {
+      VpnServer server,
+      bool isConnected,
+      bool isFavorite,
+      bool isPremium,
+      bool isDarkMode,
+      ) {
     final themeColor = ref.watch(themeColorProvider);
     // Check if this server is temporarily unlocked via ad watch
     final unlocks = ref.watch(premiumServerUnlocksProvider);
     final isAdUnlocked =
         server.premium &&
-        (unlocks[server.id.toString()]?.isStillUnlocked ?? false);
+            (unlocks[server.id.toString()]?.isStillUnlocked ?? false);
     final canConnect = !server.premium || isPremium || isAdUnlocked;
     // Measured TCP-connect latency (null = not yet measured or unreachable)
     final latencies = ref.watch(serverLatencyProvider);
@@ -526,9 +527,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       child: server.countryCode.trim().length == 2
                           ? FlagIcon(countryCode: server.countryCode, size: 30)
                           : Text(
-                              server.flag,
-                              style: const TextStyle(fontSize: 26),
-                            ),
+                        server.flag,
+                        style: const TextStyle(fontSize: 26),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -618,9 +619,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                                   final serverId = server.id.toString();
                                   final unlock = unlockedServers[serverId];
                                   final remainingMinutes =
-                                      unlock != null && unlock.isStillUnlocked
+                                  unlock != null && unlock.isStillUnlocked
                                       ? (unlock.remainingTime.inSeconds / 60)
-                                            .ceil()
+                                      .ceil()
                                       : 0;
                                   return Container(
                                     padding: const EdgeInsets.symmetric(
@@ -630,11 +631,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                                     decoration: BoxDecoration(
                                       color: remainingMinutes > 0
                                           ? const Color(
-                                              0xFF10B981,
-                                            ).withOpacity(0.12)
+                                        0xFF10B981,
+                                      ).withOpacity(0.12)
                                           : const Color(
-                                              0xFFF59E0B,
-                                            ).withOpacity(0.12),
+                                        0xFFF59E0B,
+                                      ).withOpacity(0.12),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -710,8 +711,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                               color: isFavorite
                                   ? const Color(0xFFF59E0B)
                                   : (isDarkMode
-                                        ? const Color(0xFF475569)
-                                        : const Color(0xFF9CA3AF)),
+                                  ? const Color(0xFF475569)
+                                  : const Color(0xFF9CA3AF)),
                               size: 20,
                             ),
                           ),
@@ -902,7 +903,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                         onPressed: () {
                           Navigator.of(ctx).pop();
                           if (mounted)
-                            Navigator.of(context).pushNamed('/premium');
+                            appNavigatorKey.currentState?.pushNamed('/premium');
                         },
                       ),
                     ),
@@ -958,9 +959,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     watchedAdsInThisPopup++;
                     final rewardIndex = watchedAdsInThisPopup - 1;
                     final rewardDurationSeconds =
-                        adConfigForRewards?.ads.isNotEmpty == true &&
-                            rewardIndex >= 0 &&
-                            rewardIndex < adConfigForRewards!.ads.length
+                    adConfigForRewards?.ads.isNotEmpty == true &&
+                        rewardIndex >= 0 &&
+                        rewardIndex < adConfigForRewards!.ads.length
                         ? adConfigForRewards.ads[rewardIndex].durationSeconds
                         : defaultDurations[rewardIndex.clamp(0, 2)];
 
@@ -987,7 +988,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       Navigator.pop(dialogContext);
                     }
                     if (mounted) {
-                      Navigator.of(context).pushNamed('/premium');
+                      appNavigatorKey.currentState?.pushNamed('/premium');
                     }
                   }
                 },
@@ -1075,15 +1076,15 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           errorMessage = 'VPN engine initialization failed. Please try again.';
         } else if (e.toString().contains('permission denied')) {
           errorMessage =
-              'VPN permission required. Please grant permission in settings.';
+          'VPN permission required. Please grant permission in settings.';
         } else if (e.toString().contains('Premium subscription required')) {
           errorMessage = 'This server requires a premium subscription.';
         } else if (e.toString().contains('timeout')) {
           errorMessage =
-              'Connection timeout. Please check your internet connection.';
+          'Connection timeout. Please check your internet connection.';
         } else {
           errorMessage =
-              'Failed to connect: ${e.toString().replaceAll('Exception: ', '')}';
+          'Failed to connect: ${e.toString().replaceAll('Exception: ', '')}';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1158,7 +1159,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     final extraMinutes = adsConfig.premiumUnlockDurationMinutes;
                     // If already unlocked, extend from current expiry; otherwise from now
                     final baseTime =
-                        (existing != null && existing.isStillUnlocked)
+                    (existing != null && existing.isStillUnlocked)
                         ? existing.unlockedUntil
                         : DateTime.now();
                     final newExpiry = baseTime.add(
@@ -1168,7 +1169,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     await unlockService.unlockPremiumServer(
                       server: server,
                       durationMinutes:
-                          newExpiry.difference(DateTime.now()).inMinutes + 1,
+                      newExpiry.difference(DateTime.now()).inMinutes + 1,
                       unlockedBy: 'ad',
                     );
                     // Notify UI immediately so badge updates
@@ -1225,7 +1226,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     // Then navigate to premium screen
                     if (mounted) {
                       debugPrint('   📱 Navigating to /premium screen...');
-                      await Navigator.of(context).pushNamed('/premium');
+                      appNavigatorKey.currentState?.pushNamed('/premium');
                       debugPrint('   ✅ Navigation to premium completed');
                     }
                   }
@@ -1382,10 +1383,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color:
-                        (server.premium
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF10B981))
-                            .withValues(alpha: 0.15),
+                    (server.premium
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFF10B981))
+                        .withValues(alpha: 0.15),
                   ),
                   child: server.countryCode.trim().length == 2
                       ? FlagIcon(countryCode: server.countryCode, size: 30)
@@ -1580,11 +1581,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildInfoRow(
-    IconData icon,
-    String label,
-    String value,
-    bool isDarkMode,
-  ) {
+      IconData icon,
+      String label,
+      String value,
+      bool isDarkMode,
+      ) {
     return Row(
       children: [
         Icon(
@@ -1726,17 +1727,17 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: Icon(
-                            Icons.clear,
-                            color: isDarkMode
-                                ? Colors.grey[400]
-                                : Colors.grey[500],
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
+                    icon: Icon(
+                      Icons.clear,
+                      color: isDarkMode
+                          ? Colors.grey[400]
+                          : Colors.grey[500],
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  )
                       : null,
                 ),
                 style: TextStyle(
@@ -1869,7 +1870,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 const Color(0xFFF59E0B),
                 tempPremiumOnly,
                 isDarkMode,
-                (v) => setSheetState(() {
+                    (v) => setSheetState(() {
                   tempPremiumOnly = v!;
                   if (v) tempFreeOnly = false;
                 }),
@@ -1883,7 +1884,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 const Color(0xFF10B981),
                 tempFreeOnly,
                 isDarkMode,
-                (v) => setSheetState(() {
+                    (v) => setSheetState(() {
                   tempFreeOnly = v!;
                   if (v) tempPremiumOnly = false;
                 }),
@@ -1942,14 +1943,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildFilterTile(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    bool value,
-    bool isDarkMode,
-    ValueChanged<bool?> onChanged,
-  ) {
+      String title,
+      String subtitle,
+      IconData icon,
+      Color color,
+      bool value,
+      bool isDarkMode,
+      ValueChanged<bool?> onChanged,
+      ) {
     return Container(
       decoration: BoxDecoration(
         color: value

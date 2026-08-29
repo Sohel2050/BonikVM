@@ -42,7 +42,7 @@ class AdsPopupConfig {
       enableBuySubscriptionPrompt: true,
       buySubscriptionText:
           'Watch ads to extend your free time or subscribe for unlimited access',
-      adRewardDuration: 5,
+      adRewardDuration: 45,
       enablePremiumUnlock: true,
       premiumUnlockDurationMinutes: 5,
       premiumUnlockText: 'Watch an ad to unlock this premium server',
