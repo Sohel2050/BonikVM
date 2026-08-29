@@ -46,6 +46,10 @@
     <!-- VPN service binding is declared on the service itself -->
     <!-- Do NOT add android.permission.VPN -->
 
+    <!-- VPN binding permission (required by OpenVPN/WireGuard/V2Ray services below) -->
+    <!-- [ADDED] Needed because the services declare android:permission="android.permission.BIND_VPN_SERVICE" -->
+    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
+
 
     <!-- ========================================================= -->
     <!-- Android Foreground Service                                -->
@@ -58,6 +62,14 @@
     <!-- Required for specialUse foreground service on Android 14+ -->
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- [ADDED] Preventively blocks this permission from being pulled in by any
+         library (axevpn_flutter / wireguard-android) in future dependency updates.
+         This permission is for wearable/companion-device links, NOT VPN, and its
+         presence caused a Play Console policy declaration mismatch earlier. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"
+        tools:node="remove" />
 
 
     <!-- ========================================================= -->
@@ -125,6 +137,11 @@
         <meta-data
             android:name="android.allow_multiple_resumed_activities"
             android:value="true" />
+
+        <!-- [ADDED] Required for Android 15+ / Google Play 16 KB page size compliance -->
+        <meta-data
+            android:name="android.max_page_size"
+            android:value="16384" />
 
 
         <!-- ===================================================== -->
@@ -218,7 +235,8 @@
         </service>
 
         <!--
-            AxeWireGuardService / AxeWireGuardVpnService are declared identically
+            AxeWireGuardService / AxeWireGuardVpnService / AxeV2RayVpnService /
+            AxeOpenConnectVpnService / GoBackend$VpnService are declared identically
             in axevpn_flutter's own manifest (specialUse + the FGS subtype
             property) and merge in automatically. Do NOT redeclare them here
             without tools:replace — doing so previously caused the manifest
