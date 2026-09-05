@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../repositories/api_repository.dart';
@@ -54,8 +55,8 @@ final userModelProvider = FutureProvider<UserModel?>((ref) async {
 
 // Authentication State Provider
 final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((
-  ref,
-) {
+    ref,
+    ) {
   final authService = ref.read(authServiceProvider);
   return AuthStateNotifier(authService, ref);
 });
@@ -116,7 +117,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
   void _init() {
     // Listen to Firebase auth state changes with immediate response
     _authService.authStateChanges.listen(
-      (user) {
+          (user) {
         if (user != null) {
           _setAuthenticated(user);
         } else {
@@ -176,6 +177,15 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
       // Update notification service with authenticated user ID
       NotificationService().updateUserId(user.uid);
+
+      // Link this device to the logged-in user in OneSignal so the admin
+      // panel can target notifications at a specific user (not just
+      // broadcast to everyone). Non-fatal if it fails.
+      try {
+        await OneSignal.login(user.uid);
+      } catch (e) {
+        // Push linking failure shouldn't block login
+      }
 
       // Check subscription status after authentication
       try {
@@ -272,6 +282,11 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     _setLoading();
     try {
       await _authService.signOut();
+      try {
+        await OneSignal.logout();
+      } catch (e) {
+        // Non-fatal
+      }
       // Force complete state reset to ensure logout works
       state = const AuthState(
         status: AuthStatus.unauthenticated,

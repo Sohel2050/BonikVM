@@ -32,7 +32,6 @@ void main() async {
   // Initialize dependencies
   await _initializeApp();
 
-  runApp(const ProviderScope(child: AxeVPNApp()));
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
   // Initialize with your OneSignal App ID
   OneSignal.initialize("662ec5db-a9df-416a-8585-584d68ec9919");
@@ -40,6 +39,12 @@ void main() async {
   // We recommend removing this method after testing and instead use In-App Messages to prompt for notification permission.
   OneSignal.Notifications.requestPermission(false);
 
+  // Route notification taps so additionalData can be used for navigation later.
+  OneSignal.Notifications.addClickListener((event) {
+    debugPrint('Notification clicked: ${event.notification.additionalData}');
+  });
+
+  runApp(const ProviderScope(child: AxeVPNApp()));
 }
 
 Future<void> _initializeApp() async {
@@ -48,11 +53,11 @@ Future<void> _initializeApp() async {
     await dotenv
         .load(fileName: ".env")
         .timeout(
-          const Duration(seconds: 3),
-          onTimeout: () {
-            debugPrint('⚠️ Environment variables loading timed out');
-          },
-        );
+      const Duration(seconds: 3),
+      onTimeout: () {
+        debugPrint('⚠️ Environment variables loading timed out');
+      },
+    );
 
     // Initialize Hive for local storage
     await Hive.initFlutter();
@@ -105,20 +110,20 @@ Future<void> _initializeApp() async {
     try {
       await LevelPlayService.instance
           .initialize(
-            androidAppKey: dotenv.env['LEVELPLAY_ANDROID_APP_KEY'],
-            iosAppKey: dotenv.env['LEVELPLAY_IOS_APP_KEY'],
-            rewardedAdUnitId: dotenv.env['LEVELPLAY_REWARDED_AD_UNIT_ID'],
-            interstitialAdUnitId:
-                dotenv.env['LEVELPLAY_INTERSTITIAL_AD_UNIT_ID'],
-            bannerAdUnitId: dotenv.env['LEVELPLAY_BANNER_AD_UNIT_ID'],
-            nativeAdUnitId: dotenv.env['LEVELPLAY_NATIVE_AD_UNIT_ID'],
-          )
+        androidAppKey: dotenv.env['LEVELPLAY_ANDROID_APP_KEY'],
+        iosAppKey: dotenv.env['LEVELPLAY_IOS_APP_KEY'],
+        rewardedAdUnitId: dotenv.env['LEVELPLAY_REWARDED_AD_UNIT_ID'],
+        interstitialAdUnitId:
+        dotenv.env['LEVELPLAY_INTERSTITIAL_AD_UNIT_ID'],
+        bannerAdUnitId: dotenv.env['LEVELPLAY_BANNER_AD_UNIT_ID'],
+        nativeAdUnitId: dotenv.env['LEVELPLAY_NATIVE_AD_UNIT_ID'],
+      )
           .timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              debugPrint('⚠️ LevelPlay service initialization timed out');
-            },
-          );
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('⚠️ LevelPlay service initialization timed out');
+        },
+      );
     } catch (e) {
       debugPrint('⚠️ LevelPlay service initialization failed: $e');
     }

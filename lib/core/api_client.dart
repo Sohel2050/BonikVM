@@ -95,7 +95,7 @@ class ApiClient {
           // Inject Firebase ID token on every request (use cached token)
           try {
             final user = FirebaseAuth.instance.currentUser;
-             if (user != null) {
+            if (user != null) {
               // No force-refresh — Firebase SDK auto-refreshes expired tokens
               final idToken = await user.getIdToken().timeout(
                 const Duration(seconds: 6),
@@ -151,10 +151,10 @@ class ApiClient {
 
   // GET request
   Future<Response> get(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
+      String path, {
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+      }) async {
     try {
       return await _dio.get(
         path,
@@ -169,11 +169,11 @@ class ApiClient {
 
   // POST request
   Future<Response> post(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
+      String path, {
+        dynamic data,
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+      }) async {
     try {
       return await _dio.post(
         path,
@@ -189,11 +189,11 @@ class ApiClient {
 
   // PUT request
   Future<Response> put(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
+      String path, {
+        dynamic data,
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+      }) async {
     try {
       return await _dio.put(
         path,
@@ -209,11 +209,11 @@ class ApiClient {
 
   // DELETE request
   Future<Response> delete(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
+      String path, {
+        dynamic data,
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+      }) async {
     try {
       return await _dio.delete(
         path,
@@ -229,11 +229,11 @@ class ApiClient {
 
   // PATCH request
   Future<Response> patch(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) async {
+      String path, {
+        dynamic data,
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+      }) async {
     try {
       return await _dio.patch(
         path,
@@ -249,12 +249,12 @@ class ApiClient {
 
   // Upload file
   Future<Response> uploadFile(
-    String path,
-    File file, {
-    String? fileName,
-    Map<String, dynamic>? data,
-    ProgressCallback? onSendProgress,
-  }) async {
+      String path,
+      File file, {
+        String? fileName,
+        Map<String, dynamic>? data,
+        ProgressCallback? onSendProgress,
+      }) async {
     try {
       FormData formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(
@@ -278,11 +278,11 @@ class ApiClient {
 
   // Download file
   Future<Response> downloadFile(
-    String path,
-    String savePath, {
-    ProgressCallback? onReceiveProgress,
-    Map<String, dynamic>? queryParameters,
-  }) async {
+      String path,
+      String savePath, {
+        ProgressCallback? onReceiveProgress,
+        Map<String, dynamic>? queryParameters,
+      }) async {
     try {
       return await _dio.download(
         path,
@@ -333,6 +333,31 @@ class ApiClient {
       return response.statusCode == 200;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Get per-user VPN peer config (new v2 flow). Returns null on any failure
+  // (404 because backend/server doesn't support it yet, network error, etc.)
+  // so callers can fall back to the old shared-config endpoint. Firebase ID
+  // token is attached automatically by the interceptor above, so the
+  // backend can identify which user this peer belongs to.
+  Future<Map<String, dynamic>?> getPeerConfig(
+      int serverId,
+      String protocol, // 'wireguard' | 'openvpn'
+      ) async {
+    try {
+      final response = await get(
+        '/api/v2/peer',
+        queryParameters: {'server_id': serverId, 'protocol': protocol},
+      );
+      if (response.statusCode == 200 &&
+          response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        if (data.containsKey('config')) return data;
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 

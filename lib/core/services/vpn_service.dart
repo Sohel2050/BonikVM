@@ -8,6 +8,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../api/api_service.dart';
+import '../api_client.dart';
 import 'purchase_service.dart';
 import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
@@ -38,7 +39,7 @@ class VpnService {
   bool _isInitialized = false;
   bool _isAutoConnect = false;
   bool _isUserDisconnecting =
-      false; // guard: suppress connected events during intentional disconnect
+  false; // guard: suppress connected events during intentional disconnect
   Duration _totalConnectionTime = Duration.zero;
 
   // Last raw status from the OpenVPN plugin — preserves byte traffic counters
@@ -244,21 +245,21 @@ class VpnService {
 
       // Android initialization
       const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
       // iOS initialization
       const DarwinInitializationSettings initializationSettingsIOS =
-          DarwinInitializationSettings(
-            requestSoundPermission: false,
-            requestBadgePermission: false,
-            requestAlertPermission: false,
-          );
+      DarwinInitializationSettings(
+        requestSoundPermission: false,
+        requestBadgePermission: false,
+        requestAlertPermission: false,
+      );
 
       const InitializationSettings initializationSettings =
-          InitializationSettings(
-            android: initializationSettingsAndroid,
-            iOS: initializationSettingsIOS,
-          );
+      InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
 
       await _localNotifications!.initialize(
         initializationSettings,
@@ -289,26 +290,26 @@ class VpnService {
 
     // VPN foreground service channel
     const AndroidNotificationChannel foregroundChannel =
-        AndroidNotificationChannel(
-          _vpnForegroundChannelId,
-          'VPN Connection',
-          description: 'Active VPN connection status',
-          importance: Importance.low,
-          playSound: false,
-          enableVibration: false,
-          showBadge: false,
-        );
+    AndroidNotificationChannel(
+      _vpnForegroundChannelId,
+      'VPN Connection',
+      description: 'Active VPN connection status',
+      importance: Importance.low,
+      playSound: false,
+      enableVibration: false,
+      showBadge: false,
+    );
 
     await _localNotifications!
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+        AndroidFlutterLocalNotificationsPlugin
+    >()
         ?.createNotificationChannel(vpnChannel);
 
     await _localNotifications!
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+        AndroidFlutterLocalNotificationsPlugin
+    >()
         ?.createNotificationChannel(foregroundChannel);
   }
 
@@ -435,16 +436,16 @@ class VpnService {
         }
         break;
       case VPNStage.disconnected:
-        // If we disconnected while trying to connect, this is an error —
-        // UNLESS we are in the startup grace period.  Android fires a
-        // 'disconnected' event at the very beginning of every new connection
-        // as the VPN process passes through its previous state.  Treating that
-        // as an error would flash a spurious CONNECTION ERROR screen.
+      // If we disconnected while trying to connect, this is an error —
+      // UNLESS we are in the startup grace period.  Android fires a
+      // 'disconnected' event at the very beginning of every new connection
+      // as the VPN process passes through its previous state.  Treating that
+      // as an error would flash a spurious CONNECTION ERROR screen.
         if (_vpnState == VpnState.connecting ||
             _vpnState == VpnState.authenticating) {
           final inGracePeriod =
               _suppressDisconnectedUntil != null &&
-              DateTime.now().isBefore(_suppressDisconnectedUntil!);
+                  DateTime.now().isBefore(_suppressDisconnectedUntil!);
           if (inGracePeriod) {
             break;
           }
@@ -538,8 +539,8 @@ class VpnService {
         // Free users can only quick-connect to free servers.
         // Premium users can quick-connect to any active server.
         final candidateServers = (isPremium
-                ? servers.where((s) => s.isActive)
-                : servers.where((s) => !s.premium && s.isActive))
+            ? servers.where((s) => s.isActive)
+            : servers.where((s) => !s.premium && s.isActive))
             .toList();
 
         if (candidateServers.isNotEmpty) {
@@ -763,8 +764,8 @@ class VpnService {
           effectiveUsername.isNotEmpty && effectivePassword.isNotEmpty;
       final hasCertificates =
           config.contains('<cert>') ||
-          config.contains('<ca>') ||
-          config.contains('<key>');
+              config.contains('<ca>') ||
+              config.contains('<key>');
 
 
       // Handle different authentication types
@@ -859,7 +860,7 @@ class VpnService {
       // OneConnect servers embed their full OVPN config inside providerPayload
       if (server.isOneConnect) {
         final ovpnConfig =
-            server.providerPayload?['ovpnConfiguration'] as String?;
+        server.providerPayload?['ovpnConfiguration'] as String?;
         if (ovpnConfig != null && ovpnConfig.isNotEmpty) {
           return ovpnConfig;
         }
@@ -870,6 +871,17 @@ class VpnService {
       final serverId = int.tryParse(server.id) ?? 0;
 
       try {
+        // NEW: try the per-user peer endpoint first (Firebase-token
+        // authenticated). If the backend doesn't support it yet for this
+        // server/user (404, network error, old backend), this returns
+        // null and we transparently fall back to the old shared config —
+        // so this works against both old and new backends.
+        final peerData = await ApiClient().getPeerConfig(serverId, 'openvpn');
+        if (peerData != null && peerData['config'] is String &&
+            (peerData['config'] as String).isNotEmpty) {
+          return peerData['config'] as String;
+        }
+
         // Try to get config from API first
         final config = await ApiService.instance.getServerConfig(serverId);
 
@@ -914,7 +926,7 @@ class VpnService {
 
       // Create a simplified config that should work without authentication issues
       final config =
-          '''client
+      '''client
 dev tun
 proto ${server.protocol.toLowerCase()}
 remote ${server.ip} ${server.port}
@@ -970,19 +982,28 @@ pull
       final serverId = int.tryParse(server.id) ?? 0;
       final String config;
       try {
-        config = await ApiService.instance.getServerConfig(serverId);
+        // NEW: try the per-user peer endpoint first (Firebase-token
+        // authenticated). Falls back to the old shared config below if the
+        // backend/server doesn't have a per-user peer yet.
+        final peerData = await ApiClient().getPeerConfig(serverId, 'wireguard');
+        if (peerData != null && peerData['config'] is String &&
+            (peerData['config'] as String).isNotEmpty) {
+          config = peerData['config'] as String;
+        } else {
+          config = await ApiService.instance.getServerConfig(serverId);
+        }
       } catch (e) {
         // Backend returned an error (e.g. config file not uploaded yet)
         throw Exception(
           'WireGuard config not available. '
-          'Upload a .conf file for this server in the admin panel. ($e)',
+              'Upload a .conf file for this server in the admin panel. ($e)',
         );
       }
 
       if (config.isEmpty) {
         throw Exception(
           'WireGuard configuration not available. '
-          'Upload a .conf file for this server in the admin panel.',
+              'Upload a .conf file for this server in the admin panel.',
         );
       }
 
@@ -990,7 +1011,7 @@ pull
       if (!config.contains('[Interface]') && !config.contains('[Peer]')) {
         throw Exception(
           'Invalid WireGuard configuration returned by server. '
-          'Please check the uploaded .conf file in the admin panel.',
+              'Please check the uploaded .conf file in the admin panel.',
         );
       }
 
@@ -1068,7 +1089,7 @@ pull
         _updateVpnState(VpnState.denied);
         break;
       case WGStage.unknown:
-        // Don't update state for unknown stage
+      // Don't update state for unknown stage
         break;
     }
   }
@@ -1136,7 +1157,7 @@ pull
         configJson,
         server.name,
         subProtocol: V2RaySubProtocol.values.firstWhere(
-          (e) => e.name == sub,
+              (e) => e.name == sub,
           orElse: () => V2RaySubProtocol.vless,
         ),
       );
@@ -1349,8 +1370,8 @@ pull
 
     // Check status every 2 seconds during connection attempt
     _statusCheckTimer = Timer.periodic(const Duration(seconds: 2), (
-      timer,
-    ) async {
+        timer,
+        ) async {
       checkCount++;
 
       if (_vpnState == VpnState.connecting ||
@@ -1701,16 +1722,16 @@ pull
 
     try {
       const AndroidNotificationDetails androidDetails =
-          AndroidNotificationDetails(
-            _vpnChannelId,
-            'VPN Status',
-            channelDescription: 'VPN connection status notifications',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            showWhen: true,
-            color: Color(0xFF10B981),
-            icon: '@mipmap/ic_launcher',
-          );
+      AndroidNotificationDetails(
+        _vpnChannelId,
+        'VPN Status',
+        channelDescription: 'VPN connection status notifications',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        showWhen: true,
+        color: Color(0xFF10B981),
+        icon: '@mipmap/ic_launcher',
+      );
 
       const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
         presentAlert: true,
@@ -1739,24 +1760,24 @@ pull
 
     try {
       const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-            _vpnChannelId,
-            'VPN Status',
-            channelDescription: 'VPN connection status notifications',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            showWhen: true,
-            color: Color(0xFFEF4444), // Red color
-            icon: '@mipmap/ic_launcher',
-          );
+      AndroidNotificationDetails(
+        _vpnChannelId,
+        'VPN Status',
+        channelDescription: 'VPN connection status notifications',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        showWhen: true,
+        color: Color(0xFFEF4444), // Red color
+        icon: '@mipmap/ic_launcher',
+      );
 
       const DarwinNotificationDetails iOSPlatformChannelSpecifics =
-          DarwinNotificationDetails(
-            subtitle: 'VPN connection ended',
-            presentAlert: true,
-            presentBadge: false,
-            presentSound: true,
-          );
+      DarwinNotificationDetails(
+        subtitle: 'VPN connection ended',
+        presentAlert: true,
+        presentBadge: false,
+        presentSound: true,
+      );
 
       const NotificationDetails platformChannelSpecifics = NotificationDetails(
         android: androidPlatformChannelSpecifics,

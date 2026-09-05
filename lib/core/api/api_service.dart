@@ -52,17 +52,21 @@ class ApiService {
           followRedirects: false, // Handle redirects manually
           maxRedirects: 0,
           validateStatus: (status) =>
-              status! < 400, // Accept redirects as valid
+          status! < 400, // Accept redirects as valid
         ),
       );
 
-      // Configure HTTP client for TLS compatibility issues
+      // Configure HTTP client. Certificate validation is only ever relaxed
+      // in debug builds (useful if you're testing against a self-signed
+      // dev server) — release builds always enforce normal TLS validation.
+      // Accepting any certificate in production would let an attacker on
+      // the same network (e.g. public wifi) intercept and read/modify all
+      // API traffic, including login tokens and VPN configs.
       (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
         final client = HttpClient();
-        // Handle bad certificates for servers with TLS issues
-        client.badCertificateCallback = (cert, host, port) {
-          return true;
-        };
+        if (kDebugMode) {
+          client.badCertificateCallback = (cert, host, port) => true;
+        }
         return client;
       };
 
@@ -155,7 +159,7 @@ class ApiService {
       if (response.statusCode == 200 && response.data is Map) {
         return Map<String, bool>.from(
           (response.data as Map).map(
-            (k, v) => MapEntry(k.toString(), v == true || v == 1),
+                (k, v) => MapEntry(k.toString(), v == true || v == 1),
           ),
         );
       }
@@ -334,7 +338,7 @@ class ApiService {
     );
     if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
       return (response.data as Map<String, dynamic>)['data']
-              as Map<String, dynamic>? ??
+      as Map<String, dynamic>? ??
           {};
     }
     throw Exception('Failed to load update info');
@@ -447,9 +451,9 @@ class ApiService {
 
   // Get protocol-specific configuration for a server
   Future<Map<String, dynamic>?> getProtocolConfig(
-    String protocol,
-    int serverId,
-  ) async {
+      String protocol,
+      int serverId,
+      ) async {
     try {
       _ensureInitialized();
 
@@ -469,9 +473,9 @@ class ApiService {
 
   // Test protocol connectivity for a server
   Future<Map<String, dynamic>?> testProtocolConnectivity(
-    String protocol,
-    int serverId,
-  ) async {
+      String protocol,
+      int serverId,
+      ) async {
     try {
       _ensureInitialized();
 
@@ -517,10 +521,10 @@ class ApiService {
 
   // Log connection with proper parameters
   Future<void> logConnect(
-    String serverId,
-    String deviceId, {
-    bool isAuto = false,
-  }) async {
+      String serverId,
+      String deviceId, {
+        bool isAuto = false,
+      }) async {
     try {
       // Ensure API service is initialized
       _ensureInitialized(); // First get the user's IP address
@@ -561,10 +565,10 @@ class ApiService {
 
   // Log disconnection with proper parameters
   Future<void> logDisconnect(
-    String serverId,
-    String deviceId,
-    Duration duration,
-  ) async {
+      String serverId,
+      String deviceId,
+      Duration duration,
+      ) async {
     try {
       // Ensure API service is initialized
       _ensureInitialized(); // Use the correct endpoint that matches the backend API
@@ -593,10 +597,10 @@ class ApiService {
 
   // Register FCM token
   Future<void> registerFcmToken(
-    String token,
-    String deviceId, {
-    String? userId,
-  }) async {
+      String token,
+      String deviceId, {
+        String? userId,
+      }) async {
     try {
       final data = {
         'token': token,
@@ -979,9 +983,9 @@ class ApiService {
 
   /// Redeem a voucher code
   Future<Map<String, dynamic>> redeemVoucherCode(
-    String code,
-    String userId,
-  ) async {
+      String code,
+      String userId,
+      ) async {
     try {
       final response = await _dio.post(
         '/api/${AppConfig.apiVersion}/vouchers/redeem',
@@ -1076,7 +1080,7 @@ class ApiService {
           if (data['connection'] is Map) {
             data['isp'] =
                 (data['connection'] as Map)['isp'] ??
-                (data['connection'] as Map)['org'];
+                    (data['connection'] as Map)['org'];
           }
           return data;
         }
@@ -1237,7 +1241,7 @@ class VpnServer {
   /// Check if this server supports WireGuard
   bool get supportsWireGuard =>
       vpnProtocolType == 'wireguard' ||
-      (protocols?.contains('wireguard') ?? false);
+          (protocols?.contains('wireguard') ?? false);
 
   /// Check if this server uses V2Ray / Xray
   bool get isV2Ray => vpnProtocolType == 'v2ray';
@@ -1272,7 +1276,7 @@ class VpnServer {
     final isFull = (json['is_full'] as bool?) ?? (connectedDevices >= capacity);
     final loadPercentage =
         (json['load_percentage'] as num?)?.toDouble() ??
-        (capacity > 0 ? (connectedDevices / capacity * 100) : 0.0);
+            (capacity > 0 ? (connectedDevices / capacity * 100) : 0.0);
 
     return VpnServer(
       id: json['id'].toString(),
@@ -1292,7 +1296,7 @@ class VpnServer {
       flag: _getCountryFlag(countryCode),
       // API uses 'is_premium'; toJson() saves 'premium' — accept both keys.
       premium:
-          (json['is_premium'] == true ||
+      (json['is_premium'] == true ||
           json['is_premium'] == 1 ||
           json['premium'] == true ||
           json['premium'] == 1),
@@ -1352,7 +1356,7 @@ class VpnServer {
     final isFull = (json['is_full'] as bool?) ?? (connectedDevices >= capacity);
     final loadPercentage =
         (json['load_percentage'] as num?)?.toDouble() ??
-        (capacity > 0 ? (connectedDevices / capacity * 100) : 0.0);
+            (capacity > 0 ? (connectedDevices / capacity * 100) : 0.0);
 
     // Parse VPN protocol type (default to OpenVPN for backward compatibility)
     final vpnProtocolType = json['vpn_protocol_type']?.toString() ?? 'openvpn';
@@ -1388,12 +1392,12 @@ class VpnServer {
       countryCode: countryCode,
       flag: _getCountryFlag(countryCode),
       premium:
-          (json['is_premium'] == true || json['is_premium'] == 1) ||
+      (json['is_premium'] == true || json['is_premium'] == 1) ||
           (json['is_free'] == 0 ||
               json['is_free'] == false), // Correct premium logic
       latency: 0, // Will be calculated via ping
       configUrl:
-          json['v2ray_share_url'] ?? '', // Use V2Ray share URL if available
+      json['v2ray_share_url'] ?? '', // Use V2Ray share URL if available
       isActive: true, // Assume enabled servers are active
       load: loadPercentage / 100.0, // Convert percentage to 0.0-1.0 range
       protocol: json['protocol'] ?? 'udp',
@@ -1884,7 +1888,7 @@ class PurchasePlan {
       savings: json['savings']?.toDouble(),
       features: List<String>.from(json['features'] ?? []),
       isPopular:
-          (json['is_popular'] == true ||
+      (json['is_popular'] == true ||
           json['is_popular'] == 1), // Handle both boolean and integer
       sortOrder: json['sort_order'] ?? 0,
       formattedPrice: json['formatted_price'] ?? '',
