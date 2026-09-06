@@ -133,7 +133,6 @@ flutter:
     - assets/icon/icon.png
     - assets/animations/
     - assets/flags/
-    - assets/certs/
     - .env
 
 # Flutter Launcher Icons
