@@ -10,6 +10,7 @@ import '../../services/premium_server_unlock_service.dart';
 import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../shared/widgets/loading_widget.dart';
+import '../../shared/widgets/vpn_disclosure_dialog.dart';
 import '../../shared/widgets/error_widget.dart';
 import '../../shared/widgets/flag_icon.dart';
 import '../../widgets/unified_ads_popup_simple.dart';
@@ -785,6 +786,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
 
   void _connectToServer(VpnServer server) async {
     try {
+      // Google Play VPN policy: show the prominent disclosure once, before
+      // the very first connection attempt from anywhere in the app.
+      final canProceed = await VpnDisclosureDialog.showIfNeeded(context);
+      if (!canProceed) return;
+
       // ✅ CHECK ACCESS RIGHTS FIRST
       final timerState = ref.read(freeConnectionTimerProvider);
       final isPremium = ref.read(premiumStatusProvider);
@@ -2040,7 +2046,11 @@ class _NativeAdCardState extends State<_NativeAdCard> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: const LevelPlayNativeAdPlacement(),
+        child: LevelPlayNativeAdPlacement(
+          maskColor: widget.isDarkMode
+              ? const Color(0xFF1E293B)
+              : Colors.white,
+        ),
       ),
     );
   }

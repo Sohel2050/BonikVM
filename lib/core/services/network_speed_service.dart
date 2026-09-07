@@ -53,6 +53,26 @@ class NetworkSpeedService {
   int _totalUploadBytes = 0;
 
   Future<void> startMonitoring() async {
+    // Emit an immediate zero-speed event EVERY time this is called (even if
+    // already monitoring), not just on the very first call. _speedController
+    // is a broadcast stream, which never replays past events to a listener
+    // that starts watching later (e.g. a freshly-rebuilt widget after a
+    // disconnect/reconnect cycle) — so if this emit only happened behind the
+    // `if (_isMonitoring) return` guard below, any UI that starts watching
+    // after the very first connection would never receive an initial value
+    // and would stay stuck showing "--.-" (the provider's `loading` state)
+    // until a real non-zero byte-count sample arrived, which may never
+    // happen for some protocols/plugins.
+    _speedController.add(
+      NetworkSpeedData(
+        downloadSpeedMbps: 0,
+        uploadSpeedMbps: 0,
+        downloadBytes: _totalDownloadBytes,
+        uploadBytes: _totalUploadBytes,
+        timestamp: DateTime.now(),
+      ),
+    );
+
     if (_isMonitoring) return;
     _isMonitoring = true;
     _lastDownloadBytes = 0;
@@ -60,17 +80,6 @@ class NetworkSpeedService {
     _totalDownloadBytes = 0;
     _totalUploadBytes = 0;
     _lastMeasurement = null;
-    // Emit an immediate zero-speed event so the StreamProvider exits
-    // "loading" state right away instead of showing "--.-".
-    _speedController.add(
-      NetworkSpeedData(
-        downloadSpeedMbps: 0,
-        uploadSpeedMbps: 0,
-        downloadBytes: 0,
-        uploadBytes: 0,
-        timestamp: DateTime.now(),
-      ),
-    );
     _vpnStatusSubscription = VpnService.instance.vpnStatusStream.listen(
       _onVpnStatus,
       onError: (_) {},

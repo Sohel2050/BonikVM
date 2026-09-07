@@ -228,6 +228,24 @@ class _AxeVPNAppState extends ConsumerState<AxeVPNApp>
 
       // Refresh LevelPlay premium state when the app resumes.
       LevelPlayService.instance.refreshPremiumStatus();
+
+      // Re-check for a forced update on resume. Android usually keeps the
+      // process alive when the user just backgrounds the app (home button /
+      // switching apps) rather than fully killing it, so the original
+      // "checkForUpdates() only at cold start" logic would never re-run
+      // and a force-update dialog the user dismissed by minimizing the app
+      // (e.g. via the "Update Required" button opening the Play Store then
+      // coming back) would never reappear until a full process kill. This
+      // makes the check re-run every time the app comes back to the
+      // foreground, matching the intent already described in
+      // UpdateService's comments ("next app launch will check backend
+      // again"). Uses appNavigatorKey rather than this widget's own
+      // `context`, since AxeVPNApp's context sits above MaterialApp's
+      // Navigator and can't host a dialog directly.
+      final navContext = appNavigatorKey.currentContext;
+      if (navContext != null) {
+        UpdateService.instance.checkForUpdates(context: navContext);
+      }
     }
   }
 

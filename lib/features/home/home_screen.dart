@@ -24,6 +24,7 @@ import '../../services/ads_popup_config_service.dart';
 import '../../services/premium_server_unlock_service.dart';
 import '../../providers/subscription_provider.dart';
 import '../../shared/widgets/flag_icon.dart';
+import '../../shared/widgets/vpn_disclosure_dialog.dart';
 import 'utils/country_emoji.dart';
 import 'widgets/home_small_widgets.dart';
 import 'widgets/location_cards.dart';
@@ -645,6 +646,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     if (vpnState != VpnState.disconnected) return;
+
+    // Google Play VPN policy: show the prominent disclosure once, before
+    // the very first connection attempt, and before the OS VPN permission
+    // prompt. If the user declines, do not proceed with connecting.
+    final canProceed = await VpnDisclosureDialog.showIfNeeded(context);
+    if (!canProceed) return;
 
     _userInitiatedDisconnect =
     false; // User is connecting - clear the disconnect guard
@@ -1749,7 +1756,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: const LevelPlayNativeAdPlacement(),
+                    child: LevelPlayNativeAdPlacement(
+                      maskColor: isDarkMode
+                          ? const Color(0xFF1E293B)
+                          : Colors.white,
+                    ),
                   ),
                 ),
               ),

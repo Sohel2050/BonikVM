@@ -99,7 +99,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       final launchCount = prefs.getInt('app_launch_count') ?? 0;
       final firstLaunchDate =
           prefs.getInt('first_launch_date') ??
-          DateTime.now().millisecondsSinceEpoch;
+              DateTime.now().millisecondsSinceEpoch;
 
       // Increment launch count
       await prefs.setInt('app_launch_count', launchCount + 1);
@@ -356,11 +356,11 @@ class _MainShellState extends ConsumerState<MainShell> {
   }
 
   Widget _buildModernAppBar(
-    int currentIndex,
-    bool isDarkMode,
-    bool isPremium,
-    AppLocalizations localizations,
-  ) {
+      int currentIndex,
+      bool isDarkMode,
+      bool isPremium,
+      AppLocalizations localizations,
+      ) {
     switch (currentIndex) {
       case 0: // Home screen
         return Container(
@@ -549,10 +549,10 @@ class _MainShellState extends ConsumerState<MainShell> {
   /// Bottom nav bar restyled to match the reference "VPN Master" design —
   /// a black bar with the active tab rendered as a rounded lime pill.
   Widget _buildPillBottomNavBar(
-    bool isDarkMode,
-    bool isPremium,
-    AppLocalizations localizations,
-  ) {
+      bool isDarkMode,
+      bool isPremium,
+      AppLocalizations localizations,
+      ) {
     const selectedColor = Color(0xFFAEEA1C);
     final unselectedColor = isDarkMode
         ? Colors.white.withValues(alpha: 0.72)
@@ -686,11 +686,11 @@ class _MainShellState extends ConsumerState<MainShell> {
   // }
 
   Widget _buildDrawer(
-    BuildContext context,
-    bool isDarkMode,
-    bool isPremium,
-    AppLocalizations localizations,
-  ) {
+      BuildContext context,
+      bool isDarkMode,
+      bool isPremium,
+      AppLocalizations localizations,
+      ) {
     final themeColor = ref.watch(themeColorProvider);
 
     return Drawer(
@@ -709,15 +709,15 @@ class _MainShellState extends ConsumerState<MainShell> {
                   end: Alignment.bottomRight,
                   colors: isDarkMode
                       ? [
-                          const Color(0xFF1E293B),
-                          const Color(0xFF334155),
-                          themeColor.withValues(alpha: 0.8),
-                        ]
+                    const Color(0xFF1E293B),
+                    const Color(0xFF334155),
+                    themeColor.withValues(alpha: 0.8),
+                  ]
                       : [
-                          themeColor,
-                          themeColor.withValues(alpha: 0.8),
-                          themeColor.withValues(alpha: 0.6),
-                        ],
+                    themeColor,
+                    themeColor.withValues(alpha: 0.8),
+                    themeColor.withValues(alpha: 0.6),
+                  ],
                 ),
               ),
               child: Padding(
@@ -845,7 +845,12 @@ class _MainShellState extends ConsumerState<MainShell> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: const LevelPlayNativeAdPlacement(height: 80),
+                        child: LevelPlayNativeAdPlacement(
+                          height: 80,
+                          maskColor: isDarkMode
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF8FAFC),
+                        ),
                       ),
                     ),
                   _buildModernDrawerItem(
@@ -1021,8 +1026,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                     color: isSelected
                         ? themeColor.withValues(alpha: 0.18)
                         : (isDarkMode
-                              ? const Color(0xFF1E293B)
-                              : const Color(0xFFF3F4F6)),
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF3F4F6)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -1058,23 +1063,23 @@ class _MainShellState extends ConsumerState<MainShell> {
                 ),
                 trailing: badge != null
                     ? Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          badge,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -1112,7 +1117,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       const String appUrl =
           'https://play.google.com/store/apps/details?id=com.albonik.vpn';
       const String shareText =
-          '''
+      '''
 🛡️ VPN MASTER - Secure & Fast VPN
 
 Protect your privacy with VPN MASTER:
@@ -1141,7 +1146,7 @@ $appUrl
             title: const Text('Share VPN MASTER'),
             content: const Text(
               'Help us grow by sharing VPN MASTER with your friends and family!\n\n'
-              'Search for "VPN MASTER" in your app store.',
+                  'Search for "VPN MASTER" in your app store.',
             ),
             actions: [
               TextButton(
