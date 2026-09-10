@@ -6,7 +6,6 @@
 # -------------------------------
 # HDR/GRAPHICS - FIX FOR SMPTE 2094-40 ERRORS
 # -------------------------------
-# Keep HDR-related classes to prevent gralloc errors
 -keep class android.hardware.display.** { *; }
 -keep class android.view.Display$HdrCapabilities { *; }
 -keep class android.graphics.** { *; }
@@ -15,13 +14,11 @@
 # -------------------------------
 # OPENVPN FLUTTER PLUGIN - CRITICAL FOR VPN CONNECTION
 # -------------------------------
-# Keep all OpenVPN core classes - CRITICAL for VPN functionality
 -keep class de.blinkt.openvpn.** { *; }
 -keep class de.blinkt.openvpn.*$* { *; }
 -keep class com.github.nizwar.** { *; }
 -keep class net.openvpn.** { *; }
 
-# OpenVPN service and activities - REQUIRED for VPN operations  
 -keep class de.blinkt.openvpn.core.OpenVPNService { *; }
 -keep class de.blinkt.openvpn.core.OpenVPNService$* { *; }
 -keep class de.blinkt.openvpn.core.VPNLaunchHelper { *; }
@@ -32,12 +29,10 @@
 -keep class de.blinkt.openvpn.LaunchVPN { *; }
 -keep class de.blinkt.openvpn.activities.DisconnectVPN { *; }
 
-# OpenVPN native methods - CRITICAL
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
-# OpenVPN Flutter plugin - CRITICAL
 -keep class com.github.nizwar.** { *; }
 -dontwarn de.blinkt.openvpn.**
 -dontwarn com.github.nizwar.**
@@ -51,7 +46,6 @@
 
 -keep class io.flutter.embedding.engine.FlutterEngine { *; }
 
-# Specific plugins
 -keep class com.baseflow.permissionhandler.** { *; }
 -dontwarn com.baseflow.permissionhandler.**
 
@@ -103,7 +97,6 @@
 -keep class com.google.gson.reflect.TypeToken { *; }
 -dontwarn com.google.gson.**
 
-# Keep fields with @SerializedName
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
@@ -114,7 +107,6 @@
 -keep class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator *;
 }
-
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -149,12 +141,10 @@
 -dontwarn com.reactnativestripesdk.**
 -dontwarn com.flutter.stripe.**
 
-# Keep Stripe payment method classes
 -keep class com.stripe.android.model.** { *; }
 -keep class com.stripe.android.payments.** { *; }
 -keep class com.stripe.android.paymentsheet.** { *; }
 
-# Keep AppCompat theme classes for Stripe
 -keep class androidx.appcompat.** { *; }
 -keep class androidx.core.content.ContextCompat { *; }
 -dontwarn androidx.appcompat.**
@@ -162,22 +152,18 @@
 # -------------------------------
 # IN-APP UPDATES - GOOGLE PLAY CORE
 # -------------------------------
-# Keep Google Play Core classes for in-app updates
 -keep class com.google.android.play.core.** { *; }
 -keep class com.google.android.play.core.appupdate.** { *; }
 -keep class com.google.android.play.core.install.** { *; }
 -keep class com.google.android.play.core.tasks.** { *; }
 -dontwarn com.google.android.play.core.**
 
-# Keep in-app update Flutter plugin classes
 -keep class dev.flutterplaza.in_app_update.** { *; }
 -dontwarn dev.flutterplaza.in_app_update.**
 
 # -------------------------------
 # V2RAY / AXEVPN V2RAY PLUGIN
 # -------------------------------
-# libv2ray classes are loaded via native Go binding at runtime (gomobile AAR)
-# R8 cannot see them during compilation — suppress missing class errors
 -dontwarn libv2ray.Libv2ray
 -dontwarn libv2ray.V2RayPoint
 -dontwarn libv2ray.V2RayVPNServiceSupportsSet
@@ -194,13 +180,111 @@
 -dontwarn com.ironsource.mediationsdk.**
 -dontwarn com.ironsource.adapters.**
 
-# Keep LevelPlay webview activity and SDK internals
 -keepclassmembers class com.ironsource.mediationsdk.utils.IronSourceWebViewActivity { *; }
 -keep public class com.google.android.gms.ads.identifier.AdvertisingIdClient { *; }
 -keep public class com.google.android.gms.ads.identifier.AdvertisingIdClient$Info { *; }
 
-# Reflection used by the IronSource SDK
 -keepattributes JavascriptInterface
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
+
+# -------------------------------
+# FACEBOOK AUDIENCE NETWORK (Meta Audience Network)
+# -------------------------------
+-keep class com.facebook.ads.** { *; }
+-dontwarn com.facebook.ads.**
+
+# -------------------------------
+# UNITY ADS
+# -------------------------------
+-keep class com.unity3d.ads.** { *; }
+-keep class com.unity3d.services.** { *; }
+-dontwarn com.unity3d.ads.**
+-dontwarn com.unity3d.services.**
+
+# -------------------------------
+# UNITY3D ADS MEDIATION ADAPTERS (generic namespace, covers all adapters below)
+# -------------------------------
+-keep class com.unity3d.ads.mediation.** { *; }
+-dontwarn com.unity3d.ads.mediation.**
+
+# -------------------------------
+# CHARTBOOST
+# -------------------------------
+-keep class com.chartboost.** { *; }
+-dontwarn com.chartboost.**
+
+# -------------------------------
+# INMOBI
+# -------------------------------
+-keep class com.inmobi.** { *; }
+-dontwarn com.inmobi.**
+
+# -------------------------------
+# MINTEGRAL
+# -------------------------------
+-keep class com.mbridge.msdk.** { *; }
+-dontwarn com.mbridge.msdk.**
+
+# -------------------------------
+# MOBILEFUSE
+# -------------------------------
+-keep class com.mobilefuse.sdk.** { *; }
+-dontwarn com.mobilefuse.sdk.**
+
+# -------------------------------
+# MOLOCO
+# -------------------------------
+-keep class com.moloco.sdk.** { *; }
+-dontwarn com.moloco.sdk.**
+
+# -------------------------------
+# OGURY
+# -------------------------------
+-keep class co.ogury.** { *; }
+-dontwarn co.ogury.**
+
+# -------------------------------
+# PUBMATIC (OpenWrap)
+# -------------------------------
+-keep class com.pubmatic.sdk.** { *; }
+-dontwarn com.pubmatic.sdk.**
+
+# -------------------------------
+# SMAATO
+# -------------------------------
+-keep class com.smaato.android.sdk.** { *; }
+-dontwarn com.smaato.android.sdk.**
+
+# -------------------------------
+# VERVE (PubNative / HyBid)
+# -------------------------------
+-keep class net.pubnative.** { *; }
+-dontwarn net.pubnative.**
+
+# -------------------------------
+# YANDEX MOBILE ADS
+# -------------------------------
+-keep class com.yandex.mobile.ads.** { *; }
+-keep class com.yandex.android.mobileads.** { *; }
+-dontwarn com.yandex.mobile.ads.**
+-dontwarn com.yandex.android.mobileads.**
+
+# -------------------------------
+# VUNGLE (Liftoff Monetize)
+# -------------------------------
+-keep class com.vungle.ads.** { *; }
+-dontwarn com.vungle.ads.**
+
+# -------------------------------
+# APPLOVIN
+# -------------------------------
+-keep class com.applovin.** { *; }
+-dontwarn com.applovin.**
+
+# -------------------------------
+# MULTIDEX
+# -------------------------------
+-keep class androidx.multidex.** { *; }
+-dontwarn androidx.multidex.**

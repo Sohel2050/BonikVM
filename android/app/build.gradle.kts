@@ -215,51 +215,64 @@ dependencies {
     // Android LevelPlay SDK: 9.4.0
     // ==========================================================
 
-    // AppLovin
+
+
+    // Chartboost
+    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.9.0")
+    implementation("com.chartboost:chartboost-sdk:9.14.0")
+
+// Meta Audience Network
+    implementation("com.unity3d.ads-mediation:facebook-adapter:5.4.0")
+    implementation("com.facebook.android:audience-network-sdk:6.22.0")
+
+// InMobi
+    implementation("com.unity3d.ads-mediation:inmobi-adapter:5.9.0")
+    implementation("com.inmobi.monetization:inmobi-ads-kotlin:11.4.1")
+
+// Mintegral
+    implementation("com.unity3d.ads-mediation:mintegral-adapter:5.19.0")
+    implementation("com.mbridge.msdk.oversea:mbridge_android_sdk:17.1.81")
+
+/// MobileFuse
+    implementation("com.unity3d.ads-mediation:mobilefuse-adapter:5.4.0")
+    implementation("com.mobilefuse.sdk:mobilefuse-sdk-core:1.12.0")
+
+// Moloco
+    implementation("com.unity3d.ads-mediation:moloco-adapter:5.17.0")
+    implementation("com.moloco.sdk:moloco-sdk:4.12.0")
+
+// Ogury
+    implementation("com.unity3d.ads-mediation:ogury-adapter:5.5.0")
+    implementation("co.ogury:ogury-sdk:6.3.1")
+
+// PubMatic
+    implementation("com.unity3d.ads-mediation:pubmatic-adapter:5.9.0")
+    implementation("com.pubmatic.sdk:openwrap:5.3.0")
+
+// Smaato
+    implementation("com.unity3d.ads-mediation:smaato-adapter:5.6.0")
+    implementation("com.smaato.android.sdk:smaato-sdk:23.2.2")
+
+// Unity Ads
+    implementation("com.unity3d.ads-mediation:unityads-adapter:5.11.0")
+    implementation("com.unity3d.ads:unity-ads:4.19.0")
+
+// Verve
+    implementation("com.unity3d.ads-mediation:verve-adapter:5.8.0")
+    implementation("net.pubnative:hybid.sdk:3.9.2")
+
+// Yandex
+    implementation("com.unity3d.ads-mediation:yandex-adapter:5.14.0")
+    implementation("com.yandex.android:mobileads:8.4.0")
+
+// Vungle (Liftoff Monetize)
+    implementation("com.unity3d.ads-mediation:vungle-adapter:5.14.0")
+    implementation("com.vungle:vungle-ads:7.7.8")
+
+// AppLovin
     implementation("com.unity3d.ads-mediation:applovin-adapter:5.9.0")
     implementation("com.applovin:applovin-sdk:13.6.4")
 
-    // Chartboost
-    implementation("com.unity3d.ads-mediation:chartboost-adapter:5.8.0")
-
-    // Meta Audience Network
-    implementation("com.unity3d.ads-mediation:facebook-adapter:5.4.0")
-
-    // InMobi
-    implementation("com.unity3d.ads-mediation:inmobi-adapter:5.8.0")
-
-    // Mintegral
-    implementation("com.unity3d.ads-mediation:mintegral-adapter:5.18.0")
-
-    // MobileFuse
-    implementation("com.unity3d.ads-mediation:mobilefuse-adapter:5.4.0")
-
-    // Moloco
-    implementation("com.unity3d.ads-mediation:moloco-adapter:5.16.0")
-
-    // Ogury
-    implementation("com.unity3d.ads-mediation:ogury-adapter:5.4.0")
-
-    // Pangle
-    implementation("com.unity3d.ads-mediation:pangle-adapter:5.22.0")
-
-    // PubMatic
-    implementation("com.unity3d.ads-mediation:pubmatic-adapter:5.8.0")
-
-    // Smaato
-    implementation("com.unity3d.ads-mediation:smaato-adapter:5.5.0")
-
-    // Unity Ads
-    implementation("com.unity3d.ads-mediation:unityads-adapter:5.11.0")
-
-    // Verve
-    implementation("com.unity3d.ads-mediation:verve-adapter:5.7.0")
-
-    // Yandex
-    implementation("com.unity3d.ads-mediation:yandex-adapter:5.12.0")
-
-    // Liftoff Monetize / Vungle
-    implementation("com.unity3d.ads-mediation:vungle-adapter:5.12.0")
 }
 
 
