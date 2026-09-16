@@ -54,3 +54,14 @@ nerdvpn
 
 # Git worktrees (scratch, per-session isolation)
 .worktrees/
+
+# Secrets — NEVER commit these (API tokens, signing keys, service accounts)
+.env
+.env.*
+!.env.example
+android/key.properties
+android/app/key.properties
+*.jks
+*.keystore
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
