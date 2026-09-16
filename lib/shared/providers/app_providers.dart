@@ -59,9 +59,9 @@ final networkSpeedProvider = StreamProvider<NetworkSpeedData>((ref) {
 
 // Subscription Status Provider
 final subscriptionStatusProvider = FutureProvider.family<bool, String>((
-  ref,
-  userId,
-) async {
+    ref,
+    userId,
+    ) async {
   final subscriptionService = ref.watch(subscriptionServiceProvider);
 
   // Auto sync if needed
@@ -77,9 +77,9 @@ final activeSubscriptionProvider = StateProvider<Subscription?>((ref) {
 
 // Current Server Provider
 final currentServerProvider =
-    StateNotifierProvider<CurrentServerNotifier, VpnServer?>((ref) {
-      return CurrentServerNotifier();
-    });
+StateNotifierProvider<CurrentServerNotifier, VpnServer?>((ref) {
+  return CurrentServerNotifier();
+});
 
 class CurrentServerNotifier extends StateNotifier<VpnServer?> {
   CurrentServerNotifier() : super(null) {
@@ -142,9 +142,9 @@ final serversProvider = FutureProvider<List<VpnServer>>((ref) async {
 
 // Enhanced Servers Provider with protocol filtering
 final serversByProtocolProvider = Provider.family<List<VpnServer>, String?>((
-  ref,
-  protocolFilter,
-) {
+    ref,
+    protocolFilter,
+    ) {
   final serversAsync = ref.watch(serversProvider);
 
   return serversAsync.when(
@@ -165,9 +165,9 @@ final serversByProtocolProvider = Provider.family<List<VpnServer>, String?>((
 
 // Favorite Servers Provider
 final favoriteServersProvider =
-    StateNotifierProvider<FavoriteServersNotifier, Set<String>>((ref) {
-      return FavoriteServersNotifier();
-    });
+StateNotifierProvider<FavoriteServersNotifier, Set<String>>((ref) {
+  return FavoriteServersNotifier();
+});
 
 class FavoriteServersNotifier extends StateNotifier<Set<String>> {
   FavoriteServersNotifier() : super(<String>{}) {
@@ -200,9 +200,9 @@ class FavoriteServersNotifier extends StateNotifier<Set<String>> {
 
 // Premium Status Provider
 final premiumStatusProvider =
-    StateNotifierProvider<PremiumStatusNotifier, bool>((ref) {
-      return PremiumStatusNotifier(ref);
-    });
+StateNotifierProvider<PremiumStatusNotifier, bool>((ref) {
+  return PremiumStatusNotifier(ref);
+});
 
 class PremiumStatusNotifier extends StateNotifier<bool> {
   final Ref _ref;
@@ -275,9 +275,9 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
       await _ref
           .read(subscriptionProvider.notifier)
           .checkSubscriptionStatus(
-            authState.firebaseUser!.uid,
-            forceRefresh: true,
-          );
+        authState.firebaseUser!.uid,
+        forceRefresh: true,
+      );
     }
   }
 
@@ -288,28 +288,28 @@ class PremiumStatusNotifier extends StateNotifier<bool> {
 
 // Auto Connect Provider
 final autoConnectProvider = StateNotifierProvider<BooleanSettingNotifier, bool>(
-  (ref) {
+      (ref) {
     return BooleanSettingNotifier('auto_connect', false);
   },
 );
 
 // Kill Switch Provider
 final killSwitchProvider = StateNotifierProvider<BooleanSettingNotifier, bool>((
-  ref,
-) {
+    ref,
+    ) {
   return BooleanSettingNotifier('kill_switch', false);
 });
 
 // Notifications Provider
 final notificationsProvider =
-    StateNotifierProvider<BooleanSettingNotifier, bool>((ref) {
-      return BooleanSettingNotifier('notifications', true);
-    });
+StateNotifierProvider<BooleanSettingNotifier, bool>((ref) {
+  return BooleanSettingNotifier('notifications', true);
+});
 
 // Protocol Provider
 final protocolProvider = StateNotifierProvider<BooleanSettingNotifier, bool>((
-  ref,
-) {
+    ref,
+    ) {
   return BooleanSettingNotifier(
     'use_udp_protocol',
     true,
@@ -356,9 +356,9 @@ final adMobConfigProvider = FutureProvider<AdMobConfig>((ref) async {
 
 // Connection Statistics Provider
 final connectionStatsProvider =
-    StateNotifierProvider<ConnectionStatsNotifier, ConnectionStats>((ref) {
-      return ConnectionStatsNotifier();
-    });
+StateNotifierProvider<ConnectionStatsNotifier, ConnectionStats>((ref) {
+  return ConnectionStatsNotifier();
+});
 
 class ConnectionStatsNotifier extends StateNotifier<ConnectionStats> {
   ConnectionStatsNotifier() : super(ConnectionStats()) {
@@ -412,12 +412,12 @@ class ConnectionStatsNotifier extends StateNotifier<ConnectionStats> {
 
 // Free Connection Timer Provider
 final freeConnectionTimerProvider =
-    StateNotifierProvider<
-      FreeConnectionTimerNotifier,
-      FreeConnectionTimerState
-    >((ref) {
-      return FreeConnectionTimerNotifier();
-    });
+StateNotifierProvider<
+    FreeConnectionTimerNotifier,
+    FreeConnectionTimerState
+>((ref) {
+  return FreeConnectionTimerNotifier();
+});
 
 class FreeConnectionTimerNotifier
     extends StateNotifier<FreeConnectionTimerState> {
@@ -785,22 +785,22 @@ class RewardVideoNotifier extends StateNotifier<RewardVideoState> {
 }
 
 final rewardVideoProvider =
-    StateNotifierProvider<RewardVideoNotifier, RewardVideoState>((ref) {
-      // Initialize service synchronously inline for now
-      final service = RewardVideoService();
-      // Don't await - just create the notifier
-      return RewardVideoNotifier(service);
-    });
+StateNotifierProvider<RewardVideoNotifier, RewardVideoState>((ref) {
+  // Initialize service synchronously inline for now
+  final service = RewardVideoService();
+  // Don't await - just create the notifier
+  return RewardVideoNotifier(service);
+});
 
 // Provider for premium server unlock refresh trigger
 // This provider rebuilds whenever premium unlocks change
 final premiumServerUnlocksProvider =
-    StateNotifierProvider<
-      PremiumUnlocksNotifier,
-      Map<String, UnlockedPremiumServer>
-    >((ref) {
-      return PremiumUnlocksNotifier();
-    });
+StateNotifierProvider<
+    PremiumUnlocksNotifier,
+    Map<String, UnlockedPremiumServer>
+>((ref) {
+  return PremiumUnlocksNotifier();
+});
 
 class PremiumUnlocksNotifier
     extends StateNotifier<Map<String, UnlockedPremiumServer>> {
@@ -927,6 +927,70 @@ class ServerLatencyNotifier extends StateNotifier<Map<String, int?>> {
 }
 
 final serverLatencyProvider =
-    StateNotifierProvider<ServerLatencyNotifier, Map<String, int?>>((ref) {
-      return ServerLatencyNotifier();
-    });
+StateNotifierProvider<ServerLatencyNotifier, Map<String, int?>>((ref) {
+  return ServerLatencyNotifier();
+});
+
+// ─── Server Load Auto-Refresh Provider ────────────────────────────────────
+// Polls the lightweight /servers/load-status endpoint every few seconds so
+// the "% load" / "full" state shown on the servers screen stays close to
+// real-time, without re-fetching the whole server list (names, credentials,
+// flags, etc). Only runs while something is actively watching it (e.g. the
+// servers screen is open) — Riverpod's autoDispose + keepAlive-less default
+// means the timer is cancelled automatically when the screen is closed.
+class ServerLoadStatusNotifier
+    extends StateNotifier<Map<String, Map<String, dynamic>>> {
+  ServerLoadStatusNotifier(this._ref) : super({});
+
+  final Ref _ref;
+  Timer? _timer;
+  bool _disposed = false;
+
+  /// Start polling every [interval] for the given [serverIds].
+  /// Safe to call repeatedly — restarts the timer with the latest id list.
+  void startPolling(List<String> serverIds, {Duration? interval}) {
+    if (_disposed || serverIds.isEmpty) return;
+    debugPrint(
+      '[LoadStatus] startPolling called for ${serverIds.length} servers: $serverIds',
+    );
+    _timer?.cancel();
+    // Poll once immediately, then on the interval.
+    _poll(serverIds);
+    _timer = Timer.periodic(
+      interval ?? const Duration(seconds: 4),
+          (_) => _poll(serverIds),
+    );
+  }
+
+  Future<void> _poll(List<String> serverIds) async {
+    if (_disposed) return;
+    debugPrint('[LoadStatus] polling ${serverIds.length} servers...');
+    final apiService = _ref.read(apiServiceProvider);
+    final result = await apiService.getServerLoadStatus(serverIds);
+    debugPrint('[LoadStatus] poll result: ${result.length} entries -> $result');
+    if (!_disposed && result.isNotEmpty) {
+      state = {...state, ...result};
+    }
+  }
+
+  void stopPolling() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _timer?.cancel();
+    super.dispose();
+  }
+}
+
+final serverLoadStatusProvider = StateNotifierProvider.autoDispose<
+    ServerLoadStatusNotifier, Map<String, Map<String, dynamic>>>((ref) {
+  final notifier = ServerLoadStatusNotifier(ref);
+  // Stop the timer as soon as nothing is watching this provider anymore
+  // (e.g. the user navigates away from the servers screen).
+  ref.onDispose(() => notifier.stopPolling());
+  return notifier;
+});

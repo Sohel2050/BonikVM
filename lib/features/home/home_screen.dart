@@ -12,6 +12,7 @@ import 'package:axevpn_flutter/openvpn_flutter.dart';
 import '../../core/services/vpn_state.dart';
 import '../../core/services/level_play_service.dart';
 import '../../core/services/vpn_notification_service.dart';
+import '../../core/services/vpn_service.dart' show ServerFullException;
 import '../../core/api/api_service.dart';
 import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/theme_provider.dart';
@@ -621,6 +622,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _isTogglingConnection = true;
     try {
       await _doToggleConnection();
+    } on ServerFullException catch (e) {
+      _connectionAnimationController.reverse();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } finally {
       _isTogglingConnection = false;
     }

@@ -17,6 +17,7 @@ import '../../widgets/unified_ads_popup_simple.dart';
 import '../../widgets/level_play_banner_ad.dart';
 import '../../widgets/level_play_native_ad.dart';
 import '../../core/services/level_play_service.dart';
+import '../../core/services/vpn_service.dart' show ServerFullException;
 
 class ServersScreen extends ConsumerStatefulWidget {
   const ServersScreen({super.key});
@@ -170,10 +171,19 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final themeColor = ref.watch(themeColorProvider);
 
-    // Trigger TCP-connect latency measurement when server list loads/refreshes
+    // Live load %/is_full data, refreshed every few seconds by a lightweight
+    // poll (see serverLoadStatusProvider) — merged into the server list below
+    // so the UI stays close to real-time without re-fetching everything.
+    final liveLoadStatus = ref.watch(serverLoadStatusProvider);
+
+    // Trigger TCP-connect latency measurement AND start the load auto-refresh
+    // poll when the server list loads/refreshes.
     ref.listen<AsyncValue<List<VpnServer>>>(serversProvider, (_, next) {
       next.whenData((servers) {
         ref.read(serverLatencyProvider.notifier).measureLatencies(servers);
+        ref
+            .read(serverLoadStatusProvider.notifier)
+            .startPolling(servers.map((s) => s.id).toList());
       });
     });
 
@@ -298,12 +308,23 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       onRetry: () => ref.refresh(serversProvider),
                     ),
                     data: (servers) {
+                      // Merge in the latest polled load status, if any, so
+                      // the list reflects near-real-time capacity/load.
+                      final liveServers = liveLoadStatus.isEmpty
+                          ? servers
+                          : servers.map((s) {
+                        final status = liveLoadStatus[s.id];
+                        return status != null
+                            ? s.copyWithLoadStatus(status)
+                            : s;
+                      }).toList();
+
                       return TabBarView(
                         controller: _tabController,
                         children: [
                           // Free Servers
                           _buildServerList(
-                            servers,
+                            liveServers,
                             false,
                             favoriteServers,
                             isPremium,
@@ -313,7 +334,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                           ),
                           // Premium Servers
                           _buildServerList(
-                            servers,
+                            liveServers,
                             true,
                             favoriteServers,
                             isPremium,
@@ -1078,7 +1099,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
 
       if (mounted) {
         String errorMessage = 'Connection failed';
-        if (e.toString().contains('OpenVPN need to be initialized')) {
+        if (e is ServerFullException) {
+          errorMessage = e.toString();
+        } else if (e.toString().contains('OpenVPN need to be initialized')) {
           errorMessage = 'VPN engine initialization failed. Please try again.';
         } else if (e.toString().contains('permission denied')) {
           errorMessage =

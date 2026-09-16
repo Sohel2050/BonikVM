@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:axevpn_flutter/openvpn_flutter.dart';
 import 'package:axevpn_flutter/v2ray_flutter.dart';
@@ -13,6 +14,17 @@ import 'purchase_service.dart';
 import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
 import 'level_play_service.dart';
+
+/// Thrown when a connect attempt is rejected because the server has
+/// reached its configured device capacity.
+class ServerFullException implements Exception {
+  final String serverName;
+  ServerFullException(this.serverName);
+
+  @override
+  String toString() =>
+      '$serverName is at full capacity. Please select another server.';
+}
 
 class VpnService {
   static final VpnService _instance = VpnService._internal();
@@ -589,6 +601,20 @@ class VpnService {
       final canAccess = await canAccessServer(server);
       if (!canAccess) {
         throw Exception('Premium subscription required to access this server');
+      }
+
+      // ✅ FRESH capacity check right before connecting — this is a live
+      // call to the backend (not the cached server list), so it catches
+      // the case where the server filled up seconds ago after the app's
+      // list was last fetched. The backend still enforces this again
+      // (hard block) when log-connect/download is called, so this is a
+      // fast pre-check for a clean error message, not the only guard.
+      final freshStatus = await ApiService.instance.getServerLoadStatus([
+        server.id,
+      ]);
+      final liveStatus = freshStatus[server.id];
+      if (liveStatus != null && liveStatus['is_full'] == true) {
+        throw ServerFullException(server.name);
       }
 
       // Always disconnect first unless we're in a clean disconnected/denied state.
@@ -1452,12 +1478,81 @@ pull
       } catch (e) {
       }
 
+      // ✅ Verify against the REAL native stage of every protocol (not just
+      // the internal _vpnState flag) before telling the user we're
+      // disconnected. This is what fixes the "Home shows Not Secure but the
+      // system notification still shows VPN Connected" symptom: previously
+      // we forced the UI to disconnected unconditionally, even if the
+      // tunnel that's actually running silently failed to tear down. Now,
+      // if a protocol still reports itself connected, we retry disconnecting
+      // specifically that one (a couple of times) before giving up.
+      for (int attempt = 0; attempt < 3; attempt++) {
+        final stillConnected = await _detectActuallyConnectedProtocol();
+        if (stillConnected == null) break; // genuinely down — done
+
+        debugPrint(
+          '[Disconnect] Native check found "$stillConnected" still '
+              'connected after disconnect attempt ${attempt + 1}/3 — retrying '
+              'disconnect on that protocol specifically.',
+        );
+
+        try {
+          switch (stillConnected) {
+            case 'wireguard':
+              await _wireGuard?.disconnect();
+              break;
+            case 'openconnect':
+              await _openConnect?.disconnect();
+              break;
+            case 'openvpn':
+              _openVPN?.disconnect();
+              break;
+            case 'v2ray':
+              await _v2ray?.disconnect();
+              break;
+          }
+        } catch (e) {
+          debugPrint('[Disconnect] Retry disconnect for $stillConnected failed: $e');
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      final finalCheck = await _detectActuallyConnectedProtocol();
+      if (finalCheck != null) {
+        debugPrint(
+          '[Disconnect] "$finalCheck" is STILL reporting connected after '
+              'all retries — the OS-level VPN notification will likely still '
+              'show Connected even though the app is about to show '
+              'disconnected. This points to a native plugin issue for that '
+              'protocol, not the app\'s state tracking.',
+        );
+      }
+
       // Clear server and connection state
+      // ✅ Log the disconnect to the backend BEFORE clearing _currentServer
+      // and forcing the UI to "disconnected". Previously this only happened
+      // via the native stage-changed callback — but every protocol
+      // disconnect call above is wrapped in a silent catch(e){}, so if the
+      // native tunnel silently failed to actually tear down, that callback
+      // never fired, _logDisconnection() was never called, and the
+      // backend's connected_devices never decremented — even though the
+      // app was about to tell the user (and itself) "disconnected". This
+      // keeps the backend counter in sync with whatever the app just told
+      // the user, regardless of whether the native plugin confirmed it.
+      if (_currentServer != null) {
+        await _logDisconnection();
+      }
       _currentServer = null;
       _connectionStartTime = null;
 
       // If native plugin never fired disconnected, force state now
       if (_vpnState != VpnState.disconnected) {
+        debugPrint(
+          '[Disconnect] Native plugin never confirmed disconnected '
+              '(still $_vpnState) — forcing app state to disconnected anyway. '
+              'The OS-level VPN notification may still show connected if the '
+              'underlying tunnel silently failed to tear down.',
+        );
         _stopStatusUpdater();
         _clearPersistentNotification();
         _updateVpnState(VpnState.disconnected);
@@ -1593,6 +1688,36 @@ pull
   ///
   /// Only runs when the app believes it is connected — avoids interfering
   /// with a fresh connection attempt.
+  /// Checks the REAL native stage of every VPN protocol plugin (not the
+  /// app's internal _vpnState flag) and returns the name of whichever one
+  /// still reports itself as connected, or null if all are genuinely down.
+  /// Used by disconnect() to verify a real teardown instead of trusting
+  /// silently-swallowed plugin errors.
+  Future<String?> _detectActuallyConnectedProtocol() async {
+    try {
+      if (_openVPN != null) {
+        final stage = await _openVPN!.stage();
+        if (stage == VPNStage.connected) return 'openvpn';
+      }
+    } catch (_) {}
+
+    try {
+      if (_openConnect != null) {
+        final ocStage = await _openConnect!.stage();
+        if (ocStage == OCStage.connected) return 'openconnect';
+      }
+    } catch (_) {}
+
+    try {
+      if (_wireGuard != null) {
+        final wgStage = await _wireGuard!.stage();
+        if (wgStage == WGStage.connected) return 'wireguard';
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   Future<void> resyncVpnState() async {
     if (!Platform.isAndroid) return;
     if (_vpnState != VpnState.connected) return;

@@ -162,6 +162,18 @@
 -dontwarn dev.flutterplaza.in_app_update.**
 
 # -------------------------------
+# WIREGUARD FLUTTER PLUGIN - CRITICAL FOR VPN CONNECTION
+# (missing previously — release builds with isMinifyEnabled=true could
+# strip/obfuscate these, causing WireGuard connect/disconnect calls to
+# silently fail in release APKs even though debug builds work fine)
+# -------------------------------
+-keep class com.wireguard.android.** { *; }
+-keep class com.wireguard.android.backend.** { *; }
+-keep class com.wireguard.config.** { *; }
+-keep class com.wireguard.crypto.** { *; }
+-dontwarn com.wireguard.**
+
+# -------------------------------
 # V2RAY / AXEVPN V2RAY PLUGIN
 # -------------------------------
 -dontwarn libv2ray.Libv2ray

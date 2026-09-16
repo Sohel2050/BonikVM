@@ -25,6 +25,11 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          // Required by the backend's SecureApiAccess middleware on every
+          // non-public /api/* route (e.g. /api/v2/peer). Without this,
+          // those routes 401 with "API token required" even when a valid
+          // Firebase Authorization token is also attached below.
+          'X-API-Token': AppConfig.apiKey,
         },
       ),
     );

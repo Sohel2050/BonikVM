@@ -215,6 +215,44 @@ class ApiService {
     return await getServers();
   }
 
+  // Lightweight poll for just the live load numbers (capacity / connected /
+  // is_full) for a set of server ids. Used by the auto-refresh timer on the
+  // servers screen so we don't have to re-fetch the whole server list
+  // (names, credentials, flags, etc) every few seconds.
+  // Returns a map of serverId -> {capacity, current_load, load_percentage, is_full, available_slots}
+  Future<Map<String, Map<String, dynamic>>> getServerLoadStatus(
+      List<String> serverIds,
+      ) async {
+    try {
+      _ensureInitialized();
+      final idsParam = serverIds.join(',');
+      final response = await _dio.get(
+        '/api/${AppConfig.apiVersion}/servers/load-status',
+        queryParameters: idsParam.isNotEmpty ? {'ids': idsParam} : null,
+      );
+
+      final List<dynamic> data = response.data is List
+          ? response.data
+          : response.data['data'] ?? [];
+
+      final result = <String, Map<String, dynamic>>{};
+      for (final entry in data) {
+        final id = entry['id']?.toString();
+        if (id != null) {
+          result[id] = Map<String, dynamic>.from(entry as Map);
+        }
+      }
+      return result;
+    } catch (e) {
+      // Non-critical — if this poll fails, the UI just keeps showing the
+      // last known values until the next successful poll. Logged (not
+      // silent) so a persistent failure is visible in logcat instead of
+      // just quietly never updating the UI.
+      debugPrint('[LoadStatus] getServerLoadStatus failed: $e');
+      return {};
+    }
+  }
+
   // Get all servers - using correct API endpoint with retry logic and TLS fallback
   Future<List<VpnServer>> getServers() async {
     int retryCount = 0;
@@ -1229,6 +1267,66 @@ class VpnServer {
     this.ocUsername,
     this.ocPassword,
   });
+
+  /// Returns a copy of this server with just the live load fields replaced
+  /// (used by the auto-refresh poll so we don't re-fetch the whole server
+  /// object — name, credentials, flags, etc — every few seconds).
+  VpnServer copyWithLoadStatus(Map<String, dynamic> status) {
+    final newCapacity = (status['capacity'] as num?)?.toInt() ?? capacity;
+    final newConnected =
+        (status['current_load'] as num?)?.toInt() ?? connectedDevices;
+    final newLoadPct =
+        (status['load_percentage'] as num?)?.toDouble() ?? loadPercentage;
+    final newIsFull = (status['is_full'] as bool?) ?? isFull;
+
+    return VpnServer(
+      id: id,
+      name: name,
+      ip: ip,
+      country: country,
+      countryCode: countryCode,
+      flag: flag,
+      premium: premium,
+      latency: latency,
+      configUrl: configUrl,
+      isActive: isActive,
+      load: newLoadPct / 100.0,
+      protocol: protocol,
+      tcpPort: tcpPort,
+      udpPort: udpPort,
+      port: port,
+      vpnUsername: vpnUsername,
+      vpnPassword: vpnPassword,
+      useFile: useFile,
+      freeConnectDuration: freeConnectDuration,
+      connectedDevices: newConnected,
+      order: order,
+      capacity: newCapacity,
+      loadPercentage: newLoadPct,
+      isFull: newIsFull,
+      protocols: protocols,
+      vpnProtocolType: vpnProtocolType,
+      provider: provider,
+      providerServerId: providerServerId,
+      providerPayload: providerPayload,
+      flagUrl: flagUrl,
+      isImported: isImported,
+      v2raySubProtocol: v2raySubProtocol,
+      v2rayUuid: v2rayUuid,
+      v2rayNetwork: v2rayNetwork,
+      v2raySecurity: v2raySecurity,
+      v2rayPath: v2rayPath,
+      v2rayHost: v2rayHost,
+      v2rayPublicKey: v2rayPublicKey,
+      v2rayShortId: v2rayShortId,
+      v2rayPort: v2rayPort,
+      ocServerUrl: ocServerUrl,
+      ocAuthGroup: ocAuthGroup,
+      ocServercert: ocServercert,
+      ocUsername: ocUsername,
+      ocPassword: ocPassword,
+    );
+  }
 
   /// Check if this server uses OneConnect provider
   bool get isOneConnect =>
