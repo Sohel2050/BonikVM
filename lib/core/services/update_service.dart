@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_update/in_app_update.dart';
 
 import '../api/api_service.dart';
+import '../navigation/app_navigator.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
@@ -33,29 +34,32 @@ class UpdateService {
 
   // ============================================================
 
-  Future<void> initialize() async {
-    try {
-      // প্রতিবার app start হলে update check হবে
-      await checkForUpdates();
-
-      // App চলমান অবস্থায় periodic check
-      _schedulePeriodicChecks();
-    } catch (e) {
-      debugPrint('UpdateService: Initialize error: $e');
-    }
-  }
+  // Simplified to match the reference approach: ONE reliable check
+  // point (the splash screen, which always has a valid context) is
+  // enough — no periodic background Timer needed. The Timer approach
+  // was removed because it ran with no BuildContext of its own, so it
+  // could silently fail to ever show the force-update dialog. A force
+  // update is now always caught the next time the user opens/reopens
+  // the app via splash_screen.dart. Kept as a no-op so main.dart (which
+  // calls this during startup, before the widget tree exists) doesn't
+  // need to change.
+  Future<void> initialize() async {}
 
   // ============================================================
   // CHECK FOR UPDATES
   // ============================================================
 
-  Future<void> checkForUpdates({
+  /// Returns true if a mandatory (force) update dialog was shown and the
+  /// caller should NOT proceed with normal navigation — e.g. the splash
+  /// screen uses this to stay put instead of routing to onboarding/home
+  /// underneath a non-dismissible update dialog.
+  Future<bool> checkForUpdates({
     BuildContext? context,
     bool showNoUpdateDialog = false,
   }) async {
     if (_isCheckingForUpdates) {
       debugPrint('UpdateService: Already checking for updates');
-      return;
+      return false;
     }
 
     _isCheckingForUpdates = true;
@@ -69,8 +73,8 @@ class UpdateService {
 
       debugPrint(
         'UpdateService: Admin update = '
-        '${adminUpdate?.latestVersion}, '
-        'force = ${adminUpdate?.isForceUpdate}',
+            '${adminUpdate?.latestVersion}, '
+            'force = ${adminUpdate?.isForceUpdate}',
       );
 
       // ----------------------------------------------------------
@@ -80,6 +84,7 @@ class UpdateService {
       if (adminUpdate != null && adminUpdate.isForceUpdate) {
         if (context != null && context.mounted) {
           await _showUpdateDialog(context, adminUpdate);
+          return true;
         } else {
           debugPrint(
             'UpdateService: Force update detected but no context available',
@@ -89,7 +94,7 @@ class UpdateService {
         // VERY IMPORTANT:
         // Do NOT check Google Play here.
         // Do NOT save skip/update state.
-        return;
+        return false;
       }
 
       // ----------------------------------------------------------
@@ -112,6 +117,7 @@ class UpdateService {
           );
         }
       }
+      return false;
     } catch (e) {
       debugPrint('UpdateService: Error checking for updates: $e');
 
@@ -121,6 +127,7 @@ class UpdateService {
           'Failed to check for updates. Please try again later.',
         );
       }
+      return false;
     } finally {
       _isCheckingForUpdates = false;
     }
@@ -130,25 +137,25 @@ class UpdateService {
   // GOOGLE PLAY OPTIONAL UPDATE
   // ============================================================
   Future<void> _checkGooglePlayUpdate(
-    BuildContext? context,
-    bool showNoUpdateDialog,
-  ) async {
+      BuildContext? context,
+      bool showNoUpdateDialog,
+      ) async {
     try {
       final AppUpdateInfo updateInfo = await InAppUpdate.checkForUpdate();
 
       debugPrint(
         'UpdateService: Play update availability: '
-        '${updateInfo.updateAvailability}',
+            '${updateInfo.updateAvailability}',
       );
 
       debugPrint(
         'UpdateService: Immediate update allowed: '
-        '${updateInfo.immediateUpdateAllowed}',
+            '${updateInfo.immediateUpdateAllowed}',
       );
 
       debugPrint(
         'UpdateService: Flexible update allowed: '
-        '${updateInfo.flexibleUpdateAllowed}',
+            '${updateInfo.flexibleUpdateAllowed}',
       );
 
       if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
@@ -182,9 +189,9 @@ class UpdateService {
   // ============================================================
 
   Future<void> _showPlayStoreUpdateDialog(
-    BuildContext context,
-    AppUpdateInfo updateInfo,
-  ) async {
+      BuildContext context,
+      AppUpdateInfo updateInfo,
+      ) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -348,9 +355,9 @@ class UpdateService {
   // ============================================================
 
   Future<void> _checkWithCustomAPI(
-    BuildContext? context,
-    bool showNoUpdateDialog,
-  ) async {
+      BuildContext? context,
+      bool showNoUpdateDialog,
+      ) async {
     try {
       final updateInfo = await _checkAdminForceUpdate();
 
@@ -448,9 +455,9 @@ class UpdateService {
   // ============================================================
 
   Future<void> _showUpdateDialog(
-    BuildContext context,
-    UpdateInfo updateInfo,
-  ) async {
+      BuildContext context,
+      UpdateInfo updateInfo,
+      ) async {
     final packageInfo = await PackageInfo.fromPlatform();
 
     return showDialog<void>(
@@ -568,7 +575,7 @@ class UpdateService {
                 ),
                 const SizedBox(height: 8),
                 ...updateInfo.releaseNotes.map(
-                  (note) => Padding(
+                      (note) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,7 +735,15 @@ class UpdateService {
     _periodicCheckTimer?.cancel();
 
     _periodicCheckTimer = Timer.periodic(_periodicCheckInterval, (_) async {
-      await checkForUpdates();
+      // ✅ FIX: a Timer callback has no BuildContext of its own, so the old
+      // code called checkForUpdates() with no context at all — meaning a
+      // force-update triggered by this periodic 6-hour check could NEVER
+      // actually show the dialog (checkForUpdates just debugPrint'ed
+      // "no context available" and silently returned, every single time).
+      // appNavigatorKey gives us the app's current top-level context even
+      // from here, so the dialog can actually be shown.
+      final navContext = appNavigatorKey.currentContext;
+      await checkForUpdates(context: navContext);
     });
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import '../../core/services/update_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -48,15 +49,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   void _checkAuthAndNavigate() {
     Timer(const Duration(milliseconds: 1500), () async {
-      if (mounted) {
-        final prefs = await SharedPreferences.getInstance();
-        final seenOnboarding = prefs.getBool('onboarding_done') ?? false;
-        if (!mounted) return;
-        if (!seenOnboarding) {
-          Navigator.of(context).pushReplacementNamed('/onboarding');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+      if (!mounted) return;
+
+      // ✅ Check for a mandatory update HERE, on the splash screen, using
+      // this widget's own `context` — which is guaranteed to exist and be
+      // mounted at this point. This is the one place in the app's whole
+      // lifecycle where we never have to worry about "no context
+      // available" (the bug that silently broke the periodic 6-hour
+      // check). Every app launch now reliably re-checks and can show the
+      // force-update dialog before the user ever reaches Home.
+      final blockedByForceUpdate = await UpdateService.instance
+          .checkForUpdates(context: context);
+      if (!mounted || blockedByForceUpdate) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final seenOnboarding = prefs.getBool('onboarding_done') ?? false;
+      if (!mounted) return;
+      if (!seenOnboarding) {
+        Navigator.of(context).pushReplacementNamed('/onboarding');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     });
   }
