@@ -957,19 +957,43 @@ class ServerLoadStatusNotifier
     // Poll once immediately, then on the interval.
     _poll(serverIds);
     _timer = Timer.periodic(
-      interval ?? const Duration(seconds: 4),
+      interval ?? const Duration(seconds: 2),
           (_) => _poll(serverIds),
     );
   }
 
-  Future<void> _poll(List<String> serverIds) async {
+  Future<void> _poll(List<String> serverIds, {int attempt = 0}) async {
     if (_disposed) return;
-    debugPrint('[LoadStatus] polling ${serverIds.length} servers...');
+    debugPrint(
+      '[LoadStatus] polling ${serverIds.length} servers... (attempt ${attempt + 1})',
+    );
     final apiService = _ref.read(apiServiceProvider);
     final result = await apiService.getServerLoadStatus(serverIds);
     debugPrint('[LoadStatus] poll result: ${result.length} entries -> $result');
-    if (!_disposed && result.isNotEmpty) {
+
+    if (_disposed) return;
+
+    if (result.isNotEmpty) {
       state = {...state, ...result};
+      return;
+    }
+
+    // ✅ Empty result usually means this particular poll failed (timeout,
+    // brief network blip, etc — see getServerLoadStatus's catch, which
+    // returns {} on any error). Previously a failed poll just sat there
+    // until the *next* scheduled tick (up to a full interval later),
+    // which is what caused the "maje maje update hoyna" gaps. Now we
+    // retry quickly (up to 2 extra tries, 800ms apart) within the same
+    // cycle instead of waiting for the next periodic tick.
+    if (attempt < 2) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (_disposed) return;
+      await _poll(serverIds, attempt: attempt + 1);
+    } else {
+      debugPrint(
+        '[LoadStatus] poll failed 3 times in a row for this cycle — '
+            'will try again on the next scheduled tick.',
+      );
     }
   }
 

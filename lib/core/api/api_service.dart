@@ -229,6 +229,15 @@ class ApiService {
       final response = await _dio.get(
         '/api/${AppConfig.apiVersion}/servers/load-status',
         queryParameters: idsParam.isNotEmpty ? {'ids': idsParam} : null,
+        // ✅ This is a frequent, lightweight poll (every 2 seconds) — it
+        // should fail fast and let the retry-loop in ServerLoadStatusNotifier
+        // try again, rather than inheriting the app's default 30s timeout
+        // (meant for heavier calls) and silently stalling the whole polling
+        // cycle for half a minute on one slow request.
+        options: Options(
+          sendTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+        ),
       );
 
       final List<dynamic> data = response.data is List
