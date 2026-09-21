@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/device_identity.dart';
 
 // Encrypted, OS-backed storage (Keychain/Keystore/DPAPI/libsecret) for the
 // bearer auth token — SharedPreferences is a plaintext file, unsuitable for
@@ -351,9 +352,15 @@ class ApiClient {
       String protocol, // 'wireguard' | 'openvpn'
       ) async {
     try {
+      // device_id = per-install UUID, so every device gets its own peer
+      // (own key + IP) even when several devices share one account or are guests.
       final response = await get(
         '/api/v2/peer',
-        queryParameters: {'server_id': serverId, 'protocol': protocol},
+        queryParameters: {
+          'server_id': serverId,
+          'protocol': protocol,
+          'device_id': await DeviceIdentity.id(),
+        },
       );
       if (response.statusCode == 200 &&
           response.data is Map<String, dynamic>) {

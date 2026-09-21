@@ -3,6 +3,7 @@ import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import '../config/app_config.dart';
+import '../services/device_identity.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -462,8 +463,14 @@ class ApiService {
     try {
       _ensureInitialized();
 
+      // device_id lets the backend give this device its own WireGuard peer on
+      // self-hosted servers (other servers ignore it).
       final response = await _dio.get(
-        '/api/${AppConfig.apiVersion}/get?id=$serverId',
+        '/api/${AppConfig.apiVersion}/get',
+        queryParameters: {
+          'id': serverId,
+          'device_id': await DeviceIdentity.id(),
+        },
       );
 
       if (response.statusCode == 200) {

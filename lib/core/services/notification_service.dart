@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'device_identity.dart';
 import 'package:dio/dio.dart';
 import '../models/app_notification.dart';
 import '../api/api_service.dart';
@@ -33,7 +33,7 @@ class NotificationService {
       ),
     );
     _notificationController =
-        StreamController<List<AppNotification>>.broadcast();
+    StreamController<List<AppNotification>>.broadcast();
   }
 
   static NotificationService get instance => _instance;
@@ -46,7 +46,7 @@ class NotificationService {
   // Stream that fires when a subscription-related push notification arrives
   // (crypto approved / rejected). Consumers listen and refresh premium state.
   final StreamController<Map<String, dynamic>> _subscriptionEventController =
-      StreamController<Map<String, dynamic>>.broadcast();
+  StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get subscriptionEventStream =>
       _subscriptionEventController.stream;
 
@@ -58,7 +58,7 @@ class NotificationService {
 
   // Local Notifications
   final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
 
   // Notification channels
   static const String _vpnChannelId = 'vpn_channel';
@@ -67,7 +67,6 @@ class NotificationService {
 
   // Storage keys
   static const String _tokenKey = 'fcm_token';
-  static const String _deviceIdKey = 'device_id';
   static const _secureStorage = FlutterSecureStorage();
 
   bool _isInitialized = false;
@@ -171,8 +170,8 @@ class NotificationService {
   Future<void> _createNotificationChannels() async {
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+        AndroidFlutterLocalNotificationsPlugin
+    >();
 
     if (androidPlugin != null) {
       // VPN channel
@@ -306,22 +305,8 @@ class NotificationService {
 
   /// Get device information
   Future<Map<String, String>> _getDeviceInfo() async {
-    final deviceInfoPlugin = DeviceInfoPlugin();
-    final prefs = await SharedPreferences.getInstance();
-
-    String deviceId = prefs.getString(_deviceIdKey) ?? '';
-
-    if (deviceId.isEmpty) {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfoPlugin.androidInfo;
-        deviceId = androidInfo.id;
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfoPlugin.iosInfo;
-        deviceId = iosInfo.identifierForVendor ?? 'unknown_ios';
-      }
-
-      await prefs.setString(_deviceIdKey, deviceId);
-    }
+    // Same per-install id as everywhere else (never Android Build.ID).
+    final deviceId = await DeviceIdentity.id();
 
     return {'device_id': deviceId, 'platform': Platform.operatingSystem};
   }
@@ -344,10 +329,10 @@ class NotificationService {
       // Create notification from message - handle both with and without notification payload
       final appNotification = AppNotification(
         id:
-            message.messageId ??
+        message.messageId ??
             DateTime.now().millisecondsSinceEpoch.toString(),
         title:
-            message.notification?.title ??
+        message.notification?.title ??
             message.data['title'] ??
             'Notification',
         body: message.notification?.body ?? message.data['body'] ?? '',
@@ -564,7 +549,7 @@ class NotificationService {
                 (responseData is Map
                     ? responseData['notifications']
                     : responseData) ??
-                [];
+                    [];
             final notifications = notificationsList
                 .map((json) => AppNotification.fromJson(json))
                 .toList();
@@ -597,8 +582,8 @@ class NotificationService {
 
   /// Save notifications to local storage
   Future<void> _saveNotificationsLocally(
-    List<AppNotification> notifications,
-  ) async {
+      List<AppNotification> notifications,
+      ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final notificationsJson = jsonEncode(

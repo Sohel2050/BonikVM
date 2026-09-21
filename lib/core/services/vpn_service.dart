@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:axevpn_flutter/openvpn_flutter.dart';
 import 'package:axevpn_flutter/v2ray_flutter.dart';
 import 'package:axevpn_flutter/openconnect_flutter.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../api/api_service.dart';
 import '../api_client.dart';
+import 'device_identity.dart';
 import 'purchase_service.dart';
 import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
@@ -369,26 +369,10 @@ class VpnService {
     }
   }
 
-  Future<String> _getDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? deviceId = prefs.getString('device_id');
-
-    if (deviceId == null) {
-      final deviceInfo = DeviceInfoPlugin();
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceId = androidInfo.id;
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceId = iosInfo.identifierForVendor ?? 'unknown';
-      } else {
-        deviceId = 'unknown_device';
-      }
-      await prefs.setString('device_id', deviceId);
-    }
-
-    return deviceId;
-  }
+  /// Per-install random id. NOT Android Build.ID: that is the same on every
+  /// phone with the same firmware, which made different phones share one VPN
+  /// key / push token / session on the server. See device_identity.dart.
+  Future<String> _getDeviceId() => DeviceIdentity.id();
 
   void _onVpnStatusChanged(VpnStatus? status) {
     // Save raw plugin status so _startStatusUpdater can use the latest bytes.
