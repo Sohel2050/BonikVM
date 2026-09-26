@@ -1757,21 +1757,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: Container(
                   height: 300,
                   margin: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-                    border: Border.all(
-                      color: isDarkMode
-                          ? Colors.white.withOpacity(0.08)
-                          : Colors.black.withOpacity(0.05),
-                    ),
-                  ),
+                  // No fill color and no border here: while the ad has not
+                  // loaded yet this card is fully invisible against the page
+                  // (LevelPlayNativeAdPlacement paints its own maskColor —
+                  // matching the page background below — over the native
+                  // platform view during load). Once the ad loads, its own
+                  // content fills this space, so no fixed decoration is
+                  // needed here either way.
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: LevelPlayNativeAdPlacement(
-                      maskColor: isDarkMode
-                          ? const Color(0xFF1E293B)
-                          : Colors.white,
+                      maskColor: isDarkMode ? Colors.black : Colors.white,
                     ),
                   ),
                 ),
