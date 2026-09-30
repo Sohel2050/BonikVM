@@ -961,6 +961,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         bool shouldProceed = false;
         int watchedAdsInThisPopup = 0;
         final adConfigForRewards = await AdConfigService.getAdConfig(server.id);
+        // How many videos to ask for is controlled from the admin panel
+        // (Admob settings > Extend Free Time > Number of Ads to Watch).
+        final extendAdCount =
+            (await AdsPopupConfigService().getAdsPopupConfig())
+                .extendTimeAdCount;
         final defaultDurations = [300, 600, 1200]; // 5, 10, 20 minutes
 
         // Show reward popup and wait for user action
@@ -977,7 +982,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: UnifiedAdsPopupSimple(
-                adCount: 3,
+                adCount: extendAdCount,
                 title: 'Extend Free Time',
                 subtitle: 'Watch videos to continue',
                 showSubscribeButton: true,
@@ -1171,7 +1176,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
             );
             return UnifiedAdsPopupSimple(
               customText: adsConfig.premiumUnlockText,
-              adCount: 2,
+              adCount: adsConfig.premiumUnlockAdCount,
               title: 'WATCH ADS TO ACCESS',
               onAction: (action) async {
                 try {
@@ -2046,33 +2051,49 @@ class _NativeAdCard extends StatefulWidget {
 }
 
 class _NativeAdCardState extends State<_NativeAdCard> {
+  // Starts true (space reserved) so the native platform view gets a real
+  // size to attach to and load. If the ad never has content (load fails),
+  // this collapses the whole card away instead of leaving a permanently
+  // empty decorated box sitting in the server list.
+  bool _visible = true;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 320,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: widget.isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: widget.isDarkMode
-            ? null
-            : Border.all(color: Colors.grey[300] ?? Colors.grey),
-        boxShadow: [
-          BoxShadow(
-            color: (widget.isDarkMode ? Colors.black : Colors.grey).withValues(
-              alpha: 0.1,
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: !_visible
+          ? const SizedBox.shrink()
+          : Container(
+        height: 320,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          // Matches this page's own background (Colors.black), not an
+          // approximate dark-slate shade, so the card is invisible
+          // while the ad loads instead of visibly floating on the page.
+          color: widget.isDarkMode ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: widget.isDarkMode
+              ? null
+              : Border.all(color: Colors.grey[300] ?? Colors.grey),
+          boxShadow: [
+            BoxShadow(
+              color: (widget.isDarkMode ? Colors.black : Colors.grey)
+                  .withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: LevelPlayNativeAdPlacement(
+            maskColor: widget.isDarkMode ? Colors.black : Colors.white,
+            onFailed: () {
+              if (mounted) setState(() => _visible = false);
+            },
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: LevelPlayNativeAdPlacement(
-          maskColor: widget.isDarkMode
-              ? const Color(0xFF1E293B)
-              : Colors.white,
         ),
       ),
     );

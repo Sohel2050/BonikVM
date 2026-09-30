@@ -10,6 +10,8 @@ class AdsPopupConfig {
   final bool enablePremiumUnlock;
   final int premiumUnlockDurationMinutes;
   final String premiumUnlockText;
+  final int premiumUnlockAdCount;
+  final int extendTimeAdCount;
 
   AdsPopupConfig({
     required this.enableBuySubscriptionPrompt,
@@ -18,22 +20,28 @@ class AdsPopupConfig {
     required this.enablePremiumUnlock,
     required this.premiumUnlockDurationMinutes,
     required this.premiumUnlockText,
+    this.premiumUnlockAdCount = 1,
+    this.extendTimeAdCount = 3,
   });
 
   factory AdsPopupConfig.fromJson(Map<String, dynamic> json) {
     return AdsPopupConfig(
       enableBuySubscriptionPrompt:
-          json['enable_buy_subscription_prompt'] ?? true,
+      json['enable_buy_subscription_prompt'] ?? true,
       buySubscriptionText:
-          json['buy_subscription_text'] ??
+      json['buy_subscription_text'] ??
           'Watch ads to extend your free time or subscribe for unlimited access',
       adRewardDuration: json['ad_reward_duration'] ?? 5,
       enablePremiumUnlock: json['enable_premium_unlock_ads'] ?? true,
       premiumUnlockDurationMinutes:
-          json['premium_unlock_duration_minutes'] ?? 5,
+      json['premium_unlock_duration_minutes'] ?? 5,
       premiumUnlockText:
-          json['premium_unlock_text'] ??
+      json['premium_unlock_text'] ??
           'Watch an ad to unlock this premium server',
+      // Admin-panel controlled; both fall back to the app's previous
+      // hardcoded values (1 and 3) if the server hasn't set them yet.
+      premiumUnlockAdCount: (json['premium_unlock_ad_count'] as num?)?.toInt() ?? 1,
+      extendTimeAdCount: (json['extend_time_ad_count'] as num?)?.toInt() ?? 3,
     );
   }
 
@@ -41,11 +49,13 @@ class AdsPopupConfig {
     return AdsPopupConfig(
       enableBuySubscriptionPrompt: true,
       buySubscriptionText:
-          'Watch ads to extend your free time or subscribe for unlimited access',
+      'Watch ads to extend your free time or subscribe for unlimited access',
       adRewardDuration: 45,
       enablePremiumUnlock: true,
       premiumUnlockDurationMinutes: 5,
       premiumUnlockText: 'Watch an ad to unlock this premium server',
+      premiumUnlockAdCount: 1,
+      extendTimeAdCount: 3,
     );
   }
 }
@@ -53,7 +63,7 @@ class AdsPopupConfig {
 /// Service to manage ads popup configuration
 class AdsPopupConfigService {
   static final AdsPopupConfigService _instance =
-      AdsPopupConfigService._internal();
+  AdsPopupConfigService._internal();
   factory AdsPopupConfigService() => _instance;
   AdsPopupConfigService._internal();
 
@@ -104,7 +114,7 @@ class AdsPopupConfigService {
 
             // Or try nested format
             adsPopupData ??=
-                data['data']?['ads_popup'] as Map<String, dynamic>?;
+            data['data']?['ads_popup'] as Map<String, dynamic>?;
           }
 
           if (adsPopupData != null) {
