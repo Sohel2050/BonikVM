@@ -60,7 +60,7 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
         'web_price': '16.99',
         'is_popular': false,
         'is_lifetime': false,
-        'duration_days': 365,
+        'duration_days': 180,
       },
       {
         'product_id': 'albonikvpn365days',
