@@ -12,6 +12,7 @@ class LevelPlayNativeAdPlacement extends StatefulWidget {
     this.templateType = LevelPlayTemplateType.MEDIUM,
     this.placementName,
     this.maskColor,
+    this.onFailed,
   });
 
   final double height;
@@ -24,6 +25,9 @@ class LevelPlayNativeAdPlacement extends StatefulWidget {
   /// in seamlessly instead of showing a mismatched-colored box. Falls back
   /// to the page's scaffold background color if not provided.
   final Color? maskColor;
+
+  /// Called when the ad fails to load, so the parent can hide its container.
+  final VoidCallback? onFailed;
 
   @override
   State<LevelPlayNativeAdPlacement> createState() => _LevelPlayNativeAdState();
@@ -75,6 +79,7 @@ class _LevelPlayNativeAdState extends State<LevelPlayNativeAdPlacement>
       '[LevelPlayNativeAd] Load failed: ${error.errorCode} – ${error.message}',
     );
     if (mounted) setState(() => _failed = true);
+    widget.onFailed?.call();
   }
 
   @override
