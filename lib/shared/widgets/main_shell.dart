@@ -20,7 +20,6 @@ import '../../features/terms/terms_of_service_screen.dart';
 import '../providers/app_providers.dart';
 import '../providers/theme_provider.dart';
 import 'modern_app_bar.dart';
-import '../../widgets/level_play_native_ad.dart';
 
 class _HomeNavItemSpec {
   const _HomeNavItemSpec({
@@ -828,31 +827,6 @@ class _MainShellState extends ConsumerState<MainShell> {
                     isDarkMode: isDarkMode,
                   ),
 
-                  if (!isPremium)
-                    Container(
-                      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      height: 80,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: isDarkMode
-                            ? const Color(0xFF1E293B)
-                            : const Color(0xFFF8FAFC),
-                        border: Border.all(
-                          color: isDarkMode
-                              ? Colors.white.withValues(alpha: 0.06)
-                              : Colors.black.withValues(alpha: 0.04),
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: LevelPlayNativeAdPlacement(
-                          height: 80,
-                          maskColor: isDarkMode
-                              ? const Color(0xFF1E293B)
-                              : const Color(0xFFF8FAFC),
-                        ),
-                      ),
-                    ),
                   _buildModernDrawerItem(
                     icon: Icons.privacy_tip,
                     title: 'Privacy Policy',
@@ -1347,3 +1321,4 @@ $appUrl
     );
   }
 }
+

@@ -26,11 +26,16 @@ class LevelPlayBannerAd extends StatefulWidget {
   /// Optional placement name configured in the LevelPlay dashboard.
   final String? placementName;
 
+  /// Called when the banner fails to load/display so the parent can
+  /// collapse its own container (no empty coloured strip left behind).
+  final VoidCallback? onFailed;
+
   LevelPlayBannerAd({
     super.key,
     required this.adUnitId,
     LevelPlayAdSize? adSize,
     this.placementName,
+    this.onFailed,
   }) : adSize = adSize ?? LevelPlayAdSize.BANNER;
 
   @override
@@ -90,6 +95,7 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
       '[LevelPlayBannerAd] Load failed: ${error.errorCode} – ${error.errorMessage}',
     );
     if (mounted) setState(() => _failed = true);
+    widget.onFailed?.call();
   }
 
   @override
@@ -104,6 +110,7 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
     if (mounted) {
       setState(() => _failed = true);
     }
+    widget.onFailed?.call();
   }
 
   @override

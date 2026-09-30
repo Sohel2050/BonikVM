@@ -230,22 +230,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
       child: Column(
         children: [
-          // Top Banner Ad
-          if (!isPremium)
-            Container(
-              height: 60,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: LevelPlayBannerAd(
-                  adUnitId: LevelPlayService.instance.bannerAdUnitId,
-                ),
-              ),
-            ),
+          // Top Banner Ad (collapses completely if it fails to load)
+          if (!isPremium) _ServersBannerSlot(isDarkMode: isDarkMode),
           // Main Content
           Expanded(
             child: Column(
@@ -2069,31 +2055,58 @@ class _NativeAdCardState extends State<_NativeAdCard> {
         height: 320,
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          // Matches this page's own background (Colors.black), not an
-          // approximate dark-slate shade, so the card is invisible
-          // while the ad loads instead of visibly floating on the page.
-          color: widget.isDarkMode ? Colors.black : Colors.white,
+          // Same fill/border as the server cards in this list, so the ad
+          // slot looks like a normal list item (light + dark) while loading.
+          color: widget.isDarkMode ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: widget.isDarkMode
-              ? null
-              : Border.all(color: Colors.grey[300] ?? Colors.grey),
-          boxShadow: [
-            BoxShadow(
-              color: (widget.isDarkMode ? Colors.black : Colors.grey)
-                  .withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(
+            color: widget.isDarkMode
+                ? const Color(0xFF334155)
+                : const Color(0xFFE5E7EB),
+          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: LevelPlayNativeAdPlacement(
-            maskColor: widget.isDarkMode ? Colors.black : Colors.white,
+            maskColor:
+            widget.isDarkMode ? const Color(0xFF1E293B) : Colors.white,
             onFailed: () {
               if (mounted) setState(() => _visible = false);
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ─── Top banner slot: matches page bg, vanishes if the ad fails ──────────────
+class _ServersBannerSlot extends StatefulWidget {
+  final bool isDarkMode;
+  const _ServersBannerSlot({required this.isDarkMode});
+
+  @override
+  State<_ServersBannerSlot> createState() => _ServersBannerSlotState();
+}
+
+class _ServersBannerSlotState extends State<_ServersBannerSlot> {
+  bool _visible = true;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+    return Container(
+      height: 60,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // No own fill: shows the page background (0F172A / F8F9FA) exactly.
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: LevelPlayBannerAd(
+          adUnitId: LevelPlayService.instance.bannerAdUnitId,
+          onFailed: () {
+            if (mounted) setState(() => _visible = false);
+          },
         ),
       ),
     );

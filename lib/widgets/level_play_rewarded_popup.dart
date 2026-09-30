@@ -187,8 +187,8 @@ class _LevelPlayRewardedPopupState
   }
 
   Future<void> _onSubscribeTapped() async {
+    // Caller closes the sheet and opens /premium; popping here would close the premium page.
     await widget.onAction('subscribe_clicked');
-    if (mounted) Navigator.of(context).pop();
   }
 
   void _onClose() {
@@ -213,9 +213,9 @@ class _LevelPlayRewardedPopupState
 
     final String titleText =
         widget.title ??
-        (widget.adCount == 2
-            ? 'Watch 1 Ad for Free Access'
-            : 'Watch ${widget.adCount} Ads for Free Access');
+            (widget.adCount == 2
+                ? 'Watch 1 Ad for Free Access'
+                : 'Watch ${widget.adCount} Ads for Free Access');
 
     final String subtitleText =
         widget.subtitle ?? 'Watch short videos to unlock free VPN time.';

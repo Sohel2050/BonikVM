@@ -191,7 +191,7 @@ class _PremiumServerUnlockPopupState
                 );
               }),
               const SizedBox(height: 5),
-              SizedBox(width: double.infinity, height: 56, child: OutlinedButton.icon(onPressed: () async { await widget.onSubscriptionPressed(); if (mounted) Navigator.of(context).pop(true); }, icon: const Icon(Icons.currency_exchange), label: const Text('OR GO PREMIUM — NO ADS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), style: OutlinedButton.styleFrom(foregroundColor: accent, side: BorderSide(color: accent, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))))),
+              SizedBox(width: double.infinity, height: 56, child: OutlinedButton.icon(onPressed: () async { await widget.onSubscriptionPressed(); }, icon: const Icon(Icons.currency_exchange), label: const Text('OR GO PREMIUM — NO ADS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), style: OutlinedButton.styleFrom(foregroundColor: accent, side: BorderSide(color: accent, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))))),
             ],
           ),
         ),
