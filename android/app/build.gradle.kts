@@ -68,7 +68,7 @@ android {
         // ✅ CRITICAL: Support arm64-v8a and x86_64 with 16 KB page size
         ndk {
             abiFilters.clear()
-            abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
         }
 
         // ✅ CRITICAL: NDK build flags for 16 KB page size support
