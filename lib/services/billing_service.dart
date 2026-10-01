@@ -29,6 +29,38 @@ class BillingService {
     }
   }
 
+  /// Public plan list (no login needed) – used for guests, and as a fallback
+  /// when /subscription/status cannot be reached. Same shape as `plan_catalog`.
+  Future<List<Map<String, dynamic>>> getPublicPlans() async {
+    try {
+      final response = await _api.get('$_base/purchase/plans');
+      final body = response.data;
+      if (body is Map && body['success'] == true) {
+        final plans = (body['data']?['plans'] as List?) ?? const [];
+        return plans.whereType<Map>().map((raw) {
+          final p = Map<String, dynamic>.from(raw);
+          final days = p['duration_days'];
+          final d = days is num ? days.toInt() : int.tryParse('$days') ?? 0;
+          return <String, dynamic>{
+            'product_id': p['product_id'] ?? p['id'],
+            'google_play_product_id': p['android_product_id'] ?? p['product_id'],
+            'app_store_product_id': p['ios_product_id'] ?? p['product_id'],
+            'display_name': p['name'],
+            'description': p['description'],
+            'duration_days': days,
+            'web_price': p['web_price'],
+            'android_price': p['android_price'],
+            'ios_price': p['ios_price'],
+            'is_popular': p['is_popular'] == true,
+            'is_lifetime': days == null || d == 0,
+            'features': p['features'],
+          };
+        }).toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
   /// Returns last 50 subscription records for the authenticated user.
   Future<Map<String, dynamic>> getReceipts() async {
     try {

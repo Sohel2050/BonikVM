@@ -15,6 +15,8 @@ import '../../shared/widgets/error_widget.dart';
 import '../../shared/widgets/flag_icon.dart';
 import '../../widgets/unified_ads_popup_simple.dart';
 import '../../widgets/level_play_banner_ad.dart';
+import '../../widgets/level_play_mrec_slot.dart';
+import '../../core/config/ad_layout_config.dart';
 import '../../widgets/level_play_native_ad.dart';
 import '../../core/services/level_play_service.dart';
 import '../../core/services/vpn_service.dart' show ServerFullException;
@@ -776,6 +778,15 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   }
 
   Widget _buildNativeAdCard(bool isDarkMode) {
+    if (!useNativeAds) {
+      // Same fill/border as the server cards so the slot looks like a list item.
+      return LevelPlayMrecSlot(
+        margin: const EdgeInsets.only(bottom: 12),
+        background: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+        borderColor:
+        isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
+      );
+    }
     return _NativeAdCard(isDarkMode: isDarkMode);
   }
 

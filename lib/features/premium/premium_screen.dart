@@ -15,7 +15,7 @@ import 'billing_bottom_sheets.dart';
 
 // ignore: library_private_types_in_public_api
 final GlobalKey<_PremiumScreenState> premiumScreenKey =
-    GlobalKey<_PremiumScreenState>();
+GlobalKey<_PremiumScreenState>();
 
 class PremiumScreen extends ConsumerStatefulWidget {
   const PremiumScreen({super.key, this.autoRefresh = false});
@@ -35,43 +35,10 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
   // Alias used by MainShell toolbar
   void refreshProducts() => refresh();
 
-  List<Map<String, dynamic>> _parseCatalog(SubscriptionState sub) {
-    if (sub.planCatalog.isNotEmpty) return sub.planCatalog;
-    return [
-      {
-        'product_id': 'albonikvpn30days',
-        'display_name': 'Monthly Premium',
-        'web_price': '3.49',
-        'is_popular': false,
-        'is_lifetime': false,
-        'duration_days': 30,
-      },
-      {
-        'product_id': 'albonikvpn90days',
-        'display_name': '3 Months Premium',
-        'web_price': '9.49',
-        'is_popular': false,
-        'is_lifetime': false,
-        'duration_days': 90,
-      },
-      {
-        'product_id': 'albonikvpn180days',
-        'display_name': '6 Months Premium',
-        'web_price': '16.99',
-        'is_popular': false,
-        'is_lifetime': false,
-        'duration_days': 180,
-      },
-      {
-        'product_id': 'albonikvpn365days',
-        'display_name': '1 year Premium',
-        'web_price': '27.99',
-        'is_popular': false,
-        'is_lifetime': false,
-        'duration_days': 365,
-      },
-    ];
-  }
+  // Plans come only from the admin panel (via the API). No hardcoded fallback,
+  // so a stale price or a product that does not exist in the store is never shown.
+  List<Map<String, dynamic>> _parseCatalog(SubscriptionState sub) =>
+      sub.planCatalog;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +50,7 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
 
     if (_selectedProductId == null && catalog.isNotEmpty) {
       final popular = catalog.firstWhere(
-        (p) => p['is_popular'] == true,
+            (p) => p['is_popular'] == true,
         orElse: () => catalog.first,
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,19 +65,25 @@ class _PremiumScreenState extends ConsumerState<PremiumScreen> {
           ? Center(child: CircularProgressIndicator(color: theme))
           : sub.isPremium
           ? _ActiveView(
-              sub: sub,
-              theme: theme,
-              isDark: isDark,
-              screenState: this,
-            )
+        sub: sub,
+        theme: theme,
+        isDark: isDark,
+        screenState: this,
+      )
+          : catalog.isEmpty
+          ? _PlansUnavailable(
+        theme: theme,
+        isDark: isDark,
+        onRetry: refresh,
+      )
           : _SelectView(
-              catalog: catalog,
-              theme: theme,
-              isDark: isDark,
-              selectedId: _selectedProductId,
-              onSelect: (id) => setState(() => _selectedProductId = id),
-              bg: bg,
-            ),
+        catalog: catalog,
+        theme: theme,
+        isDark: isDark,
+        selectedId: _selectedProductId,
+        onSelect: (id) => setState(() => _selectedProductId = id),
+        bg: bg,
+      ),
     );
   }
 }
@@ -265,8 +238,8 @@ class _ActiveView extends StatelessWidget {
                               color: (daysLeft ?? 0) <= 0
                                   ? Colors.red.shade200
                                   : (daysLeft! <= 7
-                                        ? Colors.orange.shade200
-                                        : Colors.white70),
+                                  ? Colors.orange.shade200
+                                  : Colors.white70),
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
@@ -321,7 +294,7 @@ class _ActiveView extends StatelessWidget {
                             (context as Element)
                                 .findAncestorStateOfType<ConsumerState>()
                                 ?.ref ??
-                            (screenState as ConsumerState).ref;
+                                (screenState as ConsumerState).ref;
                         showVoucherSheet(context, ref);
                       },
                     ),
@@ -365,7 +338,7 @@ class _ActiveView extends StatelessWidget {
               ),
             ),
             ..._kFeatures(context).map(
-              (f) => FadeInUp(
+                  (f) => FadeInUp(
                 delay: const Duration(milliseconds: 230),
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -465,182 +438,192 @@ class _SelectView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final ref = (context as Element)
         .findAncestorStateOfType<ConsumerState>()
         ?.ref;
+
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final subColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF6B7280);
+    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE5E7EB);
+
+    final selected = catalog.firstWhere(
+          (p) => p['product_id'] == selectedId,
+      orElse: () => <String, dynamic>{},
+    );
+    final savings = _computeSavings(catalog);
+    final adminFeatures = _planFeatures(selected);
 
     return SafeArea(
       top: false,
       child: Column(
         children: [
-          // ── Clean header ──────────────────────────────────────
-          FadeInDown(
-            child: Container(
-              width: double.infinity,
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-              child: Column(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: theme.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.currency_exchange,
-                      color: theme,
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    AppLocalizations.of(context).unlockPremium,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white70 : const Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppLocalizations.of(context).accessAllServersFeatures,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF6B7280),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Scrollable body ───────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
+              padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    AppLocalizations.of(context).chooseYourPlan,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white70 : const Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Vertical plan list ────────────────────────
-                  ...catalog.asMap().entries.map(
-                    (entry) => FadeInUp(
-                      delay: Duration(milliseconds: 55 * entry.key),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _PlanCard(
-                          plan: entry.value,
-                          isSelected: selectedId == entry.value['product_id'],
-                          theme: theme,
-                          isDark: isDark,
-                          onTap: () =>
-                              onSelect(entry.value['product_id'] as String?),
+                  // ── Hero ───────────────────────────────────────────
+                  FadeInDown(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 26, 20, 26),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            theme.withValues(alpha: isDark ? 0.22 : 0.16),
+                            theme.withValues(alpha: 0.0),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-
-                  // ── Feature checkmarks ────────────────────────
-                  ..._kFeatures(context).map(
-                    (f) => Padding(
-                      padding: const EdgeInsets.only(bottom: 9),
-                      child: Row(
+                      child: Column(
                         children: [
-                          Icon(
-                            Icons.check_circle_rounded,
-                            color: theme,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            f.$2,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDark
-                                  ? Colors.white70
-                                  : const Color(0xFF374151),
+                          Container(
+                            width: 78,
+                            height: 78,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  theme,
+                                  theme.withValues(alpha: 0.7),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.withValues(alpha: 0.45),
+                                  blurRadius: 28,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                             ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Colors.white,
+                              size: 42,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            l10n.unlockPremium,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w800,
+                              color: titleColor,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            l10n.accessAllServersFeatures,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13.5, color: subColor),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 22),
 
-                  // ── Subscribe CTA ─────────────────────────────
-                  FadeInUp(
-                    delay: const Duration(milliseconds: 200),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme,
-                          foregroundColor: Colors.white70,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          elevation: 6,
-                          shadowColor: theme.withValues(alpha: 0.45),
-                        ),
-                        icon: const Icon(
-                          Icons.lock_open_rounded,
-                          color: Colors.white70,
-                        ),
-                        label: Text(
-                          AppLocalizations.of(context).continueToCheckout,
-                          style: const TextStyle(
-                            fontSize: 17,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.chooseYourPlan,
+                          style: TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white70,
+                            color: titleColor,
                           ),
                         ),
-                        onPressed: selectedId == null
-                            ? null
-                            : () {
-                                final planData = catalog.firstWhere(
-                                  (p) => p['product_id'] == selectedId,
-                                  orElse: () => <String, dynamic>{},
-                                );
-                                final widgetRef = context
-                                    .findAncestorStateOfType<ConsumerState>()
-                                    ?.ref;
-                                if (widgetRef != null) {
-                                  showPaymentMethodSheet(
-                                    context,
-                                    widgetRef,
-                                    selectedId!,
-                                    planData,
-                                  );
-                                }
-                              },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
+                        const SizedBox(height: 12),
 
-                  _SubscriptionLegalLinks(
-                    isDark: isDark,
-                    themeColor: theme,
-                    onOpenTerms: () => Navigator.pushNamed(context, '/terms'),
-                    onOpenPrivacy: () =>
-                        Navigator.pushNamed(context, '/privacy'),
-                    onOpenAppleEula: Platform.isIOS
-                        ? () => Navigator.of(context).push(
+                        // ── Plans (all data comes from the admin panel) ──
+                        ...catalog.asMap().entries.map((entry) {
+                          final plan = entry.value;
+                          final id = plan['product_id'] as String?;
+                          return FadeInUp(
+                            delay: Duration(milliseconds: 55 * entry.key),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _PlanCard(
+                                plan: plan,
+                                isSelected: selectedId == id,
+                                savePercent: savings[id],
+                                theme: theme,
+                                isDark: isDark,
+                                onTap: () => onSelect(id),
+                              ),
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 10),
+
+                        // ── What's included ──────────────────────────
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.whatsIncluded,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: titleColor,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              if (adminFeatures.isNotEmpty)
+                                ...adminFeatures.map(
+                                      (t) => _FeatureRow(
+                                    icon: Icons.check_circle_rounded,
+                                    title: t,
+                                    theme: theme,
+                                    isDark: isDark,
+                                  ),
+                                )
+                              else
+                                ..._kFeatures(context).map(
+                                      (f) => _FeatureRow(
+                                    icon: f.$1,
+                                    title: f.$2,
+                                    subtitle: f.$3,
+                                    theme: theme,
+                                    isDark: isDark,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        _SubscriptionLegalLinks(
+                          isDark: isDark,
+                          themeColor: theme,
+                          onOpenTerms: () =>
+                              Navigator.pushNamed(context, '/terms'),
+                          onOpenPrivacy: () =>
+                              Navigator.pushNamed(context, '/privacy'),
+                          onOpenAppleEula: Platform.isIOS
+                              ? () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const LegalWebViewScreen(
                                 title: 'Apple EULA',
@@ -648,57 +631,246 @@ class _SelectView extends StatelessWidget {
                               ),
                             ),
                           )
-                        : null,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // ── Secondary links ───────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => showReceiptsSheet(context),
-                        icon: Icon(
-                          Icons.receipt_long_outlined,
-                          size: 15,
-                          color: Colors.grey.shade500,
+                              : null,
                         ),
-                        label: Text(
-                          AppLocalizations.of(context).myReceipts,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade500,
-                          ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => showReceiptsSheet(context),
+                              icon: Icon(
+                                Icons.receipt_long_outlined,
+                                size: 15,
+                                color: Colors.grey.shade500,
+                              ),
+                              label: Text(
+                                l10n.myReceipts,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 14,
+                              color: Colors.grey.shade400,
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                            ),
+                            TextButton.icon(
+                              onPressed: () {
+                                if (ref != null) showVoucherSheet(context, ref);
+                              },
+                              icon: Icon(
+                                Icons.local_offer_outlined,
+                                size: 15,
+                                color: Colors.grey.shade500,
+                              ),
+                              label: Text(
+                                l10n.redeemVoucher,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 14,
-                        color: Colors.grey.shade400,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {
-                          if (ref != null) showVoucherSheet(context, ref);
-                        },
-                        icon: Icon(
-                          Icons.local_offer_outlined,
-                          size: 15,
-                          color: Colors.grey.shade500,
-                        ),
-                        label: Text(
-                          AppLocalizations.of(context).redeemVoucher,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
+            ),
+          ),
+
+          // ── Pinned checkout bar ─────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              border: Border(top: BorderSide(color: borderColor)),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme,
+                  disabledBackgroundColor: theme.withValues(alpha: 0.35),
+                  foregroundColor: Colors.white,
+                  elevation: 6,
+                  shadowColor: theme.withValues(alpha: 0.45),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                onPressed: selectedId == null || selected.isEmpty
+                    ? null
+                    : () {
+                  final widgetRef = context
+                      .findAncestorStateOfType<ConsumerState>()
+                      ?.ref;
+                  if (widgetRef != null) {
+                    showPaymentMethodSheet(
+                      context,
+                      widgetRef,
+                      selectedId!,
+                      selected,
+                    );
+                  }
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.lock_open_rounded, size: 20),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        selected.isEmpty
+                            ? l10n.continueToCheckout
+                            : '${l10n.continueToCheckout}  •  \$${_fmtPrice(_planPrice(selected))}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Plan helpers (everything is derived from the admin-configured data) ─────
+
+double _planPrice(Map<String, dynamic> p) {
+  double? parse(dynamic v) => v == null ? null : double.tryParse(v.toString());
+  final platform = Platform.isAndroid
+      ? parse(p['android_price'])
+      : (Platform.isIOS ? parse(p['ios_price']) : null);
+  if (platform != null && platform > 0) return platform;
+  return parse(p['web_price']) ?? 0;
+}
+
+int _planDays(Map<String, dynamic> p) {
+  final d = p['duration_days'];
+  if (d == null) return 0;
+  return d is num ? d.toInt() : int.tryParse(d.toString()) ?? 0;
+}
+
+bool _planIsLifetime(Map<String, dynamic> p) =>
+    p['is_lifetime'] == true || _planDays(p) == 0;
+
+String _fmtPrice(double v) => v.toStringAsFixed(2);
+
+String _planDuration(Map<String, dynamic> p) {
+  final days = _planDays(p);
+  if (days == 0) return 'Lifetime';
+  if (days % 365 == 0) {
+    final y = days ~/ 365;
+    return y == 1 ? '1 year' : '$y years';
+  }
+  if (days % 30 == 0) {
+    final m = days ~/ 30;
+    return m == 1 ? '1 month' : '$m months';
+  }
+  return '$days days';
+}
+
+/// % saved per day versus the shortest plan, keyed by product_id.
+Map<String?, int> _computeSavings(List<Map<String, dynamic>> catalog) {
+  final timed = catalog
+      .where((p) => !_planIsLifetime(p) && _planPrice(p) > 0)
+      .toList();
+  if (timed.length < 2) return {};
+  timed.sort((a, b) => _planDays(a).compareTo(_planDays(b)));
+  final base = _planPrice(timed.first) / _planDays(timed.first);
+  final result = <String?, int>{};
+  for (final p in timed.skip(1)) {
+    final perDay = _planPrice(p) / _planDays(p);
+    final pct = ((1 - perDay / base) * 100).round();
+    if (pct >= 5) result[p['product_id'] as String?] = pct;
+  }
+  return result;
+}
+
+/// Feature lines the admin entered for the selected plan (if any).
+List<String> _planFeatures(Map<String, dynamic> plan) {
+  final raw = plan['features'];
+  if (raw is! List) return const [];
+  return raw
+      .map((e) {
+    if (e is Map) return (e['text'] ?? e['name'] ?? e['title'] ?? '').toString();
+    return e.toString();
+  })
+      .where((t) => t.trim().isNotEmpty)
+      .toList();
+}
+
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({
+    required this.icon,
+    required this.title,
+    required this.theme,
+    required this.isDark,
+    this.subtitle,
+  });
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color theme;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 13),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: theme.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: theme, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+                    ),
+                  ),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -828,59 +1000,89 @@ class _PlanCard extends StatelessWidget {
     required this.theme,
     required this.isDark,
     required this.onTap,
+    this.savePercent,
   });
   final Map<String, dynamic> plan;
   final bool isSelected;
   final Color theme;
   final bool isDark;
   final VoidCallback onTap;
+  final int? savePercent;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final name =
-        plan['display_name'] as String? ?? plan['product_id'] as String;
-    final price = plan['web_price']?.toString() ?? '–';
+        plan['display_name'] as String? ?? plan['product_id'] as String? ?? '';
+    final price = _planPrice(plan);
+    final days = _planDays(plan);
+    final isLife = _planIsLifetime(plan);
     final isPopular = plan['is_popular'] == true;
-    final isLife =
-        plan['is_lifetime'] == true ||
-        plan['product_id'] == 'lt' ||
-        plan['product_id'] == 'lifetime';
-    final hasBadge = isPopular || isLife;
-    final badgeLabel = isPopular
-        ? AppLocalizations.of(context).popular
-        : AppLocalizations.of(context).oneTime;
+    final perDay = (!isLife && days > 0 && price > 0) ? price / days : null;
+
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final subColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF6B7280);
+
+    Widget pill(String label, List<Color> colors, {IconData? icon}) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: colors),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 10, color: Colors.white),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.withOpacity(0.08)
+              ? theme.withValues(alpha: isDark ? 0.12 : 0.07)
               : (isDark ? const Color(0xFF1E293B) : Colors.white),
           border: Border.all(
             color: isSelected
                 ? theme
                 : (isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB)),
-            width: isSelected ? 2.0 : 1.0,
+            width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? theme.withOpacity(0.12)
-                  : Colors.black.withOpacity(isDark ? 0.15 : 0.03),
-              blurRadius: 10,
+                  ? theme.withValues(alpha: 0.18)
+                  : Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Row(
           children: [
-            // Selection circle
             AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 220),
               width: 24,
               height: 24,
               decoration: BoxDecoration(
@@ -889,7 +1091,9 @@ class _PlanCard extends StatelessWidget {
                 border: Border.all(
                   color: isSelected
                       ? theme
-                      : (isDark ? const Color(0xFF475569) : const Color(0xFFD1D5DB)),
+                      : (isDark
+                      ? const Color(0xFF475569)
+                      : const Color(0xFFD1D5DB)),
                   width: 2,
                 ),
               ),
@@ -898,97 +1102,83 @@ class _PlanCard extends StatelessWidget {
                   : null,
             ),
             const SizedBox(width: 14),
-            // Plan info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : const Color(0xFF111827),
-                        ),
-                      ),
-                      if (hasBadge) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            gradient: isPopular
-                                ? LinearGradient(colors: [theme, theme.withOpacity(0.8)])
-                                : const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFF59E0B)]),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (isPopular ? theme : const Color(0xFFD97706)).withOpacity(0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isPopular ? Icons.local_fire_department_rounded : Icons.star_rounded,
-                                size: 10,
-                                color: Colors.white70,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                badgeLabel.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: titleColor,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     isLife
-                        ? AppLocalizations.of(context).oneTimePayment
-                        : _durLabel(plan),
+                        ? l10n.oneTimePayment
+                        : (perDay != null
+                        ? '${_planDuration(plan)}  •  \$${perDay.toStringAsFixed(2)} / day'
+                        : _planDuration(plan)),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                      color: subColor,
                     ),
                   ),
+                  if (isPopular || isLife || savePercent != null) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if (isPopular)
+                          pill(
+                            l10n.popular,
+                            [theme, theme.withValues(alpha: 0.75)],
+                            icon: Icons.local_fire_department_rounded,
+                          ),
+                        if (isLife)
+                          pill(
+                            l10n.oneTime,
+                            const [Color(0xFFD97706), Color(0xFFF59E0B)],
+                            icon: Icons.star_rounded,
+                          ),
+                        if (savePercent != null)
+                          pill(
+                            'Save $savePercent%',
+                            const [Color(0xFF059669), Color(0xFF10B981)],
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-            // Price
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '\$$price',
+                  '\$${_fmtPrice(price)}',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 21,
                     fontWeight: FontWeight.w900,
-                    color: isSelected
-                        ? theme
-                        : (isDark ? Colors.white : const Color(0xFF111827)),
+                    color: isSelected ? theme : titleColor,
                   ),
                 ),
                 if (!isLife) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'per period',
+                    _planDuration(plan),
                     style: TextStyle(
-                      fontSize: 10,
-                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+                      fontSize: 10.5,
+                      color: isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF9CA3AF),
                     ),
                   ),
                 ],
@@ -998,16 +1188,6 @@ class _PlanCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String _durLabel(Map<String, dynamic> p) {
-    final d = p['duration_days'];
-    if (d == null) return 'lifetime';
-    final days = (d is int) ? d : int.tryParse(d.toString()) ?? 0;
-    if (days <= 31) return '30 days';
-    if (days <= 92) return '90 days';
-    if (days >= 365) return '1 year';
-    return '$days days';
   }
 }
 
@@ -1251,7 +1431,7 @@ class _CancelConfirmSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Are you sure you want to cancel your subscription?\n'
-            'You will keep access until the end of the current billing period.',
+                'You will keep access until the end of the current billing period.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -1406,19 +1586,75 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
         ),
         icon: _cancelling
             ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.red,
-                ),
-              )
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.red,
+          ),
+        )
             : const Icon(Icons.cancel_outlined, size: 18),
         label: const Text(
           'Cancel Subscription',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         onPressed: _cancelling ? null : _onCancel,
+      ),
+    );
+  }
+}
+
+// ─── PLANS UNAVAILABLE (API failed or no enabled products) ───────────────────
+
+class _PlansUnavailable extends StatelessWidget {
+  const _PlansUnavailable({
+    required this.theme,
+    required this.isDark,
+    required this.onRetry,
+  });
+  final Color theme;
+  final bool isDark;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 48, color: theme),
+            const SizedBox(height: 14),
+            Text(
+              'Plans could not be loaded',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white70 : const Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Check your connection and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: Icon(Icons.refresh_rounded, color: theme),
+              label: Text('Retry', style: TextStyle(color: theme)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: theme, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

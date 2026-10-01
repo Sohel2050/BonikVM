@@ -19,6 +19,8 @@ import '../../shared/providers/theme_provider.dart';
 import '../../widgets/subscription_banner.dart';
 import '../../widgets/level_play_banner_ad.dart';
 import '../../widgets/level_play_native_ad.dart';
+import '../../widgets/level_play_mrec_slot.dart';
+import '../../core/config/ad_layout_config.dart';
 import '../../widgets/ip_address_widget.dart';
 import '../../providers/ip_address_provider.dart';
 import '../../services/ads_popup_config_service.dart';
@@ -1754,7 +1756,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const SizedBox(height: 16),
               FadeInUp(
                 delay: const Duration(milliseconds: 550),
-                child: Container(
+                child: !useNativeAds
+                    ? const LevelPlayMrecSlot(
+                  margin: EdgeInsets.symmetric(horizontal: 6),
+                  radius: 20,
+                )
+                    : Container(
                   height: 300,
                   margin: const EdgeInsets.symmetric(horizontal: 6),
                   // No fill color and no border here: while the ad has not

@@ -73,9 +73,9 @@ class SubscriptionState {
 
 // Subscription Provider
 final subscriptionProvider =
-    StateNotifierProvider<SubscriptionNotifier, SubscriptionState>((ref) {
-      return SubscriptionNotifier(ref);
-    });
+StateNotifierProvider<SubscriptionNotifier, SubscriptionState>((ref) {
+  return SubscriptionNotifier(ref);
+});
 
 class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   final Ref _ref;
@@ -87,6 +87,9 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   void _init() {
     // Load cached subscription immediately
     _loadCachedSubscription();
+
+    // Plans are public: load them even for guests / logged-out users.
+    _loadPublicCatalog();
 
     // Check current auth state immediately
     final currentAuth = _ref.read(authStateProvider);
@@ -179,13 +182,14 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     await prefs.remove('subscription_data');
     await prefs.remove('subscription_checked_at');
     await prefs.setBool('is_premium', false);
+    await _loadPublicCatalog();
   }
 
   /// Check subscription status from API
   Future<void> checkSubscriptionStatus(
-    String userId, {
-    bool forceRefresh = false,
-  }) async {
+      String userId, {
+        bool forceRefresh = false,
+      }) async {
     // Don't check if already loading
     if (state.isLoading) return;
 
@@ -224,6 +228,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
         // Cache the result
         await _cacheSubscription();
 
+        if (planCatalog.isEmpty) await _loadPublicCatalog();
+
         if (subscription != null) {
         }
       } else {
@@ -233,17 +239,19 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
           subscription: null,
           errorMessage: response['message'] ?? 'Failed to check subscription',
         );
+        await _loadPublicCatalog();
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      await _loadPublicCatalog();
     }
   }
 
   /// Manually activate subscription (call after successful payment)
   Future<void> activateSubscription(
-    String userId,
-    Map<String, dynamic> subscriptionData,
-  ) async {
+      String userId,
+      Map<String, dynamic> subscriptionData,
+      ) async {
 
     state = SubscriptionState(
       isPremium: true,
@@ -261,6 +269,18 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     });
   }
 
+  /// Loads the admin-configured plans from the public endpoint.
+  /// Only fills the catalog when it is empty, so it never overrides the
+  /// catalog that /subscription/status returns for logged-in users.
+  Future<void> _loadPublicCatalog({bool force = false}) async {
+    if (!force && state.planCatalog.isNotEmpty) return;
+    final plans = await BillingService().getPublicPlans();
+    if (!mounted) return;
+    if (plans.isNotEmpty && (force || state.planCatalog.isEmpty)) {
+      state = state.copyWith(planCatalog: plans);
+    }
+  }
+
   /// Force refresh subscription status
   Future<void> refresh() async {
     final authState = _ref.read(authStateProvider);
@@ -269,6 +289,11 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
         authState.firebaseUser!.uid,
         forceRefresh: true,
       );
+    }
+    // Guests (no Firebase user) or an empty/failed status response:
+    // fall back to the public plan list so Retry actually does something.
+    if (state.planCatalog.isEmpty) {
+      await _loadPublicCatalog(force: true);
     }
   }
 }
