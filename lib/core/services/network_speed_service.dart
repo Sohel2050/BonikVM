@@ -43,7 +43,28 @@ class NetworkSpeedService {
   final StreamController<NetworkSpeedData> _speedController =
   StreamController<NetworkSpeedData>.broadcast();
 
-  Stream<NetworkSpeedData> get speedStream => _speedController.stream;
+  NetworkSpeedData? _lastData;
+
+  /// Replays the latest reading to every new listener (the underlying
+  /// controller is a broadcast stream and would otherwise leave a freshly
+  /// built widget on "--.-" until the next sample arrives).
+  Stream<NetworkSpeedData> get speedStream async* {
+    yield _lastData ?? _zeroData();
+    yield* _speedController.stream;
+  }
+
+  NetworkSpeedData _zeroData() => NetworkSpeedData(
+    downloadSpeedMbps: 0,
+    uploadSpeedMbps: 0,
+    downloadBytes: _totalDownloadBytes,
+    uploadBytes: _totalUploadBytes,
+    timestamp: DateTime.now(),
+  );
+
+  void _emit(NetworkSpeedData data) {
+    _lastData = data;
+    if (!_speedController.isClosed) _speedController.add(data);
+  }
 
   int _lastDownloadBytes = 0;
   int _lastUploadBytes = 0;
@@ -63,7 +84,7 @@ class NetworkSpeedService {
     // and would stay stuck showing "--.-" (the provider's `loading` state)
     // until a real non-zero byte-count sample arrived, which may never
     // happen for some protocols/plugins.
-    _speedController.add(
+    _emit(
       NetworkSpeedData(
         downloadSpeedMbps: 0,
         uploadSpeedMbps: 0,
@@ -109,11 +130,17 @@ class NetworkSpeedService {
         // keeps showing the last real reading instead of flashing to 0 —
         // but still record this timestamp/byte-count below so the *next*
         // real update measures the correct elapsed window.
-        if (!(downloadDiff == 0 && uploadDiff == 0)) {
+        if (downloadDiff == 0 && uploadDiff == 0 && elapsed < 3000) {
+          // Engines (WireGuard, V2Ray, OpenConnect) may refresh their byte
+          // counters slower than our 1s tick. Keep the previous timestamp so
+          // the next real update is measured over the correct window.
+          return;
+        }
+        {
           final elapsedSeconds = elapsed / 1000.0;
           final downloadMbps = (downloadDiff / (1024 * 1024)) / elapsedSeconds;
           final uploadMbps = (uploadDiff / (1024 * 1024)) / elapsedSeconds;
-          _speedController.add(
+          _emit(
             NetworkSpeedData(
               downloadSpeedMbps: downloadMbps.clamp(0.0, 1000.0),
               uploadSpeedMbps: uploadMbps.clamp(0.0, 1000.0),
@@ -131,6 +158,7 @@ class NetworkSpeedService {
   }
 
   void stopMonitoring() {
+    final wasMonitoring = _isMonitoring;
     _isMonitoring = false;
     _vpnStatusSubscription?.cancel();
     _vpnStatusSubscription = null;
@@ -139,6 +167,7 @@ class NetworkSpeedService {
     _totalDownloadBytes = 0;
     _totalUploadBytes = 0;
     _lastMeasurement = null;
+    if (wasMonitoring) _emit(_zeroData());
   }
 
   void dispose() {

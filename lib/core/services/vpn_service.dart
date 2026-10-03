@@ -14,6 +14,7 @@ import 'purchase_service.dart';
 import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
 import 'level_play_service.dart';
+import 'network_speed_service.dart';
 
 /// Thrown when a connect attempt is rejected because the server has
 /// reached its configured device capacity.
@@ -56,6 +57,30 @@ class VpnService {
 
   // Last raw status from the OpenVPN plugin — preserves byte traffic counters
   VpnStatus? _lastPluginStatus;
+
+  // Protocol-independent traffic counters (bytes). Every engine (OpenVPN,
+  // WireGuard, V2Ray, OpenConnect) writes here so the speed indicator works
+  // for all protocols, not only OpenVPN.
+  int _lastByteIn = 0;
+  int _lastByteOut = 0;
+
+  void _updateTraffic(dynamic inBytes, dynamic outBytes) {
+    final i = int.tryParse(inBytes?.toString() ?? '');
+    final o = int.tryParse(outBytes?.toString() ?? '');
+    if (i != null && i >= 0) _lastByteIn = i;
+    if (o != null && o >= 0) _lastByteOut = o;
+  }
+
+  void _updateTrafficFromDynamic(dynamic status) {
+    if (status == null) return;
+    dynamic i;
+    dynamic o;
+    try { i = status.bytesIn; } catch (_) {}
+    try { o = status.bytesOut; } catch (_) {}
+    if (i == null) { try { i = status.byteIn; } catch (_) {} }
+    if (o == null) { try { o = status.byteOut; } catch (_) {} }
+    _updateTraffic(i, o);
+  }
 
   // When set, transient 'disconnected' stage events arriving before this
   // timestamp are suppressed.  Android fires a disconnected event at the very
@@ -223,8 +248,7 @@ class VpnService {
             isActuallyConnected = true;
             // Initialise the real OC instance so event callbacks work.
             _openConnect ??= OpenConnect(
-              onVpnStatusChanged:
-                  (_) {}, // OpenConnectStatus — not the same as VpnStatus
+              onVpnStatusChanged: _updateTrafficFromDynamic,
               onVpnStageChanged: _onOpenConnectStageChanged,
             );
             await _openConnect!.initialize();
@@ -380,7 +404,10 @@ class VpnService {
     // emits every second with the latest byte counters. Emitting here too
     // would cause two near-simultaneous events per second, making the speed
     // service calculate 0 KB/s on the duplicate (same-bytes) event.
-    if (status != null) _lastPluginStatus = status;
+    if (status != null) {
+      _lastPluginStatus = status;
+      _updateTraffic(status.byteIn, status.byteOut);
+    }
   }
 
   Future<void> _onVpnStageChanged(VPNStage stage, String rawStage) async {
@@ -496,6 +523,14 @@ class VpnService {
   void _updateVpnState(VpnState newState) {
     if (_vpnState != newState) {
       _vpnState = newState;
+      // Speed monitoring lives here (not in a screen) so it works no matter
+      // which screen started the connection (Home, Servers, auto-connect,
+      // app restore) and for every protocol.
+      if (newState == VpnState.connected) {
+        unawaited(NetworkSpeedService.instance.startMonitoring());
+      } else if (newState == VpnState.disconnected) {
+        NetworkSpeedService.instance.stopMonitoring();
+      }
       // Defer stream emission to avoid mutating render objects during layout
       // (fixes: RenderRepaintBoundary mutated in RenderSliverFillViewport.performLayout)
       scheduleMicrotask(() {
@@ -1044,6 +1079,7 @@ pull
   void _onWireGuardStatusChanged(WireGuardStatus? status) {
     if (status != null) {
       // Timer is driven by _startStatusUpdater using _connectionStartTime; no null emit here.
+      _updateTrafficFromDynamic(status);
     }
   }
 
@@ -1113,6 +1149,7 @@ pull
 
       _v2ray ??= V2Ray(
         onVpnStatusChanged: (status) {
+          _updateTrafficFromDynamic(status);
         },
         onVpnStageChanged: _onV2RayStageChanged,
       );
@@ -1238,6 +1275,7 @@ pull
 
       _openConnect ??= OpenConnect(
         onVpnStatusChanged: (status) {
+          _updateTrafficFromDynamic(status);
         },
         onVpnStageChanged: _onOpenConnectStageChanged,
       );
@@ -1939,8 +1977,8 @@ pull
         final status = VpnStatus(
           connectedOn: _connectionStartTime!,
           duration: durationString,
-          byteIn: _lastPluginStatus?.byteIn,
-          byteOut: _lastPluginStatus?.byteOut,
+          byteIn: _lastByteIn.toString(),
+          byteOut: _lastByteOut.toString(),
           packetsIn: _lastPluginStatus?.packetsIn,
           packetsOut: _lastPluginStatus?.packetsOut,
         );
@@ -1954,6 +1992,9 @@ pull
   void _stopStatusUpdater() {
     _statusUpdateTimer?.cancel();
     _statusUpdateTimer = null;
+    // Counters restart from zero on the next connection.
+    _lastByteIn = 0;
+    _lastByteOut = 0;
   }
 
   /// Format duration to HH:MM:SS format
