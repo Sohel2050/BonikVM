@@ -957,7 +957,7 @@ class ServerLoadStatusNotifier
     // Poll once immediately, then on the interval.
     _poll(serverIds);
     _timer = Timer.periodic(
-      interval ?? const Duration(seconds: 2),
+      interval ?? const Duration(seconds: 8),
           (_) => _poll(serverIds),
     );
   }
@@ -985,8 +985,8 @@ class ServerLoadStatusNotifier
     // which is what caused the "maje maje update hoyna" gaps. Now we
     // retry quickly (up to 2 extra tries, 800ms apart) within the same
     // cycle instead of waiting for the next periodic tick.
-    if (attempt < 2) {
-      await Future.delayed(const Duration(milliseconds: 800));
+    if (attempt < 1) {
+      await Future.delayed(const Duration(milliseconds: 1500));
       if (_disposed) return;
       await _poll(serverIds, attempt: attempt + 1);
     } else {

@@ -1,3 +1,4 @@
+import 'services/device_token_service.dart';
 import 'dart:io';
 import 'package:vpn_master/core/config/app_config.dart';
 import 'package:dio/dio.dart';
@@ -57,6 +58,10 @@ class ApiClient {
             }
           } catch (e) {
           }
+          try {
+            final dt = await DeviceTokenService.instance.token();
+            if (dt != null) options.headers['X-Device-Token'] = dt;
+          } catch (_) {}
           handler.next(options);
         },
       ),
@@ -116,10 +121,17 @@ class ApiClient {
               options.headers['Authorization'] = 'Bearer $_authToken';
             }
           }
+          try {
+            final dt = await DeviceTokenService.instance.token();
+            if (dt != null) options.headers['X-Device-Token'] = dt;
+          } catch (_) {}
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
+          final errBody = error.response?.data;
+          final isDeviceTokenIssue = errBody is Map &&
+              errBody['error']?.toString() == 'device_token_required';
+          if (error.response?.statusCode == 401 && !isDeviceTokenIssue) {
             // Token expired, try to refresh or logout
             await _handleUnauthorized();
           }

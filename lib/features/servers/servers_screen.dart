@@ -20,6 +20,7 @@ import '../../core/config/ad_layout_config.dart';
 import '../../widgets/level_play_native_ad.dart';
 import '../../core/services/level_play_service.dart';
 import '../../core/services/vpn_service.dart' show ServerFullException;
+import '../thirdparty/third_party_tab.dart';
 
 class ServersScreen extends ConsumerStatefulWidget {
   const ServersScreen({super.key});
@@ -48,7 +49,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _initializeAds();
     // Initialize premium unlock service to load saved unlocks from storage
     PremiumServerUnlockService()
@@ -228,6 +229,36 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       });
     });
 
+    Widget backendTab(bool premiumTab, int tabIndex) {
+      return serversAsync.when(
+        loading: () => const LoadingWidget(),
+        error: (error, stack) => ErrorRetryWidget(
+          message: AppLocalizations.of(context).failedToLoadServers,
+          onRetry: () => ref.refresh(serversProvider),
+        ),
+        data: (servers) {
+          // Merge in the latest polled load status, if any, so
+          // the list reflects near-real-time capacity/load.
+          final liveServers = liveLoadStatus.isEmpty
+              ? servers
+              : servers.map((s) {
+                  final status = liveLoadStatus[s.id];
+                  return status != null ? s.copyWithLoadStatus(status) : s;
+                }).toList();
+
+          return _buildServerList(
+            liveServers,
+            premiumTab,
+            favoriteServers,
+            isPremium,
+            currentServer,
+            isDarkMode,
+            tabIndex: tabIndex,
+          );
+        },
+      );
+    }
+
     return Container(
       color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
       child: Column(
@@ -265,13 +296,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     unselectedLabelColor: isDarkMode
                         ? const Color(0xFF94A3B8)
                         : Colors.black54,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 2),
                     labelStyle: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      fontSize: 11,
                     ),
                     unselectedLabelStyle: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      fontSize: 11,
                     ),
                     tabs: [
                       Tab(
@@ -282,6 +314,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                         icon: const Icon(Icons.currency_exchange, size: 14),
                         text: "VIP SERVER / ADS",
                       ),
+                      Tab(
+                        icon: const Icon(Icons.public, size: 14),
+                        text: "THIRD PARTY",
+                      ),
                     ],
                   ),
                 ),
@@ -289,50 +325,26 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                 _buildFilterStatusBar(isDarkMode),
                 // Server List
                 Expanded(
-                  child: serversAsync.when(
-                    loading: () => const LoadingWidget(),
-                    error: (error, stack) => ErrorRetryWidget(
-                      message: AppLocalizations.of(context).failedToLoadServers,
-                      onRetry: () => ref.refresh(serversProvider),
-                    ),
-                    data: (servers) {
-                      // Merge in the latest polled load status, if any, so
-                      // the list reflects near-real-time capacity/load.
-                      final liveServers = liveLoadStatus.isEmpty
-                          ? servers
-                          : servers.map((s) {
-                        final status = liveLoadStatus[s.id];
-                        return status != null
-                            ? s.copyWithLoadStatus(status)
-                            : s;
-                      }).toList();
-
-                      return TabBarView(
-                        controller: _tabController,
-                        children: [
-                          // Free Servers
-                          _buildServerList(
-                            liveServers,
-                            false,
-                            favoriteServers,
-                            isPremium,
-                            currentServer,
-                            isDarkMode,
-                            tabIndex: 0,
-                          ),
-                          // Premium Servers
-                          _buildServerList(
-                            liveServers,
-                            true,
-                            favoriteServers,
-                            isPremium,
-                            currentServer,
-                            isDarkMode,
-                            tabIndex: 1,
-                          ),
-                        ],
-                      );
-                    },
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Free Servers
+                      backendTab(false, 0),
+                      // Premium Servers
+                      backendTab(true, 1),
+                      // Third-party (VPN Gate) servers: independent of our
+                      // backend, so this tab works even if the list above fails.
+                      ThirdPartyServersTab(
+                        isDarkMode: isDarkMode,
+                        connectedServerId: (currentServer != null &&
+                                (ref.watch(vpnStateProvider).value ??
+                                        multi_vpn.VpnState.disconnected) ==
+                                    multi_vpn.VpnState.connected)
+                            ? currentServer.id
+                            : null,
+                        onConnect: _connectToServer,
+                      ),
+                    ],
                   ),
                 ),
               ],

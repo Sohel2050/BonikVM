@@ -196,6 +196,15 @@ class PremiumServerUnlockService {
         '   1️⃣ Extracted serverId: "$serverId" (type: ${serverId.runtimeType})',
       );
 
+      if (unlockedBy == 'ad') {
+        // Let the backend know so it releases this server's credentials.
+        try {
+          await ApiService.instance
+              .requestAdUnlock(serverId)
+              .timeout(const Duration(seconds: 6));
+        } catch (_) {}
+      }
+
       final serverName = server is String
           ? server
           : (server is VpnServer

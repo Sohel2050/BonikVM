@@ -12,6 +12,7 @@ import '../../core/services/purchase_service.dart';
 import '../about/about_screen.dart';
 import '../support/support_screen.dart';
 import 'admin_notifications_screen.dart';
+import '../speedtest/speed_test_screen.dart';
 import '../../screens/profile/purchase_history_screen.dart';
 import '../../screens/auth/sign_in_screen.dart';
 import '../../widgets/level_play_banner_ad.dart';
@@ -226,6 +227,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AdminNotificationsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDivider(isDarkMode),
+                _buildSettingTile(
+                  title: 'Speed test',
+                  subtitle: 'Check your download and upload speed',
+                  icon: Icons.speed,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SpeedTestScreen(),
                       ),
                     );
                   },

@@ -221,14 +221,27 @@ class _InterstitialListener
     if (pendingPlacement != null) {
       _service._pendingInterstitialPlacement = null;
       _service._pendingDisconnectInterstitial = false;
-      debugPrint('[LevelPlay] 🚦 Showing queued interstitial: $pendingPlacement');
-      Future.microtask(() async {
-        await _service.showInterstitial(placementName: pendingPlacement);
-      });
+      final stillConnected = _service.vpnConnectedCheck?.call() ?? true;
+      if (pendingPlacement == 'vpn_connected' && !stillConnected) {
+        debugPrint(
+          '[LevelPlay] 🚫 Dropped queued interstitial: VPN is no longer connected',
+        );
+      } else {
+        debugPrint('[LevelPlay] 🚦 Showing queued interstitial: $pendingPlacement');
+        Future.microtask(() async {
+          await _service.showInterstitial(
+            placementName: pendingPlacement,
+            bypassTiming: true,
+          );
+        });
+      }
     } else if (_service._pendingDisconnectInterstitial) {
       _service._pendingDisconnectInterstitial = false;
       Future.microtask(() async {
-        await _service.showInterstitial(placementName: 'vpn_disconnect');
+        await _service.showInterstitial(
+          placementName: 'vpn_disconnect',
+          bypassTiming: true,
+        );
       });
     }
   }
@@ -261,6 +274,9 @@ class _InterstitialListener
     debugPrint(
       '[LevelPlay] 🎬 Interstitial displayed',
     );
+
+    _service._lastInterstitialShownAt = DateTime.now();
+    _service._actionsSinceLastInterstitial = 0;
   }
 
   @override
@@ -398,6 +414,9 @@ class LevelPlayService {
   static const String _fallbackNativeUnitId =
       '52rdvpmf716zst8k';
 
+  static const String _fallbackMrecUnitId =
+      'y7so1eclk7uwq5fw';
+
 
   // ==========================================================
   // OTHER LEVELPLAY IDS
@@ -419,6 +438,85 @@ class LevelPlayService {
   bool _initialized = false;
 
   bool _userIsPremium = false;
+
+  // ==========================================================
+  // INTERSTITIAL TIMING (Admin > Ads Settings > Ad Display Timing)
+  // All durations are in SECONDS. Defaults keep the old behaviour
+  // (no extra limits) until the settings arrive from the server.
+  // ==========================================================
+
+  final DateTime _launchedAt = DateTime.now();
+
+  int _adInitialDelaySeconds = 0;
+
+  int _adCooldownSeconds = 0;
+
+  int _adTriggerCount = 1;
+
+  DateTime? _lastInterstitialShownAt;
+
+  int _actionsSinceLastInterstitial = 0;
+
+  /// Called with the values from /api/v1/get-ad-settings.
+  void applyAdTiming({
+    int? initialDelaySeconds,
+    int? cooldownSeconds,
+    int? triggerCount,
+  }) {
+    if (initialDelaySeconds != null) {
+      _adInitialDelaySeconds = initialDelaySeconds.clamp(0, 86400).toInt();
+    }
+    if (cooldownSeconds != null) {
+      _adCooldownSeconds = cooldownSeconds.clamp(0, 86400).toInt();
+    }
+    if (triggerCount != null) {
+      _adTriggerCount = triggerCount.clamp(1, 100).toInt();
+    }
+    debugPrint(
+      '[LevelPlay] ⏱️ Ad timing: initial delay ${_adInitialDelaySeconds}s, '
+      'cooldown ${_adCooldownSeconds}s, every $_adTriggerCount action(s)',
+    );
+  }
+
+  /// Counts one user action (connect, disconnect, speed test...) and says
+  /// whether an interstitial may be shown now. All three rules must pass:
+  /// initial delay since app launch, cooldown since the last interstitial,
+  /// and at least N actions since the last interstitial.
+  bool _interstitialAllowedNow(String? placement) {
+    _actionsSinceLastInterstitial++;
+    final now = DateTime.now();
+
+    final sinceLaunch = now.difference(_launchedAt).inSeconds;
+    if (sinceLaunch < _adInitialDelaySeconds) {
+      debugPrint(
+        '[LevelPlay] ⏳ Interstitial skipped ($placement): initial delay '
+        '$sinceLaunch/${_adInitialDelaySeconds}s',
+      );
+      return false;
+    }
+
+    final last = _lastInterstitialShownAt;
+    if (last != null) {
+      final sinceLast = now.difference(last).inSeconds;
+      if (sinceLast < _adCooldownSeconds) {
+        debugPrint(
+          '[LevelPlay] ⏳ Interstitial skipped ($placement): cooldown '
+          '$sinceLast/${_adCooldownSeconds}s',
+        );
+        return false;
+      }
+    }
+
+    if (_actionsSinceLastInterstitial < _adTriggerCount) {
+      debugPrint(
+        '[LevelPlay] ⏳ Interstitial skipped ($placement): action '
+        '$_actionsSinceLastInterstitial/$_adTriggerCount',
+      );
+      return false;
+    }
+
+    return true;
+  }
 
   bool _isRewardedVideoAvailable = false;
 
@@ -471,6 +569,12 @@ class LevelPlayService {
 
   String _nativeAdUnitId = _fallbackNativeUnitId;
 
+  String _mrecAdUnitId = _fallbackMrecUnitId;
+
+  /// Set by VpnService. Used to drop a queued 'vpn_connected' interstitial
+  /// if the VPN is no longer connected when the ad finally loads.
+  bool Function()? vpnConnectedCheck;
+
 
   // ==========================================================
   // MADU AD OBJECTS
@@ -512,6 +616,8 @@ class LevelPlayService {
 
   String get nativeAdUnitId => _nativeAdUnitId;
 
+  String get mrecAdUnitId => _mrecAdUnitId;
+
 
   // ==========================================================
   // INITIALIZE
@@ -524,6 +630,7 @@ class LevelPlayService {
     String? interstitialAdUnitId,
     String? bannerAdUnitId,
     String? nativeAdUnitId,
+    String? mrecAdUnitId,
   }) async {
     try {
       // ------------------------------------------------------
@@ -557,6 +664,10 @@ class LevelPlayService {
 
       if (nativeAdUnitId != null && nativeAdUnitId.isNotEmpty) {
         _nativeAdUnitId = nativeAdUnitId;
+      }
+
+      if (mrecAdUnitId != null && mrecAdUnitId.isNotEmpty) {
+        _mrecAdUnitId = mrecAdUnitId;
       }
 
 
@@ -922,6 +1033,7 @@ class LevelPlayService {
 
   Future<void> showInterstitial({
     String? placementName,
+    bool bypassTiming = false,
   }) async {
     if (!_initialized) {
       debugPrint(
@@ -945,6 +1057,11 @@ class LevelPlayService {
             'interstitial skipped',
       );
 
+      return;
+    }
+
+    // Admin timing rules (a queued ad that was already approved bypasses).
+    if (!bypassTiming && !_interstitialAllowedNow(placementName)) {
       return;
     }
 
@@ -1039,6 +1156,10 @@ class LevelPlayService {
             'premium user',
       );
 
+      return;
+    }
+
+    if (!_interstitialAllowedNow('vpn_disconnect')) {
       return;
     }
 

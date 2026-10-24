@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import '../config/app_config.dart';
 import '../services/device_identity.dart';
+import '../services/device_token_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -82,10 +85,59 @@ class ApiService {
         );
       }
 
+      // Attach the server-signed device token to every API call.
+      _dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) async {
+            try {
+              final token = await DeviceTokenService.instance.token();
+              if (token != null) {
+                options.headers['X-Device-Token'] = token;
+              }
+            } catch (_) {}
+            // Lets the backend recognise subscribers (premium servers).
+            try {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                final idToken = await user.getIdToken().timeout(
+                  const Duration(seconds: 6),
+                  onTimeout: () => '',
+                );
+                if (idToken != null && idToken.isNotEmpty) {
+                  options.headers['Authorization'] = 'Bearer $idToken';
+                }
+              }
+            } catch (_) {}
+            handler.next(options);
+          },
+        ),
+      );
+
       // Rate limiting and retry interceptor
       _dio.interceptors.add(
         InterceptorsWrapper(
           onError: (error, handler) async {
+            // Server says our device token is missing/expired: get a new
+            // one and retry the same request once.
+            final errData = error.response?.data;
+            final errCode = errData is Map ? errData['error']?.toString() : null;
+            if (error.response?.statusCode == 401 &&
+                errCode == 'device_token_required' &&
+                error.requestOptions.extra['dt_retry'] != true) {
+              try {
+                DeviceTokenService.instance.invalidate();
+                final fresh = await DeviceTokenService.instance
+                    .refresh(force: true);
+                if (fresh != null) {
+                  final retryOptions = error.requestOptions;
+                  retryOptions.extra['dt_retry'] = true;
+                  retryOptions.headers['X-Device-Token'] = fresh;
+                  final response = await _dio.fetch(retryOptions);
+                  return handler.resolve(response);
+                }
+              } catch (_) {}
+            }
+
             // Handle 429 rate limiting with retry
             if (error.response?.statusCode == 429) {
               // Get retry-after header or default to 2 seconds
@@ -121,6 +173,7 @@ class ApiService {
       );
 
       _isInitialized = true;
+      unawaited(DeviceTokenService.instance.token());
     } catch (e) {
       _isInitialized = false;
     }
@@ -236,8 +289,8 @@ class ApiService {
         // (meant for heavier calls) and silently stalling the whole polling
         // cycle for half a minute on one slow request.
         options: Options(
-          sendTimeout: const Duration(seconds: 3),
-          receiveTimeout: const Duration(seconds: 3),
+          sendTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
         ),
       );
 
@@ -459,6 +512,42 @@ class ApiService {
   }
 
   // Get server OpenVPN configuration - simplified but using correct endpoint
+  /// Connection secrets (passwords, keys, config URLs) for one server.
+  /// Returns null when the backend does not offer the endpoint (old backend)
+  /// or the request fails, so callers keep using the list data. Throws when
+  /// the backend says this server needs premium or an ad unlock.
+  Future<Map<String, dynamic>?> fetchServerSecrets(String serverId) async {
+    try {
+      _ensureInitialized();
+      final response = await _dio.get(
+        '/api/${AppConfig.apiVersion}/servers/$serverId/secrets',
+      );
+      if (response.statusCode == 200 && response.data is Map) {
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+      return null;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (e.response?.statusCode == 403 &&
+          data is Map &&
+          data['error'] == 'premium_required') {
+        throw Exception('Premium subscription required to access this server');
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Tells the backend this device watched an ad for a premium server.
+  /// Best effort: failures are ignored (the backend may not require it yet).
+  Future<void> requestAdUnlock(String serverId) async {
+    try {
+      _ensureInitialized();
+      await _dio.post('/api/${AppConfig.apiVersion}/servers/$serverId/ad-unlock');
+    } catch (_) {}
+  }
+
   Future<String> getServerConfig(int serverId) async {
     try {
       _ensureInitialized();
@@ -1344,9 +1433,78 @@ class VpnServer {
     );
   }
 
+  /// Returns a copy with the connection secrets filled in from the
+  /// `/servers/{id}/secrets` response. Missing/null values keep the current ones.
+  VpnServer copyWithSecrets(Map<String, dynamic> secrets) {
+    return VpnServer(
+      id: id,
+      name: name,
+      ip: ip,
+      country: country,
+      countryCode: countryCode,
+      flag: flag,
+      premium: premium,
+      latency: latency,
+      configUrl: _secretString(secrets['config_url'], configUrl),
+      isActive: isActive,
+      load: load,
+      protocol: protocol,
+      tcpPort: tcpPort,
+      udpPort: udpPort,
+      port: port,
+      vpnUsername: _secretString(secrets['vpn_username'], vpnUsername),
+      vpnPassword: _secretString(secrets['vpn_password'], vpnPassword),
+      useFile: useFile,
+      freeConnectDuration: freeConnectDuration,
+      connectedDevices: connectedDevices,
+      order: order,
+      capacity: capacity,
+      loadPercentage: loadPercentage,
+      isFull: isFull,
+      protocols: protocols,
+      vpnProtocolType: vpnProtocolType,
+      provider: provider,
+      providerServerId: providerServerId,
+      providerPayload: secrets['provider_payload'] is Map
+          ? Map<String, dynamic>.from(secrets['provider_payload'] as Map)
+          : providerPayload,
+      flagUrl: flagUrl,
+      isImported: isImported,
+      v2raySubProtocol: v2raySubProtocol,
+      v2rayUuid: _secretNullable(secrets['v2ray_uuid'], v2rayUuid),
+      v2rayNetwork: v2rayNetwork,
+      v2raySecurity: v2raySecurity,
+      v2rayPath: v2rayPath,
+      v2rayHost: v2rayHost,
+      v2rayPublicKey: _secretNullable(secrets['v2ray_public_key'], v2rayPublicKey),
+      v2rayShortId: _secretNullable(secrets['v2ray_short_id'], v2rayShortId),
+      v2rayPort: v2rayPort,
+      ocServerUrl: ocServerUrl,
+      ocAuthGroup: ocAuthGroup,
+      ocServercert: ocServercert,
+      ocUsername: _secretNullable(secrets['oc_username'], ocUsername),
+      ocPassword: _secretNullable(secrets['oc_password'], ocPassword),
+    );
+  }
+
+  static String _secretString(dynamic value, String current) {
+    if (value is String && value.isNotEmpty) return value;
+    return current;
+  }
+
+  static String? _secretNullable(dynamic value, String? current) {
+    if (value is String && value.isNotEmpty) return value;
+    return current;
+  }
+
   /// Check if this server uses OneConnect provider
   bool get isOneConnect =>
       provider == 'oneconnect' || vpnProtocolType == 'oneconnect';
+
+  /// True for free public servers from VPN Gate (the "Third Party" tab).
+  /// They are not on our backend: no secrets fetch, no load polling, no
+  /// connect/disconnect logging.
+  bool get isThirdParty => provider == 'vpngate';
 
   /// Check if this server supports OpenVPN
   bool get supportsOpenVPN =>

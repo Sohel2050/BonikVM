@@ -54,12 +54,12 @@ class NetworkSpeedService {
   }
 
   NetworkSpeedData _zeroData() => NetworkSpeedData(
-    downloadSpeedMbps: 0,
-    uploadSpeedMbps: 0,
-    downloadBytes: _totalDownloadBytes,
-    uploadBytes: _totalUploadBytes,
-    timestamp: DateTime.now(),
-  );
+        downloadSpeedMbps: 0,
+        uploadSpeedMbps: 0,
+        downloadBytes: _totalDownloadBytes,
+        uploadBytes: _totalUploadBytes,
+        timestamp: DateTime.now(),
+      );
 
   void _emit(NetworkSpeedData data) {
     _lastData = data;

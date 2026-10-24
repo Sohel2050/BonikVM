@@ -159,10 +159,19 @@ class UpdateService {
       );
 
       if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
+        // The user chose "Update Later" recently: do not ask again yet
+        // (a manual check from Settings always shows the dialog).
+        if (!showNoUpdateDialog && await _isUpdatePromptSnoozed()) {
+          debugPrint('UpdateService: Optional update prompt is snoozed');
+          return;
+        }
+
         if (context != null && context.mounted) {
           await _showPlayStoreUpdateDialog(context, updateInfo);
-        } else if (updateInfo.immediateUpdateAllowed) {
-          await _performImmediateUpdate();
+        } else {
+          // Optional update with no screen to show a dialog on: never start
+          // an immediate (blocking) update silently.
+          debugPrint('UpdateService: No context, skipping optional update');
         }
       } else {
         debugPrint('UpdateService: No Google Play update available');
@@ -263,14 +272,13 @@ class UpdateService {
             ],
           ),
           actions: [
-            if (updateInfo.flexibleUpdateAllowed)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _performFlexibleUpdate();
-                },
-                child: const Text('Update Later'),
-              ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await _snoozeUpdatePrompt();
+              },
+              child: const Text('Update Later'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(dialogContext);
@@ -306,22 +314,27 @@ class UpdateService {
   }
 
   // ============================================================
-  // FLEXIBLE UPDATE
+  // "UPDATE LATER" SNOOZE
   // ============================================================
 
-  Future<void> _performFlexibleUpdate() async {
+  static const String _snoozeKey = 'update_prompt_snooze_until';
+  static const Duration _snoozeDuration = Duration(hours: 24);
+
+  Future<void> _snoozeUpdatePrompt() async {
     try {
-      debugPrint('UpdateService: Starting flexible update');
+      final prefs = await SharedPreferences.getInstance();
+      final until = DateTime.now().add(_snoozeDuration).millisecondsSinceEpoch;
+      await prefs.setInt(_snoozeKey, until);
+    } catch (_) {}
+  }
 
-      await InAppUpdate.startFlexibleUpdate();
-
-      await InAppUpdate.completeFlexibleUpdate();
-
-      debugPrint('UpdateService: Flexible update completed');
-    } catch (e) {
-      debugPrint('UpdateService: Flexible update failed: $e');
-
-      await _openPlayStore();
+  Future<bool> _isUpdatePromptSnoozed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final until = prefs.getInt(_snoozeKey) ?? 0;
+      return DateTime.now().millisecondsSinceEpoch < until;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -422,9 +435,7 @@ class UpdateService {
 
       final downloadUrl = (data['download_url']?.toString() ?? '').isNotEmpty
           ? data['download_url'].toString()
-          : Platform.isAndroid
-          ? 'https://play.google.com/store/apps/details?id=com.albonik.vpn'
-          : 'https://apps.apple.com/app/axe-vpn/id123456789';
+          : 'https://play.google.com/store/apps/details?id=com.albonik.vpn';
 
       final isForceUpdate = data['is_force_update'] == true;
 

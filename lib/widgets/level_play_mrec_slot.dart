@@ -49,7 +49,7 @@ class _LevelPlayMrecSlotState extends State<LevelPlayMrecSlot> {
             width: 300,
             height: 250,
             child: LevelPlayBannerAd(
-              adUnitId: LevelPlayService.instance.bannerAdUnitId,
+              adUnitId: LevelPlayService.instance.mrecAdUnitId,
               adSize: LevelPlayAdSize.MEDIUM_RECTANGLE,
               onFailed: () {
                 if (mounted) setState(() => _visible = false);

@@ -15,6 +15,7 @@ import 'vpn_state_persistence_service.dart';
 import 'vpn_state.dart';
 import 'level_play_service.dart';
 import 'network_speed_service.dart';
+import '../../features/thirdparty/third_party_servers.dart' show ThirdPartyFailed;
 
 /// Thrown when a connect attempt is rejected because the server has
 /// reached its configured device capacity.
@@ -51,6 +52,10 @@ class VpnService {
   String? _deviceId;
   bool _isInitialized = false;
   bool _isAutoConnect = false;
+  /// True only after the VPN really reached the connected state. Used so that
+  /// the disconnect interstitial is never shown after a failed connection.
+  bool _wasReallyConnected = false;
+
   bool _isUserDisconnecting =
   false; // guard: suppress connected events during intentional disconnect
   Duration _totalConnectionTime = Duration.zero;
@@ -117,6 +122,9 @@ class VpnService {
 
   Future<void> initialize() async {
     try {
+      LevelPlayService.instance.vpnConnectedCheck =
+          () => _vpnState == VpnState.connected;
+
       // Get device ID for logging
       _deviceId = await _getDeviceId();
 
@@ -426,6 +434,7 @@ class VpnService {
         if (_isUserDisconnecting) {
           break;
         }
+        _wasReallyConnected = true;
         _updateVpnState(VpnState.connected);
         // Show LevelPlay interstitial immediately when the VPN really connects.
         // Premium users are automatically skipped by LevelPlayService.
@@ -472,16 +481,21 @@ class VpnService {
           if (inGracePeriod) {
             break;
           }
+          _wasReallyConnected = false;
           _updateVpnState(VpnState.error);
         } else {
           _suppressDisconnectedUntil = null;
           _updateVpnState(VpnState.disconnected);
-          // Show LevelPlay interstitial immediately after a real disconnect.
-          unawaited(
-            LevelPlayService.instance.showInterstitial(
-              placementName: 'vpn_disconnected',
-            ),
-          );
+          // Interstitial only after a session that was really connected,
+          // never after a failed connection attempt.
+          if (_wasReallyConnected) {
+            unawaited(
+              LevelPlayService.instance.showInterstitial(
+                placementName: 'vpn_disconnected',
+              ),
+            );
+          }
+          _wasReallyConnected = false;
         }
 
         _cancelConnectionTimer();
@@ -600,6 +614,16 @@ class VpnService {
         await initialize();
       }
 
+      // Server lists no longer carry passwords/keys: fetch them for this one
+      // server (also enforces premium/ad-unlock on the backend).
+      if (!server.isThirdParty) {
+        final withSecrets =
+            await ApiService.instance.fetchServerSecrets(server.id);
+        if (withSecrets != null) {
+          server = server.copyWithSecrets(withSecrets);
+        }
+      }
+
       // DEBUG: Log protocol detection
 
       // CRITICAL: Check protocol type and route to appropriate engine
@@ -628,12 +652,14 @@ class VpnService {
       // list was last fetched. The backend still enforces this again
       // (hard block) when log-connect/download is called, so this is a
       // fast pre-check for a clean error message, not the only guard.
-      final freshStatus = await ApiService.instance.getServerLoadStatus([
-        server.id,
-      ]);
-      final liveStatus = freshStatus[server.id];
-      if (liveStatus != null && liveStatus['is_full'] == true) {
-        throw ServerFullException(server.name);
+      if (!server.isThirdParty) {
+        final freshStatus = await ApiService.instance.getServerLoadStatus([
+          server.id,
+        ]);
+        final liveStatus = freshStatus[server.id];
+        if (liveStatus != null && liveStatus['is_full'] == true) {
+          throw ServerFullException(server.name);
+        }
       }
 
       // Always disconnect first unless we're in a clean disconnected/denied state.
@@ -699,7 +725,7 @@ class VpnService {
         }
       } catch (configError) {
         // OneConnect servers must use their embedded config — never fall back
-        if (server.isOneConnect) {
+        if (server.isOneConnect || server.isThirdParty) {
           rethrow;
         }
         config = _createMinimalWorkingConfig(server);
@@ -717,6 +743,12 @@ class VpnService {
     } catch (e) {
       _updateVpnState(VpnState.error);
       _cancelConnectionTimer();
+
+      // A third-party server that cannot connect is hidden for 24 hours.
+      if (server.isThirdParty) {
+        await ThirdPartyFailed.mark(server.providerServerId);
+        return false;
+      }
 
       // Enhanced retry logic with different approaches
       if (retryCount < 2) {
@@ -902,6 +934,15 @@ class VpnService {
   /// Fetch actual OpenVPN config from server (like native Android app does)
   Future<String> _fetchServerConfig(VpnServer server) async {
     try {
+      // VPN Gate (third party) servers also carry their full .ovpn text
+      if (server.isThirdParty) {
+        final ovpn = server.providerPayload?['ovpnConfiguration'] as String?;
+        if (ovpn != null && ovpn.isNotEmpty) {
+          return ovpn;
+        }
+        throw Exception('Third-party server has no OpenVPN configuration');
+      }
+
       // OneConnect servers embed their full OVPN config inside providerPayload
       if (server.isOneConnect) {
         final ovpnConfig =
@@ -1094,6 +1135,7 @@ pull
       case WGStage.connected:
         _cancelConnectionTimer();
         _connectionStartTime ??= DateTime.now(); // preserve start time on app restore
+        _wasReallyConnected = true;
         _updateVpnState(VpnState.connected);
         // LevelPlay interstitial on successful WireGuard connection.
         unawaited(
@@ -1113,14 +1155,18 @@ pull
         _connectionStartTime = null;
         _currentServer = null;
         _updateVpnState(VpnState.disconnected);
-        // LevelPlay interstitial on successful WireGuard disconnect.
-        unawaited(
-          LevelPlayService.instance.showInterstitial(
-            placementName: 'vpn_disconnected',
-          ),
-        );
+        // Interstitial only after a session that was really connected.
+        if (_wasReallyConnected) {
+          unawaited(
+            LevelPlayService.instance.showInterstitial(
+              placementName: 'vpn_disconnected',
+            ),
+          );
+        }
+        _wasReallyConnected = false;
         break;
       case WGStage.error:
+        _wasReallyConnected = false;
         _cancelConnectionTimer();
         _stopStatusUpdater();
         _connectionStartTime = null;
@@ -1374,9 +1420,11 @@ pull
     _connectionTimer?.cancel();
 
     // Timeout for connection attempts (40 seconds for WireGuard, 60 for OpenVPN)
-    final timeout = _currentServer?.vpnProtocolType == 'wireguard'
-        ? const Duration(seconds: 40)
-        : const Duration(seconds: 60);
+    final timeout = _currentServer?.isThirdParty == true
+        ? const Duration(seconds: 25)
+        : (_currentServer?.vpnProtocolType == 'wireguard'
+            ? const Duration(seconds: 40)
+            : const Duration(seconds: 60));
 
     _connectionTimer = Timer(timeout, () {
       if (_vpnState == VpnState.connecting ||
@@ -1394,6 +1442,10 @@ pull
           _openVPN!.disconnect();
         }
 
+        _wasReallyConnected = false;
+        if (_currentServer?.isThirdParty == true) {
+          ThirdPartyFailed.mark(_currentServer?.providerServerId);
+        }
         _currentServer = null;
         _connectionStartTime = null;
         _updateVpnState(VpnState.error);
@@ -1591,6 +1643,10 @@ pull
   }
 
   Future<void> _logConnection() async {
+    if (_currentServer != null &&
+        _currentServer!.isThirdParty) {
+      return;
+    }
     if (_currentServer != null && _deviceId != null) {
       try {
         // Use the _isAutoConnect flag to determine connection type
@@ -1606,6 +1662,10 @@ pull
   }
 
   Future<void> _logDisconnection() async {
+    if (_currentServer != null && _currentServer!.isThirdParty) {
+      _connectionStartTime = null;
+      return;
+    }
     if (_currentServer != null &&
         _deviceId != null &&
         _connectionStartTime != null) {

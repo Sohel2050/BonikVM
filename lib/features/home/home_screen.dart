@@ -106,8 +106,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _restoreServerSelection() async {
     try {
       final currentServerNotifier = ref.read(currentServerProvider.notifier);
+
+      // If the VPN is connected or connecting, the server the service is
+      // really using is the truth: show that one (this also covers
+      // third-party servers, which are not in our backend list).
+      final activeServer = ref.read(vpnServiceProvider).currentServer;
+      if (activeServer != null) {
+        await currentServerNotifier.setServer(activeServer);
+        return;
+      }
+
       final persistedServerId = await currentServerNotifier
           .getPersistedServerId();
+
+      // Third-party (VPN Gate) servers are not saved between sessions.
+      // Do not replace them with the first backend server.
+      if (persistedServerId != null && persistedServerId.startsWith('vg_')) {
+        await currentServerNotifier.setServer(null);
+        return;
+      }
 
       if (persistedServerId != null) {
         // Wait a bit for servers to load, then restore selection
@@ -462,7 +479,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final persistedServerId = await currentServerNotifier
             .getPersistedServerId();
 
-        if (persistedServerId != null) {
+        if (persistedServerId != null && !persistedServerId.startsWith('vg_')) {
           // Try to find the persisted server
           final persistedServer = servers.firstWhere(
                 (s) => s.id == persistedServerId,
@@ -1281,15 +1298,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // Let VpnService handle disconnected notifications
               _connectionAnimationController.reverse();
 
-              // Only show the disconnect interstitial on a real
-              // connected -> disconnected transition (not on app launch,
-              // a failed connection attempt, or a duplicate notification).
-              if (previous?.value == VpnState.connected &&
-                  !ref.read(premiumStatusProvider)) {
-                LevelPlayService.instance.showInterstitial(
-                  placementName: 'vpn_disconnect',
-                );
-              }
+              // The disconnect interstitial is shown only by VpnService
+              // ('vpn_disconnected', after a really connected session), so
+              // it is not requested again here.
 
               _hasShownConnectInterstitial = false;
 

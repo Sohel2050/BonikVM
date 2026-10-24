@@ -1,3 +1,4 @@
+import 'services/ads_network_config_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -44,7 +45,7 @@ void main() async {
     debugPrint('Notification clicked: ${event.notification.additionalData}');
   });
 
-  runApp(const ProviderScope(child: AxeVPNApp()));
+  runApp(const ProviderScope(child: VpnMasterApp()));
 }
 
 Future<void> _initializeApp() async {
@@ -108,15 +109,27 @@ Future<void> _initializeApp() async {
 
     // Initialize Unity LevelPlay service with timeout
     try {
+      // Keys/IDs set in Admin > Ads Settings (cached from the last run) win
+      // over the built-in .env values; empty admin values fall back to .env.
+      await AdsNetworkConfigService.applyCachedAdTiming();
+      final lpRemote = await AdsNetworkConfigService.cachedLevelPlay();
       await LevelPlayService.instance
           .initialize(
-        androidAppKey: dotenv.env['LEVELPLAY_ANDROID_APP_KEY'],
-        iosAppKey: dotenv.env['LEVELPLAY_IOS_APP_KEY'],
-        rewardedAdUnitId: dotenv.env['LEVELPLAY_REWARDED_AD_UNIT_ID'],
-        interstitialAdUnitId:
-        dotenv.env['LEVELPLAY_INTERSTITIAL_AD_UNIT_ID'],
-        bannerAdUnitId: dotenv.env['LEVELPLAY_BANNER_AD_UNIT_ID'],
-        nativeAdUnitId: dotenv.env['LEVELPLAY_NATIVE_AD_UNIT_ID'],
+        androidAppKey: AdsNetworkConfigService.pick(
+            lpRemote?.androidAppKey, dotenv.env['LEVELPLAY_ANDROID_APP_KEY']),
+        iosAppKey: AdsNetworkConfigService.pick(
+            lpRemote?.iosAppKey, dotenv.env['LEVELPLAY_IOS_APP_KEY']),
+        rewardedAdUnitId: AdsNetworkConfigService.pick(
+            lpRemote?.rewardedAdUnitId,
+            dotenv.env['LEVELPLAY_REWARDED_AD_UNIT_ID']),
+        interstitialAdUnitId: AdsNetworkConfigService.pick(
+            lpRemote?.interstitialAdUnitId,
+            dotenv.env['LEVELPLAY_INTERSTITIAL_AD_UNIT_ID']),
+        bannerAdUnitId: AdsNetworkConfigService.pick(
+            lpRemote?.bannerAdUnitId, dotenv.env['LEVELPLAY_BANNER_AD_UNIT_ID']),
+        nativeAdUnitId: AdsNetworkConfigService.pick(
+            lpRemote?.nativeAdUnitId, dotenv.env['LEVELPLAY_NATIVE_AD_UNIT_ID']),
+        mrecAdUnitId: dotenv.env['LEVELPLAY_MREC_AD_UNIT_ID'],
       )
           .timeout(
         const Duration(seconds: 5),
@@ -127,6 +140,10 @@ Future<void> _initializeApp() async {
     } catch (e) {
       debugPrint('⚠️ LevelPlay service initialization failed: $e');
     }
+
+    // Refresh admin ad config in the background for the next app start.
+    AdsNetworkConfigService.refresh();
+    AdsNetworkConfigService.syncAdTiming();
 
     // Initialize VPN notification service
     try {
@@ -194,14 +211,14 @@ Future<void> _requestPermissions() async {
   }
 }
 
-class AxeVPNApp extends ConsumerStatefulWidget {
-  const AxeVPNApp({super.key});
+class VpnMasterApp extends ConsumerStatefulWidget {
+  const VpnMasterApp({super.key});
 
   @override
-  ConsumerState<AxeVPNApp> createState() => _AxeVPNAppState();
+  ConsumerState<VpnMasterApp> createState() => _VpnMasterAppState();
 }
 
-class _AxeVPNAppState extends ConsumerState<AxeVPNApp>
+class _VpnMasterAppState extends ConsumerState<VpnMasterApp>
     with WidgetsBindingObserver {
   @override
   void initState() {
@@ -240,7 +257,7 @@ class _AxeVPNAppState extends ConsumerState<AxeVPNApp>
       // foreground, matching the intent already described in
       // UpdateService's comments ("next app launch will check backend
       // again"). Uses appNavigatorKey rather than this widget's own
-      // `context`, since AxeVPNApp's context sits above MaterialApp's
+      // `context`, since VpnMasterApp's context sits above MaterialApp's
       // Navigator and can't host a dialog directly.
       final navContext = appNavigatorKey.currentContext;
       if (navContext != null) {

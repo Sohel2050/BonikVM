@@ -101,6 +101,12 @@ class NotificationService {
       // Initialize Firebase messaging
       await _initializeFirebaseMessaging();
 
+      // Subscribe to the broadcast topic first so admin "All Devices"
+      // notifications work even if the permission step below fails.
+      try {
+        await _firebaseMessaging.subscribeToTopic('all_users');
+      } catch (_) {}
+
       // Request permissions
       await _requestPermissions();
 
@@ -236,10 +242,12 @@ class NotificationService {
         sound: true,
       );
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        throw Exception('Notification permissions denied');
+        debugPrint('NotificationService: notification permission denied');
       }
     } catch (e) {
-      rethrow;
+      // Never abort initialization because of the permission dialog; the
+      // FCM token and the all_users topic must still be registered.
+      debugPrint('NotificationService: permission request failed: $e');
     }
   }
 

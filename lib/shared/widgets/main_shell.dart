@@ -828,6 +828,25 @@ class _MainShellState extends ConsumerState<MainShell> {
                   ),
 
                   _buildModernDrawerItem(
+                    icon: Icons.apps_rounded,
+                    title: 'More Apps',
+                    subtitle: 'Explore our other apps',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final uri = Uri.parse(
+                        'https://play.google.com/store/apps/dev?id=5662539472191775885',
+                      );
+                      try {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      } catch (_) {}
+                    },
+                    isDarkMode: isDarkMode,
+                  ),
+
+                  _buildModernDrawerItem(
                     icon: Icons.privacy_tip,
                     title: 'Privacy Policy',
                     subtitle: 'Read our privacy policy',
