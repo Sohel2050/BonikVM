@@ -90,7 +90,9 @@ class _LevelPlayNativeAdState extends State<LevelPlayNativeAdPlacement>
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) return const SizedBox.shrink();
+    if (_failed || !LevelPlayService.instance.adsEnabledByAdmin) {
+      return const SizedBox.shrink();
+    }
     return SizedBox(
       // Keep a real platform-view size during the load. A zero-sized Android
       // platform view may never be attached, which prevents its load callback.

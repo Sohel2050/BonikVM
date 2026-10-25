@@ -31,7 +31,9 @@ class _LevelPlayMrecSlotState extends State<LevelPlayMrecSlot> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_visible) return const SizedBox.shrink();
+    if (!_visible || !LevelPlayService.instance.adsEnabledByAdmin) {
+      return const SizedBox.shrink();
+    }
     return Container(
       height: 250,
       margin: widget.margin,

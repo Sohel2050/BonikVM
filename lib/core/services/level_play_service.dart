@@ -445,6 +445,19 @@ class LevelPlayService {
   // (no extra limits) until the settings arrive from the server.
   // ==========================================================
 
+  /// Admin > Ads Settings: when every ad network is switched OFF there
+  /// ("none"), passive ads (interstitial, banner, native, MREC) are hidden.
+  /// Rewarded videos stay available because users start them on purpose
+  /// (extra free time, unlock a server).
+  bool _adsEnabledByAdmin = true;
+
+  bool get adsEnabledByAdmin => _adsEnabledByAdmin;
+
+  void setAdsEnabledByAdmin(bool enabled) {
+    _adsEnabledByAdmin = enabled;
+    debugPrint('[LevelPlay] Admin ads switch: ${enabled ? 'ON' : 'OFF'}');
+  }
+
   final DateTime _launchedAt = DateTime.now();
 
   int _adInitialDelaySeconds = 0;
@@ -1061,6 +1074,11 @@ class LevelPlayService {
     }
 
     // Admin timing rules (a queued ad that was already approved bypasses).
+    if (!_adsEnabledByAdmin) {
+      debugPrint('[LevelPlay] Interstitial skipped: ads switched OFF by admin');
+      return;
+    }
+
     if (!bypassTiming && !_interstitialAllowedNow(placementName)) {
       return;
     }
@@ -1156,6 +1174,10 @@ class LevelPlayService {
             'premium user',
       );
 
+      return;
+    }
+
+    if (!_adsEnabledByAdmin) {
       return;
     }
 

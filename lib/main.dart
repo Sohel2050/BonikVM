@@ -112,6 +112,9 @@ Future<void> _initializeApp() async {
       // Keys/IDs set in Admin > Ads Settings (cached from the last run) win
       // over the built-in .env values; empty admin values fall back to .env.
       await AdsNetworkConfigService.applyCachedAdTiming();
+      LevelPlayService.instance.setAdsEnabledByAdmin(
+        await AdsNetworkConfigService.adsEnabledFromCache(),
+      );
       final lpRemote = await AdsNetworkConfigService.cachedLevelPlay();
       await LevelPlayService.instance
           .initialize(

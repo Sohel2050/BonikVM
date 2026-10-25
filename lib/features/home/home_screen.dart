@@ -1420,7 +1420,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
             // LevelPlay Banner stays in the Home BODY, directly
             // below the MainShell AppBar. No fixed-height parent.
-            if (!isPremium)
+            if (!isPremium && LevelPlayService.instance.adsEnabledByAdmin)
               FadeInDown(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -1763,7 +1763,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
 
             // Ads
-            if (!isPremium) ...[
+            if (!isPremium && LevelPlayService.instance.adsEnabledByAdmin) ...[
               const SizedBox(height: 16),
               FadeInUp(
                 delay: const Duration(milliseconds: 550),

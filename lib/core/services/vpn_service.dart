@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:axevpn_flutter/openvpn_flutter.dart';
@@ -436,13 +437,9 @@ class VpnService {
         }
         _wasReallyConnected = true;
         _updateVpnState(VpnState.connected);
-        // Show LevelPlay interstitial immediately when the VPN really connects.
+        // Interstitial only after the tunnel really carries traffic.
         // Premium users are automatically skipped by LevelPlayService.
-        unawaited(
-          LevelPlayService.instance.showInterstitial(
-            placementName: 'vpn_connected',
-          ),
-        );
+        unawaited(_showConnectedAdIfReallyConnected());
         // Only set connection start time if not already set (e.g. restored on app relaunch).
         _connectionStartTime ??= DateTime.now();
         _cancelConnectionTimer();
@@ -1048,6 +1045,58 @@ pull
   }
 
   /// Connect to WireGuard server
+  /// The "connected" stage only means the tunnel interface is up. Show the
+  /// interstitial only if internet traffic really flows through the VPN, so
+  /// users never see an ad for a connection that does not work.
+  Future<void> _showConnectedAdIfReallyConnected() async {
+    final ok = await _tunnelHasInternet();
+    if (!ok) {
+      debugPrint('[VPN] Connected ad skipped: no traffic through the tunnel');
+      return;
+    }
+    // The user may have disconnected while the check was running.
+    if (!_wasReallyConnected || _isUserDisconnecting) return;
+    await LevelPlayService.instance.showInterstitial(
+      placementName: 'vpn_connected',
+    );
+  }
+
+  /// True if a tiny HTTPS request succeeds through the tunnel. Several
+  /// neutral "generate_204" endpoints are tried, so one blocked host does not
+  /// make a working connection look broken.
+  Future<bool> _tunnelHasInternet() async {
+    const probes = <String>[
+      'https://connectivitycheck.gstatic.com/generate_204',
+      'https://cp.cloudflare.com/generate_204',
+      'http://connectivitycheck.platform.hicloud.com/generate_204',
+    ];
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 4),
+        receiveTimeout: const Duration(seconds: 4),
+        followRedirects: false,
+        validateStatus: (s) => s != null && s < 600,
+      ),
+    );
+    try {
+      for (var round = 0; round < 2; round++) {
+        for (final url in probes) {
+          if (!_wasReallyConnected || _isUserDisconnecting) return false;
+          try {
+            final res = await dio.get(url);
+            if (res.statusCode == 204) return true;
+          } catch (_) {
+            // try the next endpoint
+          }
+        }
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    } finally {
+      dio.close(force: true);
+    }
+    return false;
+  }
+
   Future<bool> _connectWireGuard(VpnServer server) async {
     try {
 
@@ -1137,12 +1186,10 @@ pull
         _connectionStartTime ??= DateTime.now(); // preserve start time on app restore
         _wasReallyConnected = true;
         _updateVpnState(VpnState.connected);
-        // LevelPlay interstitial on successful WireGuard connection.
-        unawaited(
-          LevelPlayService.instance.showInterstitial(
-            placementName: 'vpn_connected',
-          ),
-        );
+        // Interstitial only after the tunnel really carries traffic.
+        // WireGuard reports "connected" as soon as the interface is up, even
+        // when the server never answers, so the ad waits for a real check.
+        unawaited(_showConnectedAdIfReallyConnected());
         _logConnection();
         _startStatusUpdater();
         break;

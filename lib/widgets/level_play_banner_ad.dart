@@ -129,7 +129,9 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) return const SizedBox.shrink();
+    if (_failed || !LevelPlayService.instance.adsEnabledByAdmin) {
+      return const SizedBox.shrink();
+    }
 
     return SizedBox(
       height: widget.adSize.height.toDouble(),

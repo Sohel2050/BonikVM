@@ -41,6 +41,19 @@ class AdsNetworkConfigService {
   static String? pick(String? remote, String? fallback) =>
       (remote != null && remote.trim().isNotEmpty) ? remote.trim() : fallback;
 
+  /// True unless the admin switched every network OFF ("none"). Nothing
+  /// cached yet (first launch) means ads stay ON.
+  static Future<bool> adsEnabledFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null || raw.isEmpty) return true;
+      final ads = jsonDecode(raw);
+      if (ads is Map) return ads['primary_network']?.toString() != 'none';
+    } catch (_) {}
+    return true;
+  }
+
   /// LevelPlay config from the cache (null if nothing cached yet).
   static Future<LevelPlayRemoteConfig?> cachedLevelPlay() async {
     try {
@@ -73,6 +86,9 @@ class AdsNetworkConfigService {
       if (res.statusCode == 200 && data is Map && data['ads'] is Map) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_cacheKey, jsonEncode(data['ads']));
+        LevelPlayService.instance.setAdsEnabledByAdmin(
+          data['ads']['primary_network']?.toString() != 'none',
+        );
         debugPrint('AdsNetworkConfig: refreshed');
       }
     } catch (e) {
