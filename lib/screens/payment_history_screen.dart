@@ -41,12 +41,10 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
         return;
       }
 
-      // For testing purposes, use the test Firebase UID we created
-      // TODO: Replace with actual user UID once proper user authentication is implemented
-      String testUserId = 'debug-test-firebase-uid-999';
+      // Receipts of the signed-in user (the server looks the user up by Firebase UID)
+      final String userId = currentUser.uid;
 
-
-      final result = await _apiService.getUserReceipts(userId: testUserId);
+      final result = await _apiService.getUserReceipts(userId: userId);
 
       if (result['success'] == true && result['data'] != null) {
         final receiptsData = result['data']['receipts'] ?? [];
