@@ -283,8 +283,14 @@ class BillingService {
   Map<String, dynamic> _handleError(DioException e) {
     final responseData = e.response?.data;
     if (responseData is Map<String, dynamic>) {
-      return responseData;
+      // Keep the HTTP status so callers can tell "server busy" (503)
+      // from "purchase rejected" (422) or "linked to another account" (409).
+      return {...responseData, 'status_code': e.response?.statusCode};
     }
-    return {'success': false, 'message': e.message ?? 'Network error'};
+    return {
+      'success': false,
+      'message': e.message ?? 'Network error',
+      'status_code': e.response?.statusCode,
+    };
   }
 }

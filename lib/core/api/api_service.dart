@@ -1239,6 +1239,29 @@ class ApiService {
         if (data['ip'] != null && data['error'] == null) return data;
       }
     } catch (_) {}
+    // 4th: api.myip.com (IP + country, very light)
+    try {
+      final response = await externalDio
+          .get('https://api.myip.com')
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = Map<String, dynamic>.from(response.data as Map);
+        if (data['ip'] != null) {
+          data['countryCode'] = data['cc'];
+          return data;
+        }
+      }
+    } catch (_) {}
+    // 5th: ipify (IP only, but almost never blocked)
+    try {
+      final response = await externalDio
+          .get('https://api.ipify.org?format=json')
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = Map<String, dynamic>.from(response.data as Map);
+        if (data['ip'] != null) return data;
+      }
+    } catch (_) {}
     throw Exception('Failed to get IP address');
   }
 

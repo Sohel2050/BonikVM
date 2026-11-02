@@ -107,10 +107,16 @@ Future<void> _initializeApp() async {
       debugPrint('⚠️ Purchase service initialization failed: $e');
     }
 
-    // Initialize Unity LevelPlay service with timeout
+    // Initialize Unity LevelPlay service.
+    // EVERYTHING (app key, ad unit ids incl. MREC, on/off switch) comes from
+    // Admin > Ads Settings - nothing is stored inside the app. The server is
+    // asked first (short timeout) so even the very first launch uses live
+    // values; if it cannot be reached, the last copy saved on the device is used.
     try {
-      // Keys/IDs set in Admin > Ads Settings (cached from the last run) win
-      // over the built-in .env values; empty admin values fall back to .env.
+      await AdsNetworkConfigService.refresh().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {},
+      );
       await AdsNetworkConfigService.applyCachedAdTiming();
       LevelPlayService.instance.setAdsEnabledByAdmin(
         await AdsNetworkConfigService.adsEnabledFromCache(),
@@ -118,21 +124,13 @@ Future<void> _initializeApp() async {
       final lpRemote = await AdsNetworkConfigService.cachedLevelPlay();
       await LevelPlayService.instance
           .initialize(
-        androidAppKey: AdsNetworkConfigService.pick(
-            lpRemote?.androidAppKey, dotenv.env['LEVELPLAY_ANDROID_APP_KEY']),
-        iosAppKey: AdsNetworkConfigService.pick(
-            lpRemote?.iosAppKey, dotenv.env['LEVELPLAY_IOS_APP_KEY']),
-        rewardedAdUnitId: AdsNetworkConfigService.pick(
-            lpRemote?.rewardedAdUnitId,
-            dotenv.env['LEVELPLAY_REWARDED_AD_UNIT_ID']),
-        interstitialAdUnitId: AdsNetworkConfigService.pick(
-            lpRemote?.interstitialAdUnitId,
-            dotenv.env['LEVELPLAY_INTERSTITIAL_AD_UNIT_ID']),
-        bannerAdUnitId: AdsNetworkConfigService.pick(
-            lpRemote?.bannerAdUnitId, dotenv.env['LEVELPLAY_BANNER_AD_UNIT_ID']),
-        nativeAdUnitId: AdsNetworkConfigService.pick(
-            lpRemote?.nativeAdUnitId, dotenv.env['LEVELPLAY_NATIVE_AD_UNIT_ID']),
-        mrecAdUnitId: dotenv.env['LEVELPLAY_MREC_AD_UNIT_ID'],
+        androidAppKey: lpRemote?.androidAppKey,
+        iosAppKey: lpRemote?.iosAppKey,
+        rewardedAdUnitId: lpRemote?.rewardedAdUnitId,
+        interstitialAdUnitId: lpRemote?.interstitialAdUnitId,
+        bannerAdUnitId: lpRemote?.bannerAdUnitId,
+        nativeAdUnitId: lpRemote?.nativeAdUnitId,
+        mrecAdUnitId: lpRemote?.mrecAdUnitId,
       )
           .timeout(
         const Duration(seconds: 5),
@@ -144,8 +142,7 @@ Future<void> _initializeApp() async {
       debugPrint('⚠️ LevelPlay service initialization failed: $e');
     }
 
-    // Refresh admin ad config in the background for the next app start.
-    AdsNetworkConfigService.refresh();
+    // Refresh ad timing in the background for the next app start.
     AdsNetworkConfigService.syncAdTiming();
 
     // Initialize VPN notification service

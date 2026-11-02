@@ -35,7 +35,7 @@ class IpAddressInfo {
 final ipAddressProvider = FutureProvider<IpAddressInfo>((ref) async {
   final apiService = ApiService.instance;
 
-  int retries = 3;
+  int retries = 4;
   while (retries > 0) {
     try {
       final response = await apiService.getPublicIp();

@@ -51,23 +51,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // Bottom banner ad
-            if (!isPremium) ...[
-              const SizedBox(height: 24),
-              Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: LevelPlayBannerAd(
-                    adUnitId: LevelPlayService.instance.bannerAdUnitId,
-                  ),
-                ),
-              ),
-            ],
+            // Banner ad (the whole slot incl. its gap collapses if the ad fails)
+            if (!isPremium) _SettingsBannerSlot(isDarkMode: isDarkMode),
 
 
             // Connection Settings
@@ -1599,6 +1584,54 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Banner slot for the top of Settings. Unlike a fixed Container, it removes
+/// itself - including the gap above it - when the ad fails or is switched off.
+class _SettingsBannerSlot extends StatefulWidget {
+  final bool isDarkMode;
+  const _SettingsBannerSlot({required this.isDarkMode});
+
+  @override
+  State<_SettingsBannerSlot> createState() => _SettingsBannerSlotState();
+}
+
+class _SettingsBannerSlotState extends State<_SettingsBannerSlot> {
+  bool _failed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hidden = _failed || !LevelPlayService.instance.adsEnabledByAdmin;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: hidden
+          ? const SizedBox(width: double.infinity)
+          : Padding(
+              padding: const EdgeInsets.only(top: 24),
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: widget.isDarkMode
+                      ? const Color(0xFF1E293B)
+                      : Colors.white,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: LevelPlayBannerAd(
+                    adUnitId: LevelPlayService.instance.bannerAdUnitId,
+                    onFailed: () {
+                      if (mounted) setState(() => _failed = true);
+                    },
+                  ),
+                ),
+              ),
+            ),
     );
   }
 }

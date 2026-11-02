@@ -65,12 +65,7 @@ class PaymentService {
       // Fallback to default if API fails
       // Only used if the plans API is unreachable. Normal flow is fully
       // dynamic from the admin panel (Android product IDs).
-      _subscriptionIds = [
-        'albonikvpn30days',
-        'albonikvpn90days',
-        'albonikvpn180days',
-        'albonikvpn365days',
-      ];
+      _subscriptionIds = [];
     }
   }
 

@@ -392,10 +392,10 @@ class LevelPlayService {
   // ==========================================================
 
   static const String _fallbackAndroidAppKey =
-      '275189f1d';
+      '';
 
   static const String _fallbackIosAppKey =
-      'YOUR_IOS_LEVELPLAY_APP_KEY';
+      '';
 
 
   // ==========================================================
@@ -403,19 +403,19 @@ class LevelPlayService {
   // ==========================================================
 
   static const String _fallbackRewardedUnitId =
-      't2hf8dmp8kxo8hqp';
+      '';
 
   static const String _fallbackInterstitialUnitId =
-      'ecq5j5znboq5x54v';
+      '';
 
   static const String _fallbackBannerUnitId =
-      'hqe7skeqt5vp9csp';
+      '';
 
   static const String _fallbackNativeUnitId =
-      '52rdvpmf716zst8k';
+      '';
 
   static const String _fallbackMrecUnitId =
-      'y7so1eclk7uwq5fw';
+      '';
 
 
   // ==========================================================
@@ -700,6 +700,19 @@ class LevelPlayService {
               'skipping initialization',
         );
 
+        return;
+      }
+
+
+      // ------------------------------------------------------
+      // No app key from Admin > Ads Settings -> nothing to start
+      // ------------------------------------------------------
+
+      final configuredKey = Platform.isAndroid ? _androidAppKey : _iosAppKey;
+      if (configuredKey.isEmpty) {
+        debugPrint(
+          '[LevelPlay] No app key from admin panel - ads stay off',
+        );
         return;
       }
 

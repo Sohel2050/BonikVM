@@ -419,16 +419,28 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
             currencyCode: result.currencyCode,
           );
           if (response['success'] == true) break;
+          // 422 (rejected) and 409 (other account) will not change on retry.
+          final code = response['status_code'];
+          if (code == 422 || code == 409) break;
           if (attempt < 2) await Future.delayed(const Duration(seconds: 2));
         }
 
         if (!mounted) return;
 
         if (response == null || response['success'] != true) {
+          final code = response?['status_code'];
+          final String message;
+          if (code == 409) {
+            message = tr('bb_purchase_other_account');
+          } else if (code == 422) {
+            message = tr('bb_not_verified');
+          } else {
+            // 503 / network problem: payment is fine, server will retry.
+            message = tr('bb_not_confirmed');
+          }
           setState(() {
             _loading = false;
-            _error =
-                tr('bb_not_confirmed');
+            _error = message;
           });
           return;
         }

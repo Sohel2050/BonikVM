@@ -18,6 +18,7 @@ class LevelPlayRemoteConfig {
   final String interstitialAdUnitId;
   final String bannerAdUnitId;
   final String nativeAdUnitId;
+  final String mrecAdUnitId;
 
   const LevelPlayRemoteConfig({
     this.androidAppKey = '',
@@ -26,6 +27,7 @@ class LevelPlayRemoteConfig {
     this.interstitialAdUnitId = '',
     this.bannerAdUnitId = '',
     this.nativeAdUnitId = '',
+    this.mrecAdUnitId = '',
   });
 }
 
@@ -184,6 +186,7 @@ class AdsNetworkConfigService {
       interstitialAdUnitId: unit('interstitial'),
       bannerAdUnitId: unit('banner'),
       nativeAdUnitId: unit('native'),
+      mrecAdUnitId: unit('mrec'),
     );
   }
 }

@@ -50,26 +50,73 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
   late final GlobalKey<LevelPlayBannerAdViewState> _bannerKey;
   bool _failed = false;
   bool _loaded = false;
+  int _retries = 0;
   Timer? _loadTimeout;
+  Timer? _retryTimer;
+
+  /// Extra load attempts after the network answers "no fill / load failed".
+  static const int _maxRetries = 3;
+
+  /// Time for SDK start-up + the first network answer.
+  static const Duration _firstLoadWindow = Duration(seconds: 15);
+
+  /// Time for each retry before giving up.
+  static const Duration _retryWindow = Duration(seconds: 10);
+
+  /// Pause before a retry.
+  static const Duration _retryDelay = Duration(seconds: 4);
 
   @override
   void initState() {
     super.initState();
     _bannerKey = GlobalKey<LevelPlayBannerAdViewState>();
-    // If the ad neither loads nor reports a failure (no internet, SDK not
-    // ready, no fill), treat it as failed so the parent collapses the empty slot.
-    _loadTimeout = Timer(const Duration(seconds: 5), _onLoadTimeout);
+
+    if (widget.adUnitId.isEmpty) {
+      // Admin panel has no ad unit for this slot: collapse, nothing to load.
+      _failed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onFailed?.call();
+      });
+      return;
+    }
+
+    _loadTimeout = Timer(_firstLoadWindow, _onLoadTimeout);
   }
 
   void _onLoadTimeout() {
     if (!mounted || _loaded || _failed) return;
+    _giveUp();
+  }
+
+  void _giveUp() {
+    _loadTimeout?.cancel();
+    _retryTimer?.cancel();
+    if (!mounted || _failed) return;
     setState(() => _failed = true);
     widget.onFailed?.call();
+  }
+
+  void _scheduleRetry() {
+    if (!mounted || _failed) return;
+    if (_retries >= _maxRetries) {
+      _giveUp();
+      return;
+    }
+    _retries++;
+    _loaded = false;
+    _loadTimeout?.cancel();
+    _retryTimer?.cancel();
+    _retryTimer = Timer(_retryDelay, () {
+      if (!mounted || _failed || _loaded) return;
+      _loadTimeout = Timer(_retryWindow, _onLoadTimeout);
+      _bannerKey.currentState?.loadAd();
+    });
   }
 
   @override
   void dispose() {
     _loadTimeout?.cancel();
+    _retryTimer?.cancel();
     _bannerKey.currentState?.destroy();
     super.dispose();
   }
@@ -102,16 +149,17 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
     debugPrint('[LevelPlayBannerAd] Loaded: ${adInfo.adId}');
     _loaded = true;
     _loadTimeout?.cancel();
+    _retryTimer?.cancel();
     if (mounted) setState(() {});
   }
 
   @override
   void onAdLoadFailed(LevelPlayAdError error) {
     debugPrint(
-      '[LevelPlayBannerAd] Load failed: ${error.errorCode} – ${error.errorMessage}',
+      '[LevelPlayBannerAd] Load failed (try ${_retries + 1}): '
+      '${error.errorCode} – ${error.errorMessage}',
     );
-    if (mounted) setState(() => _failed = true);
-    widget.onFailed?.call();
+    _scheduleRetry();
   }
 
   @override
@@ -121,12 +169,9 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
   void onAdDisplayFailed(LevelPlayAdInfo adInfo, LevelPlayAdError error) {
     debugPrint(
       '[LevelPlayBannerAd] Display failed: '
-          '${error.errorCode} – ${error.errorMessage}',
+      '${error.errorCode} – ${error.errorMessage}',
     );
-    if (mounted) {
-      setState(() => _failed = true);
-    }
-    widget.onFailed?.call();
+    _scheduleRetry();
   }
 
   @override

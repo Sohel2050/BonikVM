@@ -1548,7 +1548,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                   final String label;
                   if (isConnected) {
-                    label = tr('disconnect');
+                    label = tr('tap_to_disconnect');
                   } else if (vpnState == VpnState.disconnecting) {
                     label = tr('disconnecting');
                   } else if (phase == VpnButtonPhase.connecting) {
