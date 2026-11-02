@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../../core/services/update_service.dart';
+import '../providers/app_providers.dart';
+import '../../core/localization/app_localizations.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -20,6 +22,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
+    // Load the saved premium status while the splash is showing, so Home draws
+    // correctly on its first frame (no free -> premium flicker).
+    ref.read(premiumStatusProvider);
     _setupAnimations();
     _checkAuthAndNavigate();
   }
@@ -151,8 +156,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         ),
                         const SizedBox(height: 10),
                         // Tagline
-                        const Text(
-                          'Secure  •  Fast  •  Private',
+                        Text(
+                          tr('sp_splash_tag'),
                           style: TextStyle(
                             fontSize: 16,
                             color: Color(0xFF3B82F6),
@@ -175,8 +180,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               ),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Initializing secure connection...',
+                            Text(
+                              tr('sp_splash_init'),
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF6B7280),

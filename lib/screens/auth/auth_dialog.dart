@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../providers/auth_providers.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Shows an authentication dialog for premium features or server access
 /// Returns true if authentication was successful, false otherwise
 Future<bool?> showAuthDialog(
   BuildContext context, {
   VoidCallback? onAuthSuccess,
-  String title = 'Authentication Required',
-  String subtitle = 'Please sign in to access premium features',
+  String? title,
+  String? subtitle,
 }) {
   return showDialog<bool>(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext context) {
       return ThemedAuthDialog(
-        title: title,
-        subtitle: subtitle,
+        title: title ?? tr('au_required'),
+        subtitle: subtitle ?? tr('au_sub_premium'),
         onAuthSuccess: onAuthSuccess,
       );
     },
@@ -216,9 +217,9 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
                         labelColor: Colors.white,
                         unselectedLabelColor: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-                        tabs: const [
-                          Tab(text: 'Sign In'),
-                          Tab(text: 'Sign Up'),
+                        tabs: [
+                          Tab(text: tr('sign_in')),
+                          Tab(text: tr('sign_up')),
                         ],
                       ),
                     ),
@@ -274,7 +275,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
                 },
               ),
         label: Text(
-          _isLoading ? 'Signing in...' : 'Continue with Google',
+          _isLoading ? tr('au_signing_in') : tr('continue_with_google'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -305,15 +306,15 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
         children: [
           _buildTextField(
             controller: _emailController,
-            label: 'Email',
+            label: tr('email'),
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your email';
+                return tr('au_enter_email');
               }
               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Please enter a valid email';
+                return tr('au_valid_email');
               }
               return null;
             },
@@ -323,7 +324,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
           const SizedBox(height: 16),
           _buildTextField(
             controller: _passwordController,
-            label: 'Password',
+            label: tr('password'),
             icon: Icons.lock_outline,
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
@@ -335,7 +336,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your password';
+                return tr('au_enter_pw');
               }
               return null;
             },
@@ -365,8 +366,8 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text(
-                      'Sign In',
+                  : Text(
+                      tr('sign_in'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -386,11 +387,11 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
         children: [
           _buildTextField(
             controller: _nameController,
-            label: 'Full Name',
+            label: tr('au_full_name'),
             icon: Icons.person_outline,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your name';
+                return tr('au_enter_name');
               }
               return null;
             },
@@ -400,15 +401,15 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
           const SizedBox(height: 16),
           _buildTextField(
             controller: _emailController,
-            label: 'Email',
+            label: tr('email'),
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your email';
+                return tr('au_enter_email');
               }
               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Please enter a valid email';
+                return tr('au_valid_email');
               }
               return null;
             },
@@ -418,7 +419,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
           const SizedBox(height: 16),
           _buildTextField(
             controller: _passwordController,
-            label: 'Password',
+            label: tr('password'),
             icon: Icons.lock_outline,
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
@@ -430,10 +431,10 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter a password';
+                return tr('au_enter_a_pw');
               }
               if (value.length < 6) {
-                return 'Password must be at least 6 characters';
+                return tr('au_pw_min6');
               }
               return null;
             },
@@ -443,7 +444,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
           const SizedBox(height: 16),
           _buildTextField(
             controller: _confirmPasswordController,
-            label: 'Confirm Password',
+            label: tr('au_confirm_pw'),
             icon: Icons.lock_outline,
             obscureText: _obscureConfirmPassword,
             suffixIcon: IconButton(
@@ -455,10 +456,10 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please confirm your password';
+                return tr('au_confirm_pw_msg');
               }
               if (value != _passwordController.text) {
-                return 'Passwords do not match';
+                return tr('au_pw_mismatch');
               }
               return null;
             },
@@ -488,8 +489,8 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text(
-                      'Sign Up',
+                  : Text(
+                      tr('sign_up'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -588,7 +589,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
         widget.onAuthSuccess?.call();
         Navigator.of(context).pop(true);
       } else if (authState.hasError && mounted) {
-        _showErrorSnackBar(authState.errorMessage ?? 'Google sign-in failed. Please try again.');
+        _showErrorSnackBar(authState.errorMessage ?? tr('au_google_failed'));
       }
     } catch (e) {
       if (mounted) {
@@ -624,7 +625,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
         widget.onAuthSuccess?.call();
         Navigator.of(context).pop(true);
       } else if (authState.hasError && mounted) {
-        _showErrorSnackBar(authState.errorMessage ?? 'Email sign-in failed. Please check your credentials.');
+        _showErrorSnackBar(authState.errorMessage ?? tr('au_email_failed'));
       }
     } catch (e) {
       if (mounted) {
@@ -661,7 +662,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog>
         widget.onAuthSuccess?.call();
         Navigator.of(context).pop(true);
       } else if (authState.hasError && mounted) {
-        _showErrorSnackBar(authState.errorMessage ?? 'Email sign-up failed. Please try again.');
+        _showErrorSnackBar(authState.errorMessage ?? tr('au_signup_failed'));
       }
     } catch (e) {
       if (mounted) {

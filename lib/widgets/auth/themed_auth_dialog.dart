@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_providers.dart';
 import '../../shared/providers/theme_provider.dart';
+import '../../core/localization/app_localizations.dart';
 
 class ThemedAuthDialog extends ConsumerStatefulWidget {
   final VoidCallback? onSuccess;
@@ -64,7 +65,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Authentication Required',
+                      tr('au_required'),
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDarkMode ? Colors.white : Colors.black87,
@@ -84,7 +85,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
               const SizedBox(height: 16),
 
               Text(
-                'Please sign in to purchase premium subscriptions and access all features.',
+                tr('au_dlg_msg'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: isDarkMode ? Colors.white70 : Colors.black54,
                 ),
@@ -133,7 +134,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    'Skip for now',
+                    tr('au_skip_now'),
                     style: TextStyle(
                       color: isDarkMode ? Colors.white54 : Colors.black54,
                     ),
@@ -171,7 +172,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
                 ),
               ),
         label: Text(
-          authState.isLoading ? 'Signing in...' : 'Continue with Google',
+          authState.isLoading ? tr('au_signing_in') : tr('continue_with_google'),
           style: TextStyle(
             color: isDarkMode ? Colors.white : Colors.black87,
             fontWeight: FontWeight.w500,
@@ -204,7 +205,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
               TextButton(
                 onPressed: () => setState(() => _isSignUp = false),
                 child: Text(
-                  'Sign In',
+                  tr('sign_in'),
                   style: TextStyle(
                     color: !_isSignUp
                         ? ref.watch(themeColorProvider)
@@ -216,7 +217,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
               TextButton(
                 onPressed: () => setState(() => _isSignUp = true),
                 child: Text(
-                  'Sign Up',
+                  tr('sign_up'),
                   style: TextStyle(
                     color: _isSignUp
                         ? ref.watch(themeColorProvider)
@@ -234,12 +235,12 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
           if (_isSignUp) ...[
             _buildTextField(
               controller: _nameController,
-              label: 'Full Name',
+              label: tr('au_full_name'),
               icon: Icons.person,
               isDarkMode: isDarkMode,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your full name';
+                  return tr('au_enter_name_full');
                 }
                 return null;
               },
@@ -250,16 +251,16 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
           // Email field
           _buildTextField(
             controller: _emailController,
-            label: 'Email',
+            label: tr('email'),
             icon: Icons.email,
             isDarkMode: isDarkMode,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email';
+                return tr('au_enter_email');
               }
               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Please enter a valid email';
+                return tr('au_valid_email');
               }
               return null;
             },
@@ -270,7 +271,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
           // Password field
           _buildTextField(
             controller: _passwordController,
-            label: 'Password',
+            label: tr('password'),
             icon: Icons.lock,
             isDarkMode: isDarkMode,
             obscureText: _obscurePassword,
@@ -283,10 +284,10 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Please enter your password';
+                return tr('au_enter_pw');
               }
               if (_isSignUp && value.length < 6) {
-                return 'Password must be at least 6 characters';
+                return tr('au_pw_min6');
               }
               return null;
             },
@@ -318,7 +319,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
                       ),
                     )
                   : Text(
-                      _isSignUp ? 'Create Account' : 'Sign In',
+                      _isSignUp ? tr('au_create_account') : tr('sign_in'),
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -332,7 +333,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
             TextButton(
               onPressed: _forgotPassword,
               child: Text(
-                'Forgot Password?',
+                tr('forgot_password'),
                 style: TextStyle(
                   color: ref.watch(themeColorProvider),
                 ),
@@ -415,7 +416,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
       await ref.read(authStateProvider.notifier).signInWithGoogle();
       
       if (mounted) {
-        _showSuccess('Successfully signed in with Google!');
+        _showSuccess(tr('au_ok_google'));
         widget.onSuccess?.call();
         Navigator.of(context).pop(true);
       }
@@ -438,7 +439,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
         );
         
         if (mounted) {
-          _showSuccess('Account created successfully!');
+          _showSuccess(tr('au_ok_created'));
         }
       } else {
         await ref.read(authStateProvider.notifier).signInWithEmailAndPassword(
@@ -447,7 +448,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
         );
         
         if (mounted) {
-          _showSuccess('Successfully signed in!');
+          _showSuccess(tr('au_ok_signed'));
         }
       }
       
@@ -464,7 +465,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
 
   Future<void> _forgotPassword() async {
     if (_emailController.text.trim().isEmpty) {
-      _showError('Please enter your email address first');
+      _showError(tr('au_enter_email_addr'));
       return;
     }
 
@@ -474,7 +475,7 @@ class _ThemedAuthDialogState extends ConsumerState<ThemedAuthDialog> {
       );
       
       if (mounted) {
-        _showSuccess('Password reset email sent!');
+        _showSuccess(tr('au_reset_sent_short'));
       }
     } catch (e) {
       if (mounted) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../shared/providers/theme_provider.dart';
+import '../../core/localization/app_localizations.dart';
 
 class AboutScreen extends ConsumerStatefulWidget {
   const AboutScreen({super.key});
@@ -95,7 +96,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Secure • Fast • Reliable',
+                        tr('secure_fast_reliable'),
                         style: TextStyle(
                           fontSize: 16,
                           color: isDarkMode
@@ -114,7 +115,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   FadeInUp(
                     delay: const Duration(milliseconds: 200),
                     child: _buildInfoCard(
-                      'Version',
+                      tr('version'),
                       '${_packageInfo!.version} (${_packageInfo!.buildNumber})',
                       Icons.info_outline,
                       isDarkMode,
@@ -126,7 +127,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                 FadeInUp(
                   delay: const Duration(milliseconds: 300),
                   child: _buildInfoCard(
-                    'Developer',
+                    tr('ab_developer'),
                     'ALBONIK LLC',
                     Icons.developer_mode,
                     isDarkMode,
@@ -141,7 +142,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   delay: const Duration(milliseconds: 500),
                   child: _buildInfoCard(
                     'Platform',
-                    'Android & iOS',
+                    tr('ab_platform'),
                     Icons.smartphone,
                     isDarkMode,
                   ),
@@ -171,7 +172,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'About VPN MASTER',
+                          tr('ab_about_title'),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -180,7 +181,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'VPN MASTER is a premium VPN service that provides secure, fast, and reliable internet access. Our app uses multy-grade encryption to protect your online privacy and allows you to access content from around the world.',
+                          tr('ab_desc'),
                           style: TextStyle(
                             fontSize: 16,
                             height: 1.5,
@@ -199,7 +200,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Your privacy is our priority',
+                              tr('ab_privacy_first'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -237,7 +238,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Key Features',
+                          tr('ab_key_features'),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -247,33 +248,33 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                         const SizedBox(height: 16),
                         _buildFeatureItem(
                           '🔒',
-                          'Multi grade encryption',
+                          tr('ab_encryption'),
                           'AES-256 bit encryption for maximum security',
                           isDarkMode,
                         ),
                         _buildFeatureItem(
                           '🚀',
-                          'High-speed servers',
-                          'Optimized servers for fastest connection',
+                          tr('ab_fast_servers'),
+                          tr('ab_fast_servers_d'),
                           isDarkMode,
                         ),
                         _buildFeatureItem(
                           '🌍',
-                          'Global network',
-                          'Servers in multiple countries worldwide',
+                          tr('ab_global'),
+                          tr('ab_global_d'),
                           isDarkMode,
                         ),
 
                         _buildFeatureItem(
                           '🔄',
-                          'Auto-connect',
-                          'Automatic connection to best available server',
+                          tr('ab_auto'),
+                          tr('ab_auto_d'),
                           isDarkMode,
                         ),
                         _buildFeatureItem(
                           '🛡️',
-                          'Kill switch',
-                          'Protect your data if VPN connection drops',
+                          tr('ab_kill'),
+                          tr('ab_kill_d'),
                           isDarkMode,
                         ),
                       ],
@@ -281,6 +282,19 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 20),
+                Center(
+                  child: Text(
+                    '© ${DateTime.now().year} Albonik LLC. All rights reserved.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode
+                          ? const Color(0xFF94A3B8)
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 20),
               ],
             ),

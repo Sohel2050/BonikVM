@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
 import '../providers/ip_address_provider.dart';
+import '../core/localization/app_localizations.dart';
 
 class IpAddressWidget extends ConsumerWidget {
   const IpAddressWidget({super.key});
@@ -49,7 +50,7 @@ class IpAddressWidget extends ConsumerWidget {
                     Clipboard.setData(ClipboardData(text: ipData.ip));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('IP address copied'),
+                        content: Text(tr('ip_copied')),
                         backgroundColor: const Color(0xFF2563EB),
                         duration: const Duration(seconds: 1),
                         behavior: SnackBarBehavior.floating,
@@ -128,15 +129,15 @@ class IpAddressWidget extends ConsumerWidget {
               children: [
                 const Icon(Icons.error_outline, color: Colors.red, size: 18),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Failed to load IP',
+                    tr('ip_failed'),
                     style: TextStyle(fontSize: 13, color: Colors.red),
                   ),
                 ),
                 TextButton(
                   onPressed: () => ref.invalidate(ipAddressProvider),
-                  child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                  child: Text(tr('pr_retry'), style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
@@ -240,7 +241,7 @@ Widget build(BuildContext context, WidgetRef ref) {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Your IP Address',
+                  tr('ip_your_ip'),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -254,7 +255,7 @@ Widget build(BuildContext context, WidgetRef ref) {
                 onPressed: () {
                   ref.invalidate(ipAddressProvider);
                 },
-                tooltip: 'Refresh',
+                tooltip: tr('ph_refresh'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
@@ -303,7 +304,7 @@ Widget build(BuildContext context, WidgetRef ref) {
                           Clipboard.setData(ClipboardData(text: ipData.ip));
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('IP copied'),
+                              content: Text(tr('ip_copied_short')),
                               backgroundColor: Colors.green,
                               duration: const Duration(seconds: 1),
                               behavior: SnackBarBehavior.floating,
@@ -313,7 +314,7 @@ Widget build(BuildContext context, WidgetRef ref) {
                             ),
                           );
                         },
-                        tooltip: 'Copy',
+                        tooltip: tr('ph_copy'),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
                           minWidth: 32,
@@ -418,7 +419,7 @@ Widget build(BuildContext context, WidgetRef ref) {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Failed to load IP',
+                      tr('ip_failed'),
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.red[700],
@@ -428,7 +429,7 @@ Widget build(BuildContext context, WidgetRef ref) {
                   ),
                   TextButton(
                     onPressed: () => ref.invalidate(ipAddressProvider),
-                    child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                    child: Text(tr('pr_retry'), style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),

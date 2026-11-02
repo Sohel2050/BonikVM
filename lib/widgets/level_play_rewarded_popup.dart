@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/services/level_play_service.dart';
 import '../shared/providers/theme_provider.dart';
+import '../core/localization/app_localizations.dart';
 
 /// A drop-in replacement / companion to [UnifiedAdsPopup] that uses the
 /// Unity LevelPlay (IronSource) SDK instead of AdMob rewarded ads.
@@ -156,7 +157,7 @@ class _LevelPlayRewardedPopupState
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Ad failed to show. Please try again. ($errorMessage)'),
+        content: Text(tr('ad_failed_show', {'e': '$errorMessage'})),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 3),
       ),
@@ -214,11 +215,11 @@ class _LevelPlayRewardedPopupState
     final String titleText =
         widget.title ??
             (widget.adCount == 2
-                ? 'Watch 1 Ad for Free Access'
-                : 'Watch ${widget.adCount} Ads for Free Access');
+                ? tr('ad_watch_1')
+                : tr('ad_watch_n', {'n': '${widget.adCount}'}));
 
     final String subtitleText =
-        widget.subtitle ?? 'Watch short videos to unlock free VPN time.';
+        widget.subtitle ?? tr('ad_watch_free_vpn');
 
     return Dialog(
       backgroundColor: bgColor,
@@ -442,7 +443,7 @@ class _AdSlotTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: const Text('Watch', style: TextStyle(fontSize: 13)),
+        child: Text(tr('ad_watch'), style: TextStyle(fontSize: 13)),
       );
     }
 
@@ -481,7 +482,7 @@ class _AdSlotTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Video Ad ${slot.index + 1}',
+                  tr('ad_video_n', {'n': '${slot.index + 1}'}),
                   style: TextStyle(
                     color: textColor,
                     fontWeight: FontWeight.w600,
@@ -495,8 +496,8 @@ class _AdSlotTile extends StatelessWidget {
                       : slot.isWatching
                       ? '⏳ Playing…'
                       : adAvailable
-                      ? 'Tap Watch to earn your time'
-                      : 'Loading ad…',
+                      ? tr('ad_tap_watch')
+                      : tr('ad_loading_ad'),
                   style: TextStyle(color: subColor, fontSize: 12),
                 ),
               ],

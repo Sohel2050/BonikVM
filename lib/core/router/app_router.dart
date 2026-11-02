@@ -27,7 +27,7 @@ class AppRouter {
         );
       case '/servers':
         return MaterialPageRoute(
-          builder: (_) => const MainShell(initialIndex: 1),
+          builder: (_) => const MainShell(initialIndex: 3), // Servers
           settings: settings,
         );
       case '/premium':
@@ -37,7 +37,7 @@ class AppRouter {
         );
       case '/settings':
         return MaterialPageRoute(
-          builder: (_) => const MainShell(initialIndex: 2),
+          builder: (_) => const MainShell(initialIndex: 2), // Settings
           settings: settings,
         );
       case '/about':

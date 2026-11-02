@@ -6,6 +6,7 @@ import '../../providers/auth_providers.dart';
 import '../../providers/subscription_provider.dart';
 import '../../services/billing_service.dart';
 import '../../shared/providers/app_providers.dart';
+import '../../core/localization/app_localizations.dart';
 
 class PurchaseHistoryScreen extends ConsumerStatefulWidget {
   const PurchaseHistoryScreen({super.key});
@@ -99,7 +100,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
       ref.read(premiumStatusProvider.notifier).setPremiumStatus(isPremium);
     } catch (e) {
       setState(() => _isLoading = false);
-      _showError('Failed to load purchase data: $e');
+      _showError(tr('ph_load_failed', {'e': '$e'}));
     }
   }
 
@@ -110,7 +111,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
   }
 
   String _formatDate(String? dateString) {
-    if (dateString == null) return 'Unknown';
+    if (dateString == null) return tr('unknown');
     try {
       final date = DateTime.parse(dateString);
       final d = date.day.toString().padLeft(2, '0');
@@ -145,9 +146,9 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
         .toString()
         .toLowerCase();
 
-    // For voucher purchases, show "Redeemed"
+    // For voucher purchases, show tr('ph_redeemed')
     if (paymentGateway == 'voucher' || (amount is num && amount == 0)) {
-      return 'Redeemed';
+      return tr('ph_redeemed');
     }
 
     String amtStr;
@@ -192,7 +193,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
-        title: const Text('Purchase History'),
+        title: Text(tr('purchase_history')),
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black,
         elevation: 0,
@@ -206,7 +207,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                   )
                 : const Icon(Icons.refresh),
             onPressed: _isLoading ? null : _loadPurchaseData,
-            tooltip: 'Refresh',
+            tooltip: tr('ph_refresh'),
           ),
         ],
       ),
@@ -218,7 +219,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                   Icon(Icons.login, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    'Please sign in to view your purchases',
+                    tr('ph_sign_in_view'),
                     style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                 ],
@@ -263,7 +264,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user.displayName ?? 'User',
+                                    user.displayName ?? tr('user_word'),
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -291,7 +292,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                     // Subscription Status
                     if (_subscriptionStatus != null) ...[
                       Text(
-                        'Current Subscription',
+                        tr('ph_current_sub'),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -331,8 +332,8 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                   children: [
                                     Text(
                                       _subscriptionStatus!['active'] == true
-                                          ? 'Premium Active'
-                                          : 'No Active Subscription',
+                                          ? tr('ph_premium_active')
+                                          : tr('ph_no_active_sub'),
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -362,7 +363,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
 
                     // Purchase History
                     Text(
-                      'Purchase History',
+                      tr('purchase_history'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -392,7 +393,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'No Purchases Yet',
+                                tr('ph_no_purchases'),
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -401,7 +402,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Your purchase history will appear here once you make a purchase.',
+                                tr('ph_no_purchases_msg'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: Colors.grey[500]),
                               ),
@@ -420,7 +421,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                           final p = _purchases[index];
 
                           // For display purposes:
-                          // - If it's a voucher (amount = 0 or payment_gateway = voucher), show "Voucher"
+                          // - If it's a voucher (amount = 0 or payment_gateway = voucher), show tr('voucher')
                           // - Otherwise show the product name
                           final paymentGateway = (p['payment_gateway'] ?? '')
                               .toString()
@@ -431,10 +432,10 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                               (rawAmount is num && rawAmount == 0);
 
                           final product = isVoucher
-                              ? 'Voucher'
+                              ? tr('voucher')
                               : (p['product_name'] ??
                                         p['product_id'] ??
-                                        'Unknown Product')
+                                        tr('ph_unknown_product'))
                                     .toString();
                           final amount = _formatAmount(p);
                           final txn = (p['transaction_id'] ?? p['id'] ?? '')
@@ -505,7 +506,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                     Row(
                                       children: [
                                         Text(
-                                          'Transaction ID: ',
+                                          tr('ph_txn_id_colon'),
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[600],
@@ -523,7 +524,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                           ),
                                         ),
                                         IconButton(
-                                          tooltip: 'Copy',
+                                          tooltip: tr('ph_copy'),
                                           splashRadius: 20,
                                           icon: const Icon(
                                             Icons.copy,
@@ -537,9 +538,9 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                               ClipboardData(text: txn),
                                             );
                                             messenger.showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'Transaction ID copied',
+                                                  tr('ph_txn_copied'),
                                                 ),
                                               ),
                                             );
@@ -554,7 +555,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                   Row(
                                     children: [
                                       _pillButton(
-                                        label: 'View Receipt',
+                                        label: tr('ph_view_receipt'),
                                         icon: Icons.receipt_long,
                                         fg: Colors.blue,
                                         onTap: () => _viewReceipt(p),
@@ -573,7 +574,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                               Icons.cancel,
                                               size: 16,
                                             ),
-                                            label: const Text('Cancel'),
+                                            label: Text(tr('cancel')),
                                             style: TextButton.styleFrom(
                                               foregroundColor: Colors.red,
                                               textStyle: const TextStyle(
@@ -612,14 +613,14 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.removeCurrentSnackBar();
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Press and hold to cancel'),
+      SnackBar(
+        content: Text(tr('ph_hold_cancel')),
         duration: Duration(seconds: 1),
       ),
     );
   }
 
-  // ---------- Modern Cancel Subscription Dialog (with "Deny") ----------
+  // ---------- Modern Cancel Subscription Dialog (with tr('ph_deny')) ----------
 
   void _showCancelSubscriptionDialog(Map<String, dynamic> purchase) {
     showDialog(
@@ -650,7 +651,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Cancel Subscription',
+                  tr('ph_cancel_sub'),
                   style: TextStyle(
                     color: isDark ? Colors.white : Colors.black,
                     fontWeight: FontWeight.bold,
@@ -660,15 +661,14 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
             ],
           ),
           content: Text(
-            'Are you sure you want to cancel your subscription for '
-            '${purchase['plan_type'] ?? purchase['product_name'] ?? 'this plan'}?',
+            tr('ph_cancel_confirm', {'plan': '${purchase['plan_type'] ?? purchase['product_name'] ?? tr('ph_this_plan')}'}),
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
-                'Deny',
+                tr('ph_deny'),
                 style: TextStyle(
                   color: isDark ? Colors.white70 : Colors.black54,
                 ),
@@ -680,7 +680,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                 await _cancelSubscription(purchase);
               },
               icon: const Icon(Icons.cancel),
-              label: const Text('Cancel Subscription'),
+              label: Text(tr('ph_cancel_sub')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
@@ -713,8 +713,8 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Subscription cancelled successfully'),
+        SnackBar(
+          content: Text(tr('ph_sub_cancelled_ok')),
           backgroundColor: Colors.green,
         ),
       );
@@ -723,7 +723,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
       if (mounted && Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
-      _showErrorSnackbar('Error: ${e.toString()}');
+      _showErrorSnackbar(tr('error_with', {'e': e.toString()}));
     }
   }
 
@@ -762,8 +762,8 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
             voucherInfo != null && voucherInfo['deactivated'] == true;
 
         final product = isVoucher
-            ? 'Voucher'
-            : (t['product_name'] ?? t['product_id'] ?? 'Unknown Product')
+            ? tr('voucher')
+            : (t['product_name'] ?? t['product_id'] ?? tr('ph_unknown_product'))
                   .toString();
         final txnId = (t['transaction_id'] ?? t['id'] ?? 'N/A').toString();
 
@@ -814,7 +814,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Transaction Receipt',
+                                  tr('rc_transaction_receipt'),
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
@@ -872,7 +872,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                             ),
                           ),
                           IconButton(
-                            tooltip: 'Copy summary',
+                            tooltip: tr('rc_copy_summary'),
                             icon: const Icon(Icons.copy),
                             onPressed: () async {
                               final messenger = ScaffoldMessenger.of(context);
@@ -880,8 +880,8 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                 ClipboardData(text: _generateReceiptText(t)),
                               );
                               messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Receipt summary copied'),
+                                SnackBar(
+                                  content: Text(tr('rc_summary_copied')),
                                 ),
                               );
                             },
@@ -893,35 +893,35 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                       Divider(color: isDark ? Colors.white12 : Colors.black12),
 
                       // Key fields
-                      _receiptTile('Transaction ID', txnId, copyable: true),
-                      _receiptTile('Product', product),
-                      _receiptTile('Amount', amount),
+                      _receiptTile(tr('rc_txn_id'), txnId, copyable: true),
+                      _receiptTile(tr('rc_product'), product),
+                      _receiptTile(tr('rc_amount'), amount),
                       _receiptTile(
-                        'Currency',
+                        tr('rc_currency'),
                         (t['currency'] ?? 'N/A').toString(),
                       ),
-                      _receiptTile('Status', status.toUpperCase()),
+                      _receiptTile(tr('status'), status.toUpperCase()),
                       _receiptTile(
-                        'Payment Method',
+                        tr('rc_payment_method'),
                         (t['payment_method'] ?? 'N/A').toString(),
                       ),
                       // Show voucher deactivation info if applicable
                       if (isVoucherDeactivated)
-                        _receiptTile('Voucher Status', 'DEACTIVATED'),
+                        _receiptTile(tr('rc_voucher_status'), tr('rc_deactivated')),
                       _receiptTile(
-                        'Purchase Date',
+                        tr('rc_purchase_date'),
                         _formatDate((t['created_at'] ?? 'N/A').toString()),
                       ),
                       if (t['order_id'] != null)
                         _receiptTile('Order ID', t['order_id'].toString()),
                       if (t['transaction_id'] != null)
                         _receiptTile(
-                          'Transaction Reference',
+                          tr('rc_txn_reference'),
                           t['transaction_id'].toString(),
                         ),
                       if (t['purchase_token'] != null)
                         _receiptTile(
-                          'Purchase Token',
+                          tr('rc_purchase_token'),
                           t['purchase_token'].toString(),
                           copyable: true,
                         ),
@@ -941,15 +941,15 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                                 );
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      'Receipt copied to clipboard',
+                                      tr('rc_copied_clip'),
                                     ),
                                   ),
                                 );
                               },
                               icon: const Icon(Icons.copy),
-                              label: const Text('Copy Receipt'),
+                              label: Text(tr('rc_copy_receipt')),
                               style: OutlinedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -962,7 +962,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                             child: ElevatedButton.icon(
                               onPressed: () => Navigator.of(context).pop(),
                               icon: const Icon(Icons.check_circle_outline),
-                              label: const Text('Done'),
+                              label: Text(tr('done_btn')),
                               style: ElevatedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -1016,7 +1016,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
           ),
           if (copyable)
             IconButton(
-              tooltip: 'Copy',
+              tooltip: tr('ph_copy'),
               icon: const Icon(Icons.copy, size: 18),
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: value));
@@ -1041,11 +1041,11 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
         paymentGateway == 'voucher' || (rawAmount is num && rawAmount == 0);
 
     final productDisplay = isVoucher
-        ? 'Voucher'
+        ? tr('voucher')
         : (t['product_name'] ?? t['product_id'] ?? 'N/A').toString();
 
     final paymentMethodDisplay = isVoucher
-        ? 'Voucher'
+        ? tr('voucher')
         : (t['payment_method'] ?? t['payment_gateway'] ?? 'N/A').toString();
 
     return '''

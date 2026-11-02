@@ -31,35 +31,42 @@ class _LevelPlayMrecSlotState extends State<LevelPlayMrecSlot> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_visible || !LevelPlayService.instance.adsEnabledByAdmin) {
-      return const SizedBox.shrink();
-    }
-    return Container(
-      height: 250,
-      margin: widget.margin,
-      decoration: BoxDecoration(
-        color: widget.background,
-        borderRadius: BorderRadius.circular(widget.radius),
-        border: widget.borderColor == null
-            ? null
-            : Border.all(color: widget.borderColor!),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(widget.radius),
-        child: Center(
-          child: SizedBox(
-            width: 300,
-            height: 250,
-            child: LevelPlayBannerAd(
-              adUnitId: LevelPlayService.instance.mrecAdUnitId,
-              adSize: LevelPlayAdSize.MEDIUM_RECTANGLE,
-              onFailed: () {
-                if (mounted) setState(() => _visible = false);
-              },
+    final hidden = !_visible || !LevelPlayService.instance.adsEnabledByAdmin;
+    // If the ad fails (about 5 seconds), the slot, including its margin, collapses
+    // smoothly: no empty gap and no sudden jump of the content below.
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: hidden
+          ? const SizedBox(width: double.infinity)
+          : Container(
+              height: 250,
+              margin: widget.margin,
+              decoration: BoxDecoration(
+                color: widget.background,
+                borderRadius: BorderRadius.circular(widget.radius),
+                border: widget.borderColor == null
+                    ? null
+                    : Border.all(color: widget.borderColor!),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(widget.radius),
+                child: Center(
+                  child: SizedBox(
+                    width: 300,
+                    height: 250,
+                    child: LevelPlayBannerAd(
+                      adUnitId: LevelPlayService.instance.mrecAdUnitId,
+                      adSize: LevelPlayAdSize.MEDIUM_RECTANGLE,
+                      onFailed: () {
+                        if (mounted) setState(() => _visible = false);
+                      },
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

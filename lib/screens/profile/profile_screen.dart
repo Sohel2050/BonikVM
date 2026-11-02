@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/auth_providers.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../core/localization/app_localizations.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -50,8 +51,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Profile',
+        title: Text(
+          tr('prof_title'),
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -71,9 +72,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
       body: user == null
-          ? const Center(
+          ? Center(
               child: Text(
-                'No user data available',
+                tr('prof_no_data'),
                 style: TextStyle(color: Colors.white),
               ),
             )
@@ -143,7 +144,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          user.displayName ?? 'User',
+          user.displayName ?? tr('user_word'),
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -163,7 +164,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           child: Text(
-            user.emailVerified ? 'Verified' : 'Not Verified',
+            user.emailVerified ? tr('prof_verified') : tr('prof_not_verified'),
             style: TextStyle(
               color: user.emailVerified ? Colors.green : Colors.orange,
               fontSize: 12,
@@ -186,8 +187,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Account Information',
+          Text(
+            tr('prof_account_info'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -199,13 +200,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (_isEditing) ...[
             CustomTextField(
               controller: _nameController,
-              labelText: 'Display Name',
+              labelText: tr('prof_display_name'),
               prefixIcon: Icons.person_outline,
             ),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _emailController,
-              labelText: 'Email Address',
+              labelText: tr('prof_email_address'),
               prefixIcon: Icons.email_outlined,
               readOnly: true, // Email cannot be changed easily
             ),
@@ -215,7 +216,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Expanded(
                   child: CustomButton(
                     onPressed: _saveProfile,
-                    child: const Text('Save Changes'),
+                    child: Text(tr('prof_save_changes')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -226,19 +227,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _initializeUserData();
                     },
                     backgroundColor: Colors.grey[600],
-                    child: const Text('Cancel'),
+                    child: Text(tr('cancel')),
                   ),
                 ),
               ],
             ),
           ] else ...[
-            _buildInfoRow('Name', user.displayName ?? 'Not set'),
+            _buildInfoRow(tr('name'), user.displayName ?? tr('prof_not_set')),
             const SizedBox(height: 16),
-            _buildInfoRow('Email', user.email ?? 'Not available'),
+            _buildInfoRow(tr('email'), user.email ?? tr('prof_not_available')),
             const SizedBox(height: 16),
-            _buildInfoRow('Provider', _getProviderName(user)),
+            _buildInfoRow(tr('prof_provider'), _getProviderName(user)),
             const SizedBox(height: 16),
-            _buildInfoRow('Member Since', _getJoinDate(user)),
+            _buildInfoRow(tr('prof_member_since'), _getJoinDate(user)),
           ],
         ],
       ),
@@ -256,8 +257,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Subscription Status',
+          Text(
+            tr('prof_sub_status'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -274,13 +275,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: const Color(0xFF00D2FF).withValues(alpha: 0.3),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.info_outline, color: Color(0xFF00D2FF), size: 20),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Subscription information will be loaded here.',
+                    tr('prof_sub_info'),
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),
@@ -298,13 +299,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         CustomButton(
           onPressed: authState.isLoading ? null : _restorePurchases,
           isLoading: authState.isLoading,
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.restore, color: Colors.white),
               SizedBox(width: 8),
               Text(
-                'Restore Purchases',
+                tr('restore_purchases'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -318,13 +319,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         CustomButton(
           onPressed: authState.isLoading ? null : _linkWithGoogle,
           backgroundColor: Colors.orange,
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.link, color: Colors.white),
               SizedBox(width: 8),
               Text(
-                'Link Google Account',
+                tr('prof_link_google'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -349,8 +350,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Danger Zone',
+          Text(
+            tr('prof_danger_zone'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -358,8 +359,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'These actions cannot be undone.',
+          Text(
+            tr('prof_cannot_undo'),
             style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
           const SizedBox(height: 16),
@@ -369,8 +370,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: CustomButton(
                   onPressed: authState.isLoading ? null : _signOut,
                   backgroundColor: Colors.grey[600],
-                  child: const Text(
-                    'Sign Out',
+                  child: Text(
+                    tr('sign_out'),
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -380,8 +381,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: CustomButton(
                   onPressed: authState.isLoading ? null : _deleteAccount,
                   backgroundColor: Colors.red,
-                  child: const Text(
-                    'Delete Account',
+                  child: Text(
+                    tr('delete_account'),
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -419,7 +420,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   String _getProviderName(User user) {
-    if (user.providerData.isEmpty) return 'Email';
+    if (user.providerData.isEmpty) return tr('email');
 
     final providerId = user.providerData.first.providerId;
     switch (providerId) {
@@ -430,13 +431,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case 'facebook.com':
         return 'Facebook';
       default:
-        return 'Email';
+        return tr('email');
     }
   }
 
   String _getJoinDate(User user) {
     final creationTime = user.metadata.creationTime;
-    if (creationTime == null) return 'Unknown';
+    if (creationTime == null) return tr('unknown');
 
     return '${creationTime.day}/${creationTime.month}/${creationTime.year}';
   }
@@ -450,8 +451,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile updated successfully!'),
+            SnackBar(
+              content: Text(tr('prof_updated')),
               backgroundColor: Colors.green,
             ),
           );
@@ -461,7 +462,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update profile: $e'),
+            content: Text(tr('prof_update_failed', {'e': '$e'})),
             backgroundColor: Colors.red,
           ),
         );
@@ -472,8 +473,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _restorePurchases() {
     ref.read(authStateProvider.notifier).restorePurchases();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Restoring purchases...'),
+      SnackBar(
+        content: Text(tr('restoring_purchases')),
         backgroundColor: Color(0xFF00D2FF),
       ),
     );
@@ -488,22 +489,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1F3A),
-        title: const Text('Sign Out', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Are you sure you want to sign out?',
+        title: Text(tr('sign_out'), style: TextStyle(color: Colors.white)),
+        content: Text(
+          tr('prof_sign_out_q'),
           style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(tr('cancel'), style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               ref.read(authStateProvider.notifier).signOut();
             },
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            child: Text(tr('sign_out'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -515,18 +516,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1F3A),
-        title: const Text(
-          'Delete Account',
+        title: Text(
+          tr('delete_account'),
           style: TextStyle(color: Colors.red),
         ),
-        content: const Text(
-          'This action cannot be undone. All your data will be permanently deleted.',
+        content: Text(
+          tr('prof_delete_msg'),
           style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(tr('cancel'), style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
@@ -538,7 +539,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ).pushNamedAndRemoveUntil('/splash', (route) => false);
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(tr('delete'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

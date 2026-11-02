@@ -649,6 +649,12 @@ class VpnService {
       // list was last fetched. The backend still enforces this again
       // (hard block) when log-connect/download is called, so this is a
       // fast pre-check for a clean error message, not the only guard.
+      if (server.isMaintenance) {
+        throw Exception(
+          '${server.name} is under maintenance. Please select another server.',
+        );
+      }
+
       if (!server.isThirdParty) {
         final freshStatus = await ApiService.instance.getServerLoadStatus([
           server.id,
@@ -855,6 +861,17 @@ class VpnService {
           dotAll: true,
         );
         finalConfig = finalConfig.replaceAll(authRegex, 'auth-user-pass');
+      }
+
+      // OneConnect: some servers connect but push no usable DNS, so domains do
+      // not resolve (IP sites open, google.com does not). Force public DNS
+      // when the config does not define any DNS itself.
+      if (server.isOneConnect &&
+          !RegExp(r'^\s*dhcp-option\s+DNS6?\b',
+                  multiLine: true, caseSensitive: false)
+              .hasMatch(finalConfig)) {
+        finalConfig =
+            '${finalConfig.trimRight()}\ndhcp-option DNS 1.1.1.1\ndhcp-option DNS 8.8.8.8\n';
       }
 
       // Check for certificate authentication issues
@@ -1755,7 +1772,7 @@ pull
   Future<bool> isVpnPermissionGranted() async {
     try {
       if (Platform.isAndroid) {
-        const platform = MethodChannel('axe_vpn/vpn_permission');
+        const platform = MethodChannel('vpn_master/vpn_permission');
         return await platform.invokeMethod('isVpnPermissionGranted') ?? false;
       }
       return true;
@@ -1768,7 +1785,7 @@ pull
   Future<bool> requestVpnPermission() async {
     try {
       if (Platform.isAndroid) {
-        const platform = MethodChannel('axe_vpn/vpn_permission');
+        const platform = MethodChannel('vpn_master/vpn_permission');
         return await platform.invokeMethod('requestVpnPermission') ?? false;
       }
       return true;

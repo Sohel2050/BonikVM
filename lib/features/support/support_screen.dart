@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../shared/providers/theme_provider.dart';
+import '../../core/localization/app_localizations.dart';
 
 class SupportScreen extends ConsumerWidget {
   const SupportScreen({super.key});
@@ -54,7 +55,7 @@ class SupportScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'Support Center',
+                        tr('sp_center'),
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -63,7 +64,7 @@ class SupportScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'We\'re here to help you 24/7',
+                        tr('sp_here_247'),
                         style: TextStyle(
                           fontSize: 16,
                           color: isDarkMode
@@ -81,8 +82,8 @@ class SupportScreen extends ConsumerWidget {
                 FadeInUp(
                   delay: const Duration(milliseconds: 200),
                   child: _buildContactOption(
-                    'Live Chat',
-                    'Get instant help from our support team',
+                    tr('sp_live_chat'),
+                    tr('sp_live_chat_d'),
                     Icons.chat_bubble_outline,
                     const Color(0xFF10B981),
                         () => _launchUrl('https://wa.me/+15059103477'),
@@ -95,8 +96,8 @@ class SupportScreen extends ConsumerWidget {
                 FadeInUp(
                   delay: const Duration(milliseconds: 300),
                   child: _buildContactOption(
-                    'Email Support',
-                    'Send us an email and we\'ll respond within 24 hours',
+                    tr('sp_email'),
+                    tr('sp_email_d'),
                     Icons.email_outlined,
                     const Color(0xFF3B82F6),
                         () => _launchUrl('mailto:support@albonik.com'),
@@ -110,7 +111,7 @@ class SupportScreen extends ConsumerWidget {
                   delay: const Duration(milliseconds: 400),
                   child: _buildContactOption(
                     'FAQ',
-                    'Find answers to frequently asked questions',
+                    tr('sp_faq_d'),
                     Icons.help_outline,
                     const Color(0xFFF59E0B),
                         () => _showFAQ(context, isDarkMode),
@@ -123,8 +124,8 @@ class SupportScreen extends ConsumerWidget {
                 FadeInUp(
                   delay: const Duration(milliseconds: 500),
                   child: _buildContactOption(
-                    'Report Bug',
-                    'Help us improve by reporting issues',
+                    tr('sp_report_bug'),
+                    tr('sp_report_bug_d'),
                     Icons.bug_report_outlined,
                     const Color(0xFFEF4444),
                         () =>
@@ -138,8 +139,8 @@ class SupportScreen extends ConsumerWidget {
                 FadeInUp(
                   delay: const Duration(milliseconds: 600),
                   child: _buildContactOption(
-                    'Feature Request',
-                    'Suggest new features or improvements',
+                    tr('sp_feature'),
+                    tr('sp_feature_d'),
                     Icons.lightbulb_outline,
                     const Color(0xFF8B5CF6),
                         () => _launchUrl(
@@ -325,7 +326,7 @@ class SupportScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(20),
               child: Text(
-                'Frequently Asked Questions',
+                tr('sp_faq_title'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -338,28 +339,28 @@ class SupportScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
                   _buildFAQItem(
-                    'How do I connect to a VPN server?',
-                    'Tap the power button on the home screen to connect to the best available server, or go to the Servers tab to choose a specific location.',
+                    tr('sp_q1'),
+                    tr('sp_a1'),
                     isDarkMode,
                   ),
                   _buildFAQItem(
-                    'Why is my connection slow?',
-                    'VPN connections may be slower than direct connections due to encryption. Try connecting to a server closer to your location or contact support.',
+                    tr('sp_q2'),
+                    tr('sp_a2'),
                     isDarkMode,
                   ),
                   _buildFAQItem(
-                    'Can I use the VPN on multiple devices?',
-                    'Premium subscriptions allow multiple device connections. Free accounts are limited to one device at a time.',
+                    tr('sp_q3'),
+                    tr('sp_a3'),
                     isDarkMode,
                   ),
                   _buildFAQItem(
-                    'How do I cancel my subscription?',
-                    'You can cancel through your device\'s app store settings. The subscription will remain active until the end of the current billing period.',
+                    tr('sp_q4'),
+                    tr('sp_a4'),
                     isDarkMode,
                   ),
                   _buildFAQItem(
-                    'Is my data really private?',
-                    'Yes, we operate under a strict no-logs policy and use military-grade encryption to protect your data.',
+                    tr('sp_q5'),
+                    tr('sp_a5'),
                     isDarkMode,
                   ),
                 ],
@@ -404,21 +405,21 @@ class SupportScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear App Cache'),
-        content: const Text(
-          'This will clear all app data and reset settings to default. Are you sure?',
+        title: Text(tr('sp_clear_cache')),
+        content: Text(
+          tr('sp_clear_cache_msg'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(tr('cancel')),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               // TODO: Implement cache clearing
             },
-            child: const Text('Clear'),
+            child: Text(tr('clear')),
           ),
         ],
       ),
@@ -428,7 +429,7 @@ class SupportScreen extends ConsumerWidget {
   void _downloadLogs(BuildContext context) {
     // TODO: Implement log download
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Diagnostic logs exported successfully')),
+      SnackBar(content: Text(tr('sp_logs_exported'))),
     );
   }
 }

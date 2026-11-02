@@ -76,7 +76,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           final messenger = ScaffoldMessenger.maybeOf(context);
           messenger?.showSnackBar(
             SnackBar(
-              content: Text('Welcome, $displayName!'),
+              content: Text(tr('au_welcome', {'name': '$displayName'})),
               backgroundColor: themeColor,
               duration: const Duration(seconds: 2),
             ),
@@ -284,11 +284,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (_isSignUp) ...[
-                        _FieldLabel('Full Name', labelColor),
+                        _FieldLabel(tr('au_full_name'), labelColor),
                         const SizedBox(height: 6),
                         _AuthInput(
                           controller: _nameController,
-                          hint: 'Enter your full name',
+                          hint: tr('au_enter_full_name_hint'),
                           prefixIcon: Icons.person_outline_rounded,
                           fieldBg: fieldBg,
                           fieldBorder: fieldBorder,
@@ -297,7 +297,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           isDark: isDark,
                           themeColor: themeColor,
                           validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Please enter your full name'
+                              ? tr('au_enter_name_full')
                               : null,
                         ),
                         const SizedBox(height: 14),
@@ -317,11 +317,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         themeColor: themeColor,
                         validator: (v) {
                           if (v == null || v.trim().isEmpty)
-                            return 'Please enter your email';
+                            return tr('au_enter_email');
                           if (!RegExp(
                             r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$',
                           ).hasMatch(v))
-                            return 'Enter a valid email';
+                            return tr('au_valid_email_short');
                           return null;
                         },
                       ),
@@ -353,9 +353,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         ),
                         validator: (v) {
                           if (v == null || v.isEmpty)
-                            return 'Please enter your password';
+                            return tr('au_enter_pw');
                           if (_isSignUp && v.length < 6)
-                            return 'At least 6 characters required';
+                            return tr('au_min6_short');
                           return null;
                         },
                       ),
@@ -469,7 +469,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  authState.errorMessage ?? 'An error occurred',
+                                  authState.errorMessage ?? tr('au_error'),
                                   style: const TextStyle(
                                     color: Colors.redAccent,
                                     fontSize: 13,
@@ -599,9 +599,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Future<void> _runIfTermsAccepted(Future<void> Function() action) async {
     if (!_hasAcceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Please accept the Terms & Conditions and Privacy Policy to continue.',
+            tr('au_accept_terms'),
           ),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 3),
@@ -638,8 +638,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter your email address first'),
+        SnackBar(
+          content: Text(tr('au_enter_email_first')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -647,8 +647,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
     ref.read(authStateProvider.notifier).sendPasswordReset(email);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password reset email sent! Check your inbox.'),
+      SnackBar(
+        content: Text(tr('au_reset_sent')),
         backgroundColor: Colors.green,
       ),
     );
@@ -901,7 +901,7 @@ class _InlineLegalLinks extends StatelessWidget {
               child: Text(l10n.termsConditions, style: linkStyle),
             ),
             if (onOpenAppleEula != null) ...[
-              Text('and', style: plainStyle),
+              Text(tr('au_and'), style: plainStyle),
               GestureDetector(
                 onTap: onOpenAppleEula,
                 child: Text(l10n.appleEula, style: linkStyle),

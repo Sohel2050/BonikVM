@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/api_service.dart';
 import '../core/services/level_play_service.dart';
 import '../shared/providers/theme_provider.dart';
+import '../core/localization/app_localizations.dart';
 
 typedef OnPremiumVideoWatched = Future<void> Function(int videoIndex);
 typedef OnPremiumSubscriptionPressed = Future<void> Function();
@@ -66,7 +67,7 @@ class _PremiumServerUnlockPopupState
             _showingAd = false;
             _activeSlot = null;
           });
-          _snack('Ad could not be shown. Please try again.');
+          _snack(tr('ad_cant_show'));
         },
         onAvailabilityChanged: (ready) {
           if (mounted) setState(() => _adReady = ready);
@@ -87,7 +88,7 @@ class _PremiumServerUnlockPopupState
     final ready = await LevelPlayService.instance.checkRewardedVideoAvailable();
     if (!ready) {
       if (mounted) setState(() => _adReady = false);
-      _snack('Video is loading. Please try again in a moment.');
+      _snack(tr('ad_video_loading'));
       return;
     }
 
@@ -158,7 +159,7 @@ class _PremiumServerUnlockPopupState
                   Container(width: 54, height: 54, decoration: BoxDecoration(color: accent.withValues(alpha: .12), borderRadius: BorderRadius.circular(17)), child: Icon(Icons.currency_exchange, color: accent, size: 29)),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('WATCH ADS TO ACCESS', style: TextStyle(color: text, fontSize: 19, fontWeight: FontWeight.w900)),
+                    Text(tr('ad_watch_to_access'), style: TextStyle(color: text, fontSize: 19, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 3),
                     Text(widget.server.name, style: TextStyle(color: sub, fontSize: 13)),
                   ])),
@@ -166,7 +167,7 @@ class _PremiumServerUnlockPopupState
                 ],
               ),
               const SizedBox(height: 17),
-              Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14), decoration: BoxDecoration(color: accent.withValues(alpha: .09), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withValues(alpha: .16))), child: Row(children: [Icon(Icons.info_outline_rounded, color: accent, size: 23), const SizedBox(width: 11), Expanded(child: Text('Watch ${_watched.where((v) => !v).length} more video${_watched.where((v) => !v).length == 1 ? '' : 's'} to unlock this premium server.', style: TextStyle(color: accent, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600)))])),
+              Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14), decoration: BoxDecoration(color: accent.withValues(alpha: .09), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withValues(alpha: .16))), child: Row(children: [Icon(Icons.info_outline_rounded, color: accent, size: 23), const SizedBox(width: 11), Expanded(child: Text(tr('ad_watch_more', {'n': '${_watched.where((v) => !v).length}'}), style: TextStyle(color: accent, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600)))])),
               const SizedBox(height: 15),
               Row(children: List.generate(widget.maxVideos, (i) => Expanded(child: Container(height: 5, margin: EdgeInsets.only(right: i == widget.maxVideos - 1 ? 0 : 7), decoration: BoxDecoration(color: _watched[i] ? accent : Colors.grey.withValues(alpha: .22), borderRadius: BorderRadius.circular(10)))))),
               const SizedBox(height: 8),
@@ -184,14 +185,14 @@ class _PremiumServerUnlockPopupState
                     child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), child: Row(children: [
                       Container(width: 46, height: 46, decoration: BoxDecoration(color: accent.withValues(alpha: .10), shape: BoxShape.circle), child: Icon(isDone ? Icons.check_rounded : Icons.play_arrow_rounded, color: accent, size: 26)),
                       const SizedBox(width: 13),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('VIDEO AD ${i + 1}', style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(isDone ? 'Access unlocked' : '+ ${widget.durationMinutes} Minutes', style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w700))])),
-                      if (loading || (_showingAd && loading)) SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: accent)) else Text(isDone ? 'Watched' : (_adReady ? 'Watch' : 'Loading...'), style: TextStyle(color: isDone ? accent : text, fontSize: 13, fontWeight: FontWeight.w700)),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(tr('ad_video_ad_caps', {'n': '${i + 1}'}), style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(isDone ? tr('ad_access_unlocked') : tr('ad_plus_min', {'m': '${widget.durationMinutes}'}), style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w700))])),
+                      if (loading || (_showingAd && loading)) SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: accent)) else Text(isDone ? tr('ad_watched') : (_adReady ? tr('ad_watch') : tr('loading')), style: TextStyle(color: isDone ? accent : text, fontSize: 13, fontWeight: FontWeight.w700)),
                     ])),
                   ),
                 );
               }),
               const SizedBox(height: 5),
-              SizedBox(width: double.infinity, height: 56, child: OutlinedButton.icon(onPressed: () async { await widget.onSubscriptionPressed(); }, icon: const Icon(Icons.currency_exchange), label: const Text('OR GO PREMIUM — NO ADS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), style: OutlinedButton.styleFrom(foregroundColor: accent, side: BorderSide(color: accent, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))))),
+              SizedBox(width: double.infinity, height: 56, child: OutlinedButton.icon(onPressed: () async { await widget.onSubscriptionPressed(); }, icon: const Icon(Icons.currency_exchange), label: Text(tr('ad_go_premium'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), style: OutlinedButton.styleFrom(foregroundColor: accent, side: BorderSide(color: accent, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))))),
             ],
           ),
         ),

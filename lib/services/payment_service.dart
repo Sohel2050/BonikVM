@@ -63,7 +63,14 @@ class PaymentService {
       }
     } catch (e) {
       // Fallback to default if API fails
-      _subscriptionIds = ['1m', '3m', '6m'];
+      // Only used if the plans API is unreachable. Normal flow is fully
+      // dynamic from the admin panel (Android product IDs).
+      _subscriptionIds = [
+        'albonikvpn30days',
+        'albonikvpn90days',
+        'albonikvpn180days',
+        'albonikvpn365days',
+      ];
     }
   }
 

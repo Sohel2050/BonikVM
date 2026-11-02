@@ -11,6 +11,6 @@ import 'package:vpn_master/core/localization/app_localizations_extended.dart';
 
 void main() {
   test('brand localization uses VPN MASTER', () {
-    expect(extendedEnglishTranslations['axe_vpn'], 'VPN MASTER');
+    expect(extendedEnglishTranslations['app_name'], 'VPN MASTER');
   });
 }

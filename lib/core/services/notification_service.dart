@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'device_identity.dart';
 import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/app_notification.dart';
 import '../api/api_service.dart';
 import '../config/app_config.dart';
@@ -333,6 +334,8 @@ class NotificationService {
 
   /// Handle foreground messages
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    // Report delivery to the admin panel (notification stats)
+    unawaited(_trackEvent(message.data, 'delivered'));
     try {
       // Create notification from message - handle both with and without notification payload
       final appNotification = AppNotification(
@@ -370,6 +373,8 @@ class NotificationService {
 
   /// Handle message when app is opened from notification
   Future<void> _handleMessageOpenedApp(RemoteMessage message) async {
+    unawaited(_trackEvent(message.data, 'clicked'));
+    unawaited(_openLinkFromData(message.data));
     // Navigate to notifications screen when user taps a background notification
     appNavigatorKey.currentState?.pushNamed('/notifications');
     await _handleNotificationAction(message);
@@ -379,6 +384,8 @@ class NotificationService {
   Future<void> _handleAppLaunchedFromMessage() async {
     final initialMessage = await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
+      unawaited(_trackEvent(initialMessage.data, 'clicked'));
+      unawaited(_openLinkFromData(initialMessage.data));
       await _handleNotificationAction(initialMessage);
     }
   }
@@ -521,6 +528,9 @@ class NotificationService {
     if (response.payload != null) {
       try {
         final data = jsonDecode(response.payload!);
+        final tapData = Map<String, dynamic>.from(data as Map);
+        unawaited(_trackEvent(tapData, 'clicked'));
+        unawaited(_openLinkFromData(tapData));
 
         // Handle navigation based on notification data
         await _handleNotificationAction(
@@ -528,6 +538,34 @@ class NotificationService {
         );
       } catch (e) {}
     }
+  }
+
+  /// Tell the backend a notification was delivered / clicked.
+  /// Silent on failure - tracking must never break the app.
+  Future<void> _trackEvent(Map<String, dynamic> data, String event) async {
+    try {
+      final rawId = data['notification_id'];
+      final id = int.tryParse(rawId?.toString() ?? '');
+      if (id == null) return;
+      final deviceId = await DeviceIdentity.id();
+      await _dio.post(
+        '/api/${AppConfig.apiVersion}/notifications/track',
+        data: {'notification_id': id, 'device_id': deviceId, 'event': event},
+      );
+    } catch (_) {}
+  }
+
+  /// Open the optional link the admin attached to the notification.
+  Future<void> _openLinkFromData(Map<String, dynamic> data) async {
+    try {
+      final raw = (data['url'] ?? '').toString().trim();
+      if (raw.isEmpty) return;
+      final uri = Uri.tryParse(raw);
+      if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+        return;
+      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   /// Update user ID (called when user logs in/out)

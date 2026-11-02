@@ -89,7 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildDivider(isDarkMode),
                 _buildSettingTile(
                   title: localizations.killSwitch,
-                  subtitle: 'Block traffic when VPN disconnects',
+                  subtitle: tr('kill_switch_sub'),
                   icon: Icons.security,
                   isDarkMode: isDarkMode,
                   trailing: Switch(
@@ -102,7 +102,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildDivider(isDarkMode),
                 _buildSettingTile(
                   title: localizations.autoConnect,
-                  subtitle: 'Connect automatically on app start',
+                  subtitle: tr('auto_connect_sub'),
                   icon: Icons.power_settings_new,
                   isDarkMode: isDarkMode,
                   trailing: Switch(
@@ -133,7 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildDivider(isDarkMode),
                 _buildSettingTile(
                   title: localizations.accentColor,
-                  subtitle: 'Customize app appearance',
+                  subtitle: tr('accent_sub'),
                   icon: Icons.color_lens,
                   isDarkMode: isDarkMode,
                   onTap: () => _showColorDialog(context, isDarkMode),
@@ -164,8 +164,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildSettingTile(
                   title: localizations.accountManagement,
                   subtitle: authState.firebaseUser != null
-                      ? 'Signed in as ${authState.firebaseUser?.email ?? "User"}'
-                      : 'Sign in with Google account',
+                      ? '${tr('signed_in_as')} ${authState.firebaseUser?.email ?? tr('user_word')}'
+                      : tr('sign_in_google_sub'),
                   icon: authState.firebaseUser != null
                       ? Icons.person
                       : Icons.login,
@@ -191,7 +191,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildDivider(isDarkMode),
                   _buildSettingTile(
                     title: localizations.purchaseHistory,
-                    subtitle: 'View your subscription history',
+                    subtitle: tr('purchase_history_sub'),
                     icon: Icons.history,
                     isDarkMode: isDarkMode,
                     onTap: () => _navigateToPurchaseHistory(),
@@ -200,7 +200,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildSettingTile(
                     title: localizations.restorePurchases,
                     subtitle:
-                        'Restore previous purchases from Play Store or App Store',
+                        tr('restore_sub'),
                     icon: Icons.restore,
                     isDarkMode: isDarkMode,
                     onTap: () => _handleRestorePurchases(),
@@ -219,7 +219,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 _buildSettingTile(
                   title: localizations.notifications,
-                  subtitle: 'Manage push notifications',
+                  subtitle: tr('notifications_sub'),
                   icon: Icons.notifications,
                   isDarkMode: isDarkMode,
                   onTap: () {
@@ -233,8 +233,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 _buildDivider(isDarkMode),
                 _buildSettingTile(
-                  title: 'Speed test',
-                  subtitle: 'Check your download and upload speed',
+                  title: tr('speed_test'),
+                  subtitle: tr('speed_test_sub'),
                   icon: Icons.speed,
                   isDarkMode: isDarkMode,
                   onTap: () {
@@ -280,7 +280,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      isDarkMode ? 'Currently enabled' : 'Currently disabled',
+                      isDarkMode ? tr('currently_enabled') : tr('currently_disabled'),
                       style: TextStyle(
                         color: isDarkMode
                             ? Colors.grey[400]
@@ -440,7 +440,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
         title: Text(
-          'Choose Theme',
+          tr('choose_theme'),
           style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
         ),
         content: Column(
@@ -448,7 +448,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.light_mode),
-              title: const Text('Light'),
+              title: Text(tr('theme_light')),
               onTap: () {
                 ref
                     .read(themeModeProvider.notifier)
@@ -458,7 +458,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.dark_mode),
-              title: const Text('Dark'),
+              title: Text(tr('theme_dark')),
               onTap: () {
                 ref
                     .read(themeModeProvider.notifier)
@@ -468,7 +468,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.brightness_auto),
-              title: const Text('System Default'),
+              title: Text(tr('theme_system')),
               onTap: () {
                 ref
                     .read(themeModeProvider.notifier)
@@ -495,7 +495,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Select Protocol',
+                tr('select_protocol'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -504,7 +504,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Choose the connection protocol for optimal performance',
+                tr('protocol_hint'),
                 style: TextStyle(
                   fontSize: 14,
                   color: isDarkMode
@@ -518,9 +518,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildProtocolOption(
                 context: context,
                 title: 'UDP',
-                subtitle: 'Faster, recommended for streaming',
+                subtitle: tr('udp_sub'),
                 description:
-                    'Best for most use cases. Faster connection with lower latency.',
+                    tr('udp_desc'),
                 isSelected: ref.watch(protocolProvider),
                 onTap: () {
                   if (!ref.read(protocolProvider)) {
@@ -538,9 +538,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildProtocolOption(
                 context: context,
                 title: 'TCP',
-                subtitle: 'More reliable, better for restricted networks',
+                subtitle: tr('tcp_sub'),
                 description:
-                    'More stable on unstable networks but slightly slower.',
+                    tr('tcp_desc'),
                 isSelected: !ref.watch(protocolProvider),
                 onTap: () {
                   if (ref.read(protocolProvider)) {
@@ -561,7 +561,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(
-                      'Cancel',
+                      tr('cancel'),
                       style: TextStyle(
                         color: isDarkMode
                             ? const Color(0xFF94A3B8)
@@ -635,8 +635,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text(
-                      'RECOMMENDED',
+                    child: Text(
+                      tr('recommended_caps'),
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -690,7 +690,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Choose Accent Color',
+                tr('choose_accent'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -699,7 +699,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Select a color theme that suits your style',
+                tr('accent_hint'),
                 style: TextStyle(
                   fontSize: 14,
                   color: isDarkMode
@@ -741,7 +741,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Preview',
+                          tr('preview'),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -749,7 +749,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ),
                         Text(
-                          'This is how it will look',
+                          tr('preview_sub'),
                           style: TextStyle(
                             fontSize: 12,
                             color: isDarkMode
@@ -827,7 +827,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(
-                      'Cancel',
+                      tr('cancel'),
                       style: TextStyle(
                         color: isDarkMode
                             ? const Color(0xFF94A3B8)
@@ -842,7 +842,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       backgroundColor: ref.watch(themeColorProvider),
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Done'),
+                    child: Text(tr('done_btn')),
                   ),
                 ],
               ),
@@ -876,10 +876,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (ctx) => _AccountManagementSheet(
-          email: firebaseUser.email ?? 'Unknown',
+          email: firebaseUser.email ?? tr('unknown'),
           memberSince:
               firebaseUser.metadata.creationTime?.toString().split(' ')[0] ??
-              'Unknown',
+              tr('unknown'),
           emailVerified: firebaseUser.emailVerified,
           themeColor: themeColor,
           isDark: isDarkMode,
@@ -920,7 +920,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const Icon(Icons.warning_amber, color: Colors.orange),
               const SizedBox(width: 8),
               Text(
-                'Sign In Required',
+                tr('sign_in_required'),
                 style: TextStyle(
                   color: isDarkMode ? Colors.white : Colors.black87,
                 ),
@@ -928,7 +928,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           content: Text(
-            'Please sign in with the account you used for the original purchase.',
+            tr('sign_in_original'),
             style: TextStyle(
               color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
@@ -962,7 +962,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
               Text(
-                'Restoring purchases...',
+                tr('restoring_purchases'),
                 style: TextStyle(
                   color: isDarkMode ? Colors.white : Colors.black87,
                 ),
@@ -1031,7 +1031,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const Icon(Icons.check_circle, color: Colors.green),
               const SizedBox(width: 8),
               Text(
-                'Subscription Restored',
+                tr('subscription_restored'),
                 style: TextStyle(
                   color: isDarkMode ? Colors.white : Colors.black87,
                 ),
@@ -1039,7 +1039,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           content: Text(
-            'Your active subscription has been restored successfully. Premium features are now available.',
+            tr('subscription_restored_msg'),
             style: TextStyle(
               color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
@@ -1051,7 +1051,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 backgroundColor: themeColor,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('OK'),
+              child: Text(tr('ok_btn')),
             ),
           ],
         ),
@@ -1066,7 +1066,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const Icon(Icons.info_outline, color: Colors.orange),
               const SizedBox(width: 8),
               Text(
-                'No Active Subscriptions',
+                tr('no_active_subs'),
                 style: TextStyle(
                   color: isDarkMode ? Colors.white : Colors.black87,
                 ),
@@ -1074,7 +1074,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           content: Text(
-            'No active subscriptions were found for this account. If you believe this is a mistake, make sure you\'re signed in with the same account used for the original purchase.',
+            tr('no_active_subs_msg'),
             style: TextStyle(
               color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
@@ -1145,7 +1145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Delete Account',
+                  tr('delete_account'),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1156,7 +1156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'This action is permanent and cannot be undone.',
+              tr('delete_permanent'),
               style: TextStyle(
                 color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                 fontWeight: FontWeight.w600,
@@ -1173,7 +1173,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text('Cancel'),
+                    child: Text(tr('cancel')),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1187,7 +1187,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       backgroundColor: const Color(0xFFEF4444),
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Delete Forever'),
+                    child: Text(tr('delete_forever')),
                   ),
                 ),
               ],
@@ -1216,8 +1216,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (userId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: User not found'),
+          SnackBar(
+            content: Text(tr('error_user_not_found')),
             backgroundColor: Colors.red,
           ),
         );
@@ -1249,8 +1249,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account deleted successfully'),
+            SnackBar(
+              content: Text(tr('account_deleted')),
               backgroundColor: Colors.green,
             ),
           );
@@ -1274,7 +1274,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(tr('error_with', {'e': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1317,7 +1317,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to sign out: ${e.toString()}'),
+            content: Text(tr('sign_out_failed', {'e': e.toString()})),
             backgroundColor: Colors.red,
           ),
         );
@@ -1424,7 +1424,7 @@ class _AccountManagementSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  emailVerified ? 'Email verified' : 'Email not verified',
+                  emailVerified ? tr('email_verified') : tr('email_not_verified'),
                   style: TextStyle(
                     fontSize: 12,
                     color: emailVerified ? Colors.green : Colors.orange,
@@ -1449,7 +1449,7 @@ class _AccountManagementSheet extends StatelessWidget {
                 children: [
                   _InfoRow(
                     icon: Icons.calendar_today_outlined,
-                    label: 'Member since',
+                    label: tr('member_since'),
                     value: memberSince,
                     themeColor: themeColor,
                     textPrimary: textPrimary,
@@ -1463,7 +1463,7 @@ class _AccountManagementSheet extends StatelessWidget {
                   ),
                   _InfoRow(
                     icon: Icons.email_outlined,
-                    label: 'Account',
+                    label: tr('account_label'),
                     value: email,
                     themeColor: themeColor,
                     textPrimary: textPrimary,
@@ -1496,15 +1496,15 @@ class _AccountManagementSheet extends StatelessWidget {
                           Icons.delete_forever,
                           color: Colors.red,
                         ),
-                        title: const Text(
-                          'Delete Account',
+                        title: Text(
+                          tr('delete_account'),
                           style: TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         subtitle: Text(
-                          'Permanently remove your account',
+                          tr('remove_account_sub'),
                           style: TextStyle(color: textSecondary, fontSize: 12),
                         ),
                         trailing: const Icon(
@@ -1534,8 +1534,8 @@ class _AccountManagementSheet extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onSignOut,
                   icon: const Icon(Icons.logout),
-                  label: const Text(
-                    'Sign Out',
+                  label: Text(
+                    tr('sign_out'),
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(

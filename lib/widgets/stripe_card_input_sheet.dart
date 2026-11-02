@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import '../core/localization/app_localizations.dart';
 
 Future<bool?> showStripeCardInputSheet({
   required BuildContext context,
@@ -119,7 +120,7 @@ class _StripeCardInputSheetState extends State<StripeCardInputSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Payment error: $msg'),
+              content: Text(tr('sc_payment_error', {'e': '$msg'})),
               backgroundColor: Colors.red,
             ),
           );
@@ -188,7 +189,7 @@ class _StripeCardInputSheetState extends State<StripeCardInputSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Enter Card Details',
+                              tr('sc_enter_details'),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -207,7 +208,7 @@ class _StripeCardInputSheetState extends State<StripeCardInputSheet> {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Secure payment',
+                                  tr('sc_secure'),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: isDark
@@ -374,7 +375,7 @@ class _StripeCardInputSheetState extends State<StripeCardInputSheet> {
                               ),
                             )
                           : Text(
-                              'Pay ${widget.currency.toUpperCase()} ${widget.amount.toStringAsFixed(2)}',
+                              tr('sc_pay', {'cur': widget.currency.toUpperCase(), 'amt': widget.amount.toStringAsFixed(2)}),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -394,7 +395,7 @@ class _StripeCardInputSheetState extends State<StripeCardInputSheet> {
                           ? null
                           : () => Navigator.of(context).pop(false),
                       child: Text(
-                        'Cancel',
+                        tr('cancel'),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Google Play VPN policy requires a "prominent disclosure" shown to the
 /// user, inside the app, before the VPN connection is established for the
@@ -27,32 +28,26 @@ class VpnDisclosureDialog {
       builder: (context) => PopScope(
         canPop: false,
         child: AlertDialog(
-          title: const Text('VPN & Data Disclosure'),
-          content: const SingleChildScrollView(
+          title: Text(tr('vd_title')),
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'This app provides VPN functionality and routes your '
-                  'internet traffic through the VPN when connected.',
+                  tr('vd_p1'),
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'Account Information: If you create an account, we may '
-                  'collect information such as your name and email address '
-                  'for account-related purposes.',
+                  tr('vd_p2'),
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'VPN Traffic: We do not collect or store your internet '
-                  'browsing activity or VPN traffic while the VPN is '
-                  'connected.',
+                  tr('vd_p3'),
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'By tapping "I Understand & Agree", you acknowledge this '
-                  'disclosure and continue to the VPN connection request.',
+                  tr('vd_p4'),
                 ),
               ],
             ),
@@ -60,11 +55,11 @@ class VpnDisclosureDialog {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(tr('cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('I Understand & Agree'),
+              child: Text(tr('vd_agree')),
             ),
           ],
         ),

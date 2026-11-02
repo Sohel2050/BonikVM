@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../shared/providers/theme_provider.dart';
+import '../../core/localization/app_localizations.dart';
 
 class ReceiptScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -72,7 +73,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF0F172A) : Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Payment Receipt'),
+        title: Text(tr('rc_title')),
         backgroundColor: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
         foregroundColor: isDarkMode ? Colors.white : Colors.black,
         elevation: 0,
@@ -136,7 +137,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
           ),
           const SizedBox(height: 24),
           Text(
-            'Payment Successful!',
+            tr('po_success'),
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -145,7 +146,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Welcome to ${widget.planName}',
+            tr('rc_welcome', {'plan': '${widget.planName}'}),
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
@@ -197,7 +198,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Receipt',
+                  tr('rc_receipt'),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -218,15 +219,15 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             const SizedBox(height: 24),
 
             // Receipt Details
-            _buildReceiptRow('Date', _formatDate(dateString), isDarkMode),
-            _buildReceiptRow('Plan', widget.planName, isDarkMode),
+            _buildReceiptRow(tr('rc_date'), _formatDate(dateString), isDarkMode),
+            _buildReceiptRow(tr('rc_plan'), widget.planName, isDarkMode),
             _buildReceiptRow(
-              'Payment Method',
+              tr('rc_payment_method'),
               _getPaymentMethodName(widget.receiptData['payment_method']),
               isDarkMode,
             ),
             _buildReceiptRow(
-              'Transaction ID',
+              tr('rc_txn_id'),
               widget.receiptData['transaction_id'] ?? 'N/A',
               isDarkMode,
             ),
@@ -239,7 +240,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
 
             // Amount Section
             _buildReceiptRow(
-              'Subtotal',
+              tr('rc_subtotal'),
               '${widget.receiptData['currency'] ?? 'USD'} ${widget.receiptData['amount'] ?? '0.00'}',
               isDarkMode,
             ),
@@ -247,7 +248,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             if (widget.receiptData['tax_amount'] != null &&
                 widget.receiptData['tax_amount'] > 0)
               _buildReceiptRow(
-                'Tax',
+                tr('rc_tax'),
                 '${widget.receiptData['currency'] ?? 'USD'} ${widget.receiptData['tax_amount']}',
                 isDarkMode,
               ),
@@ -264,7 +265,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total',
+                    tr('rc_total'),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -288,7 +289,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             // Billing Info
             if (widget.receiptData['billing_info'] != null) ...[
               Text(
-                'Billing Information',
+                tr('rc_billing_info'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -297,12 +298,12 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
               ),
               const SizedBox(height: 12),
               _buildReceiptRow(
-                'Name',
+                tr('name'),
                 widget.receiptData['billing_info']['name'] ?? 'N/A',
                 isDarkMode,
               ),
               _buildReceiptRow(
-                'Email',
+                tr('email'),
                 widget.receiptData['billing_info']['email'] ?? 'N/A',
                 isDarkMode,
               ),
@@ -393,7 +394,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                 );
               },
               child: Text(
-                'Continue to App',
+                tr('rc_continue_app'),
                 style: TextStyle(
                   color: themeColor,
                   fontSize: 16,
@@ -423,7 +424,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
             const SizedBox(height: 8),
             Text(
-              'This is your official receipt for tax and accounting purposes. Keep it for your records.',
+              tr('rc_official'),
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
@@ -453,12 +454,12 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
       case 'paypal':
         return 'PayPal';
       case 'stripe':
-        return 'Credit/Debit Card';
+        return tr('po_card');
       case 'voucher':
       case 'Voucher Code':
         return 'voucher';
       default:
-        return method ?? 'Unknown';
+        return method ?? tr('unknown');
     }
   }
 
@@ -490,8 +491,8 @@ Thank you for your purchase!
 
   void _downloadReceipt() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Receipt download started...'),
+      SnackBar(
+        content: Text(tr('rc_download_started')),
         backgroundColor: Colors.green,
       ),
     );
@@ -500,8 +501,8 @@ Thank you for your purchase!
 
   void _emailReceipt() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Receipt sent to your email!'),
+      SnackBar(
+        content: Text(tr('rc_sent_email')),
         backgroundColor: Colors.blue,
       ),
     );

@@ -19,9 +19,9 @@ class RewardVideoState {
     this.minutesEarned = 0,
   });
 
-  /// Check if a specific video can still be watched
+  /// True if this slot was not watched yet. The daily maximum (from the admin
+  /// panel) is enforced by [RewardVideoService.canWatchVideo].
   bool canWatchVideo(int index) {
-    if (watchedCount >= 3) return false;
     if (watchedVideoIndices.contains(index)) return false;
     return true;
   }
@@ -45,7 +45,7 @@ class RewardVideoState {
 
   @override
   String toString() =>
-      'RewardVideoState(watched: $watchedCount/3, earned: $minutesEarned minutes, canWatchMore: $canWatchMore)';
+      'RewardVideoState(watched: $watchedCount, earned: $minutesEarned minutes, canWatchMore: $canWatchMore)';
 }
 
 /// Service to manage reward video state and persistence
@@ -53,8 +53,10 @@ class RewardVideoService {
   static final RewardVideoService _instance = RewardVideoService._internal();
   static const String _prefsKey = 'reward_video_state';
   static const String _lastResetKey = 'reward_video_last_reset';
-  static const int _maxVideosPerDay = 3;
-  static const int _minutesPerVideo = 5;
+  // Defaults only; the real values come from the admin panel via
+  // applyAdminConfig() (called by AdsPopupConfigService).
+  int _maxVideosPerDay = 3;
+  int _minutesPerVideo = 5;
 
   late SharedPreferences _prefs;
   RewardVideoState _state = RewardVideoState();
@@ -77,6 +79,15 @@ class RewardVideoService {
       debugPrint('❌ RewardVideoService initialization error: $e');
       _state = RewardVideoState();
     }
+  }
+
+  /// Apply the limits configured in the admin panel.
+  void applyAdminConfig({required int maxVideos, required int minutesPerVideo}) {
+    if (maxVideos > 0) _maxVideosPerDay = maxVideos;
+    if (minutesPerVideo > 0) _minutesPerVideo = minutesPerVideo;
+    _state = _state.copyWith(
+      canWatchMore: _state.watchedCount < _maxVideosPerDay,
+    );
   }
 
   /// Get current state
@@ -149,8 +160,8 @@ class RewardVideoService {
   /// Mark a video as watched
   Future<void> markVideoWatched(int videoIndex) async {
     try {
-      if (!_state.canWatchVideo(videoIndex)) {
-        debugPrint('⚠️ Video $videoIndex already watched');
+      if (!canWatchVideo(videoIndex)) {
+        debugPrint('⚠️ Video $videoIndex already watched or daily limit reached');
         return;
       }
 
@@ -178,6 +189,7 @@ class RewardVideoService {
 
   /// Check if a specific video can be watched
   bool canWatchVideo(int videoIndex) {
+    if (_state.watchedCount >= _maxVideosPerDay) return false;
     return _state.canWatchVideo(videoIndex);
   }
 

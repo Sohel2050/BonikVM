@@ -32,6 +32,7 @@ import 'utils/country_emoji.dart';
 import 'widgets/home_small_widgets.dart';
 import 'widgets/location_cards.dart';
 import 'widgets/connection_stats_section.dart';
+import 'widgets/vpn_connect_button.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -127,8 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
 
       if (persistedServerId != null) {
-        // Wait a bit for servers to load, then restore selection
-        await Future.delayed(const Duration(seconds: 1));
+        // serversProvider.future already waits until the list is loaded.
         final servers = await ref.read(serversProvider.future);
         VpnServer? persistedServer;
         try {
@@ -340,7 +340,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _showRewardedAdForTime() async {
     try {
-      final adsConfig = await AdsPopupConfigService().getAdsPopupConfig();
+      // Same source as the button label, so "+N min" on the button is
+      // exactly what gets added.
+      final adsConfig = ref.read(adsPopupConfigProvider).valueOrNull ??
+          await AdsPopupConfigService().getAdsPopupConfig();
 
       if (!adsConfig.enableBuySubscriptionPrompt) {
         if (mounted) appNavigatorKey.currentState?.pushNamed('/premium');
@@ -361,7 +364,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: Colors.transparent,
         builder: (_) => ExtendServerTimePopup(
           serverName: serverName,
-          adCount: 3,
+          adCount: adsConfig.extendTimeAdCount,
           durationMinutes: durationMinutes,
           onAdWatched: (index) async {
             final seconds = durationMinutes * 60;
@@ -375,7 +378,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Free time extended by $durationMinutes minutes!',
+                  tr('hm_time_extended', {'n': '$durationMinutes'}),
                 ),
                 backgroundColor: Colors.green,
                 duration: const Duration(seconds: 2),
@@ -514,9 +517,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final latencies = ref.read(serverLatencyProvider);
         final candidateServers =
         (isUserPremium
-            ? servers.where((s) => s.isActive && !s.isFull)
+            ? servers.where((s) => s.isActive && !s.isFull && !s.isMaintenance)
             : servers.where(
-              (s) => !s.premium && s.isActive && !s.isFull,
+              (s) => !s.premium && s.isActive && !s.isFull && !s.isMaintenance,
         ))
             .toList()
           ..sort((a, b) {
@@ -784,9 +787,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // Premium users can connect to any active non-full server;
       // free users are limited to free (non-premium) non-full servers.
       final candidateServers = isUserPremium
-          ? servers.where((s) => s.isActive && !s.isFull).toList()
+          ? servers.where((s) => s.isActive && !s.isFull && !s.isMaintenance).toList()
           : servers
-          .where((s) => !s.premium && s.isActive && !s.isFull)
+          .where((s) => !s.premium && s.isActive && !s.isFull && !s.isMaintenance)
           .toList();
 
       if (candidateServers.isNotEmpty) {
@@ -805,9 +808,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         // All servers are full or none available — alert user
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'All servers are at full capacity. Please try again later or select a server manually.',
+                tr('hm_all_full'),
               ),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 4),
@@ -856,7 +859,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => UnifiedAdsPopupSimple(
-          adCount: 3,
+          adCount: adsConfig.premiumUnlockAdCount,
           title: AppLocalizations.of(context).unlockPremiumServer,
           subtitle: server.name,
           customText: adsConfig.premiumUnlockText,
@@ -1421,14 +1424,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // LevelPlay Banner stays in the Home BODY, directly
             // below the MainShell AppBar. No fixed-height parent.
             if (!isPremium && LevelPlayService.instance.adsEnabledByAdmin)
-              FadeInDown(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: LevelPlayBannerAd(
-                    adUnitId: LevelPlayService.instance.bannerAdUnitId,
-                  ),
-                ),
-              ),
+              FadeInDown(child: const _HomeBannerSlot()),
 
             Expanded(
               child: vpnStateAsync.when(
@@ -1445,7 +1441,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text(
-                        'Error: $error',
+                        tr('error_with', {'e': '$error'}),
                         style: const TextStyle(color: Colors.red),
                         textAlign: TextAlign.center,
                       ),
@@ -1454,7 +1450,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         onPressed: () {
                           ref.invalidate(vpnStateProvider);
                         },
-                        child: const Text('Retry'),
+                        child: Text(tr('pr_retry')),
                       ),
                     ],
                   ),
@@ -1510,8 +1506,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     style: const TextStyle(fontSize: 22),
                   ),
                 ),
-                title: currentServer?.country ?? 'Select Location',
-                subtitle: currentServer?.name ?? 'Tap to Select Server',
+                title: currentServer?.country ?? tr('hm_select_location'),
+                subtitle: currentServer?.name ?? tr('hm_tap_select'),
                 pingText:
                 currentServer != null &&
                     ref.watch(serverLatencyProvider)[currentServer.id] !=
@@ -1529,114 +1525,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // Connection Button Section
             FadeInDown(
               delay: const Duration(milliseconds: 100),
-              child: GestureDetector(
-                onTap: _toggleConnection,
-                child: AnimatedBuilder(
-                  animation: isConnected ? _pulseAnimation : _scaleAnimation,
-                  builder: (context, child) {
-                    final pulse = isConnected
-                        ? _pulseAnimation.value
-                        : _scaleAnimation.value;
-                    final ringA = isConnected
-                        ? ((_pulseAnimation.value - 1.0) * 6).clamp(0.06, 0.20)
-                        : 0.07;
-                    final connColor = _getConnectionColor(
+              child: AnimatedBuilder(
+                animation: isConnected ? _pulseAnimation : _scaleAnimation,
+                builder: (context, child) {
+                  final pulse = isConnected
+                      ? _pulseAnimation.value
+                      : _scaleAnimation.value;
+
+                  final VpnButtonPhase phase;
+                  if (isConnected) {
+                    phase = VpnButtonPhase.connected;
+                  } else if (isConnecting ||
+                      vpnState == VpnState.reconnecting ||
+                      vpnState == VpnState.disconnecting) {
+                    phase = VpnButtonPhase.connecting;
+                  } else if (vpnState == VpnState.error ||
+                      vpnState == VpnState.denied) {
+                    phase = VpnButtonPhase.error;
+                  } else {
+                    phase = VpnButtonPhase.idle;
+                  }
+
+                  final String label;
+                  if (isConnected) {
+                    label = tr('disconnect');
+                  } else if (vpnState == VpnState.disconnecting) {
+                    label = tr('disconnecting');
+                  } else if (phase == VpnButtonPhase.connecting) {
+                    label = tr('connecting');
+                  } else {
+                    label = tr('tap_to_connect');
+                  }
+
+                  final Color color;
+                  if (phase == VpnButtonPhase.connecting) {
+                    color = const Color(0xFFF59E0B);
+                  } else if (phase == VpnButtonPhase.error) {
+                    color = const Color(0xFFEF4444);
+                  } else {
+                    color = _getConnectionColor(
                       vpnState,
                       themeColor: themeColor,
                     );
-                    return SizedBox(
-                      width: 214,
-                      height: 214,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 210,
-                            height: 210,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: connColor.withOpacity(ringA),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 182,
-                            height: 182,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: connColor.withOpacity(
-                                  (ringA * 1.7).clamp(0.0, 1.0),
-                                ),
-                                width: 1.2,
-                              ),
-                            ),
-                          ),
-                          Transform.scale(
-                            scale: pulse,
-                            child: Container(
-                              width: 150,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: _getConnectionGradient(
-                                  vpnState,
-                                  themeColor: themeColor,
-                                ),
-                                border: vpnState == VpnState.disconnected
-                                    ? Border.all(color: themeColor, width: 3.0)
-                                    : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: connColor.withOpacity(
-                                      vpnState == VpnState.disconnected
-                                          ? 0.2
-                                          : 0.45,
-                                    ),
-                                    blurRadius: vpnState == VpnState.disconnected
-                                        ? 20
-                                        : 36,
-                                    spreadRadius: vpnState == VpnState.disconnected
-                                        ? 4
-                                        : 12,
-                                  ),
-                                ],
-                              ),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.black12,
-                                    ),
-                                  ),
-                                  Center(
-                                    child: _buildConnectionIcon(vpnState, themeColor: themeColor),
-                                  ),
-                                  if (isConnecting)
-                                    Center(
-                                      child: SizedBox(
-                                        width: 170,
-                                        height: 170,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                  }
+
+                  return VpnConnectButton(
+                    phase: phase,
+                    color: color,
+                    isDark: isDarkMode,
+                    label: label,
+                    pulse: pulse,
+                    onTap: _toggleConnection,
+                  );
+                },
               ),
             ),
 
@@ -1702,7 +1643,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
               const SizedBox(height: 5),
               Text(
-                'Your connection is not secure',
+                tr('connection_not_secure'),
                 style: TextStyle(
                   fontSize: 13,
                   color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
@@ -1764,12 +1705,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
             // Ads
             if (!isPremium && LevelPlayService.instance.adsEnabledByAdmin) ...[
-              const SizedBox(height: 16),
+              if (useNativeAds) const SizedBox(height: 16),
               FadeInUp(
                 delay: const Duration(milliseconds: 550),
                 child: !useNativeAds
                     ? const LevelPlayMrecSlot(
-                  margin: EdgeInsets.symmetric(horizontal: 6),
+                  // The 16px top gap lives inside the slot so it collapses
+                  // together with the ad when the ad fails to load.
+                  margin: EdgeInsets.fromLTRB(6, 16, 6, 0),
                   radius: 20,
                 )
                     : Container(
@@ -1801,62 +1744,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
     );
-  }
-
-  Widget _buildConnectionIcon(VpnState vpnState, {Color? themeColor}) {
-    switch (vpnState) {
-      case VpnState.connected:
-        return const Icon(
-          Icons.power_settings_new,
-          size: 44,
-          color: Colors.black87,
-        );
-      case VpnState.connecting:
-      case VpnState.authenticating:
-        return const Icon(
-          Icons.power_settings_new,
-          size: 44,
-          color: Colors.white60,
-        );
-      case VpnState.error:
-        return const Icon(Icons.error_outline, size: 44, color: Colors.white60);
-      default:
-        return Icon(
-          Icons.power_settings_new,
-          size: 44,
-          color: themeColor ?? const Color(0xFF2563EB),
-        );
-    }
-  }
-
-  LinearGradient _getConnectionGradient(
-      VpnState vpnState, {
-        Color? themeColor,
-      }) {
-    switch (vpnState) {
-      case VpnState.connected:
-        return const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFAEEA1C), Color(0xFF7ED321)],
-        );
-      case VpnState.connecting:
-      case VpnState.authenticating:
-        return const LinearGradient(
-          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        );
-      case VpnState.error:
-        return const LinearGradient(
-          colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-        );
-      default:
-        return LinearGradient(
-          colors: [
-            (themeColor ?? const Color(0xFF2563EB)).withValues(alpha: 0.12),
-            const Color(0xFFF8FAFF),
-          ],
-        );
-    }
   }
 
   Color _getConnectionColor(VpnState vpnState, {Color? themeColor}) {
@@ -1964,7 +1851,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Remaining: ${timerState.formattedTime}',
+                      tr('hm_remaining', {'t': timerState.formattedTime}),
                       style: TextStyle(
                         fontSize: 12,
                         color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
@@ -2039,14 +1926,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       color: Colors.green,
                     ),
                     label: Text(
-                      ref
-                          .watch(adsPopupConfigProvider)
-                          .maybeWhen(
-                        data: (cfg) =>
-                        'Watch Ad\n (+${cfg.adRewardDuration} min)',
-                        orElse: () =>
-                        AppLocalizations.of(context).watchAd5Min,
-                      ),
+                      () {
+                        // valueOrNull keeps the previous admin value while
+                        // reloading; before any value exists show no number
+                        // instead of a made-up one.
+                        final cfg = ref
+                                .watch(adsPopupConfigProvider)
+                                .valueOrNull ??
+                            AdsPopupConfigService().getCachedConfig();
+                        return cfg == null
+                            ? tr('hm_watch_ad_plain')
+                            : tr('hm_watch_ad_min',
+                                {'n': '${cfg.adRewardDuration}'});
+                      }(),
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.green,
@@ -2092,4 +1984,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+}
+
+/// Top banner slot for Home. It keeps a fixed 50px slot while the ad loads or
+/// shows; if the ad fails, the slot collapses with a smooth animation, so there
+/// is neither a leftover empty gap nor a sudden jump of the content below.
+class _HomeBannerSlot extends StatefulWidget {
+  const _HomeBannerSlot();
+
+  @override
+  State<_HomeBannerSlot> createState() => _HomeBannerSlotState();
+}
+
+class _HomeBannerSlotState extends State<_HomeBannerSlot> {
+  bool _failed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: _failed
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                height: 50,
+                child: LevelPlayBannerAd(
+                  adUnitId: LevelPlayService.instance.bannerAdUnitId,
+                  onFailed: () {
+                    if (mounted) setState(() => _failed = true);
+                  },
+                ),
+              ),
+            ),
+    );
+  }
 }

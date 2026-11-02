@@ -87,7 +87,7 @@ const Map<String, String> extendedEnglishTranslations = {
   // Auth Screen
   'welcome_back': 'Welcome back',
   'create_your_account': 'Create your account',
-  'axe_vpn': 'VPN MASTER',
+  'app_name': 'VPN MASTER',
   'sign_in_with_google': 'Sign In with Google',
   'or': 'OR',
   'email': 'Email',

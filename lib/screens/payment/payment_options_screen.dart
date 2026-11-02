@@ -14,6 +14,7 @@ import '../../core/services/purchase_service.dart';
 import '../../widgets/stripe_card_input_sheet.dart';
 import 'receipt_screen.dart';
 import 'paypal_webview_screen.dart';
+import '../../core/localization/app_localizations.dart';
 
 class PaymentOptionsScreen extends ConsumerStatefulWidget {
   final String planId;
@@ -188,29 +189,29 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
     final methods = [
       {
         'id': 'in_app_purchase',
-        'name': 'In-App Purchase',
-        'description': 'Quick and secure purchase through your device',
+        'name': tr('po_in_app'),
+        'description': tr('po_in_app_desc'),
         'icon': 'shopping_bag',
         'enabled': true,
       },
       {
         'id': 'voucher',
-        'name': 'Redeem Voucher Code',
-        'description': 'Enter a voucher code for instant access',
+        'name': tr('po_redeem_code'),
+        'description': tr('po_redeem_code_desc'),
         'icon': 'confirmation_number',
         'enabled': true,
       },
       {
         'id': 'stripe',
-        'name': 'Credit/Debit Card',
-        'description': 'Secure payment - Visa, Mastercard, Amex',
+        'name': tr('po_card'),
+        'description': tr('po_card_desc'),
         'icon': 'credit_card',
         'enabled': true,
       },
       {
         'id': 'paypal',
         'name': 'PayPal',
-        'description': 'Pay securely with your PayPal account',
+        'description': tr('po_paypal_desc'),
         'icon': 'payment',
         'enabled': true,
       },
@@ -244,7 +245,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
       final currentUser = ref.read(currentUserProvider);
 
       if (currentUser == null) {
-        _showErrorDialog('Please sign in to continue with payment');
+        _showErrorDialog(tr('po_sign_in_pay'));
         return;
       }
 
@@ -332,14 +333,14 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                   );
                 }
               } catch (e) {
-                _showErrorDialog('Payment capture failed: $e');
+                _showErrorDialog(tr('po_capture_failed', {'e': '$e'}));
               }
             } else {
-              _showErrorDialog('PayPal payment was cancelled');
+              _showErrorDialog(tr('po_paypal_cancelled'));
             }
           }
         } else {
-          _showErrorDialog('PayPal approval URL not found');
+          _showErrorDialog(tr('po_paypal_no_url'));
         }
       } else {
         _showErrorDialog(
@@ -347,7 +348,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
         );
       }
     } catch (e) {
-      _showErrorDialog('PayPal payment failed: $e');
+      _showErrorDialog(tr('po_paypal_failed', {'e': '$e'}));
     } finally {
       if (mounted) {
         setState(() {
@@ -369,7 +370,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
       // Get current user
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) {
-        _showErrorDialog('Please sign in to continue with payment');
+        _showErrorDialog(tr('po_sign_in_pay'));
         return;
       }
 
@@ -396,7 +397,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
             await Stripe.instance.applySettings();
           } catch (e) {
             _showErrorDialog(
-              'Failed to initialize payment system. Please try again.',
+              tr('po_init_failed'),
             );
             return;
           }
@@ -439,7 +440,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
           }
         } else {
           _showErrorDialog(
-            'Invalid payment configuration received from server',
+            tr('po_invalid_config'),
           );
         }
       } else {
@@ -451,10 +452,10 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
       if (e.toString().contains('timeout') ||
           e.toString().contains('receive timeout')) {
         _showErrorDialog(
-          'Payment server is taking longer than expected. Please check your internet connection and try again.',
+          tr('po_timeout'),
         );
       } else {
-        _showErrorDialog('Payment failed: $e');
+        _showErrorDialog(tr('po_payment_failed', {'e': '$e'}));
       }
     } finally {
       if (mounted) {
@@ -479,7 +480,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
       // Get current user
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) {
-        _showErrorDialog('Please sign in to continue with payment');
+        _showErrorDialog(tr('po_sign_in_pay'));
         return;
       }
 
@@ -571,7 +572,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
             }
           }
         } else if (result.isError) {
-          _showErrorDialog(result.errorMessage ?? 'In-app purchase failed');
+          _showErrorDialog(result.errorMessage ?? tr('po_iap_failed'));
         } else if (result.isCancelled) {
           // User cancelled, just hide loading
         }
@@ -591,7 +592,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
 
       await _purchaseService.purchaseProduct(widget.planId);
     } catch (e) {
-      _showErrorDialog('In-app purchase failed: $e');
+      _showErrorDialog(tr('po_iap_failed_e', {'e': '$e'}));
       subscription?.cancel();
 
       if (mounted) {
@@ -606,7 +607,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
     try {
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) {
-        _showErrorDialog('User not authenticated');
+        _showErrorDialog(tr('po_not_auth'));
         return;
       }
 
@@ -702,8 +703,8 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
               child: const Icon(Icons.check, size: 40, color: Colors.white),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Payment Successful!',
+            Text(
+              tr('po_success'),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -713,7 +714,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'Your ${widget.planName} subscription has been activated successfully.',
+              tr('po_activated', {'plan': '${widget.planName}'}),
               style: const TextStyle(fontSize: 16, color: Color(0xFF94A3B8)),
               textAlign: TextAlign.center,
             ),
@@ -731,7 +732,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Continue'),
+            child: Text(tr('continue')),
           ),
         ],
       ),
@@ -745,8 +746,8 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: const Color(0xFF1E293B),
-        title: const Text(
-          'Payment Error',
+        title: Text(
+          tr('po_error_title'),
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
@@ -756,7 +757,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(tr('ok')),
           ),
         ],
       ),
@@ -865,7 +866,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Redeem Voucher Code',
+                            tr('po_redeem_code'),
                             style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: isDarkMode ? Colors.white : Colors.black87,
@@ -892,7 +893,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                     const SizedBox(height: 16),
 
                     Text(
-                      'Enter your voucher code to redeem instant access',
+                      tr('po_voucher_enter'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? Colors.white70 : Colors.black54,
                       ),
@@ -975,7 +976,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Valid Voucher Code',
+                                  tr('po_voucher_valid'),
                                   style: TextStyle(
                                     color: accentColor,
                                     fontWeight: FontWeight.bold,
@@ -1035,7 +1036,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                               ),
                             ),
                             child: Text(
-                              'Cancel',
+                              tr('cancel'),
                               style: TextStyle(
                                 color: isDarkMode
                                     ? Colors.white70
@@ -1067,7 +1068,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                             );
                                             if (currentUser == null) {
                                               _showErrorDialog(
-                                                'Please sign in to continue',
+                                                tr('po_sign_in_continue'),
                                               );
                                               return;
                                             }
@@ -1089,7 +1090,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                               });
                                               _showErrorDialog(
                                                 response['message'] ??
-                                                    'Invalid voucher code',
+                                                    tr('po_voucher_invalid'),
                                               );
                                             }
                                           } catch (e) {
@@ -1097,7 +1098,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                               isValidating = false;
                                             });
                                             _showErrorDialog(
-                                              'Failed to validate voucher code',
+                                              tr('po_voucher_validate_failed'),
                                             );
                                           }
                                         },
@@ -1134,8 +1135,8 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                                 ),
                                           ),
                                         )
-                                      : const Text(
-                                          'Validate',
+                                      : Text(
+                                          tr('po_validate'),
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -1156,7 +1157,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                             );
                                             if (currentUser == null) {
                                               _showErrorDialog(
-                                                'Please sign in to continue',
+                                                tr('po_sign_in_continue'),
                                               );
                                               return;
                                             }
@@ -1219,7 +1220,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                               });
                                               _showErrorDialog(
                                                 response['message'] ??
-                                                    'Failed to redeem voucher',
+                                                    tr('po_redeem_failed'),
                                               );
                                             }
                                           } catch (e) {
@@ -1227,7 +1228,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                               isRedeeming = false;
                                             });
                                             _showErrorDialog(
-                                              'Failed to redeem voucher code',
+                                              tr('po_redeem_code_failed'),
                                             );
                                           }
                                         },
@@ -1254,8 +1255,8 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                                                 ),
                                           ),
                                         )
-                                      : const Text(
-                                          'Redeem',
+                                      : Text(
+                                          tr('po_redeem'),
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -1286,7 +1287,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
         backgroundColor: Colors.transparent,
         foregroundColor: isDarkMode ? Colors.white : Colors.black87,
         elevation: 0,
-        title: const Text('Payment Options'),
+        title: Text(tr('po_title')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -1390,7 +1391,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
             const Divider(),
             const SizedBox(height: 16),
             Text(
-              'Included Features:',
+              tr('po_included'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -1439,7 +1440,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Choose Payment Method',
+            tr('po_choose_method'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -1453,7 +1454,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
             const Center(child: CircularProgressIndicator()),
             const SizedBox(height: 16),
             Text(
-              'Loading payment methods...',
+              tr('po_loading_methods'),
               style: TextStyle(
                 color: isDarkMode ? Colors.white70 : Colors.black54,
               ),
@@ -1567,14 +1568,14 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Payment Method Unavailable'),
+        title: Text(tr('po_unavailable')),
         content: Text(
           '$methodName is currently not available. Please try another payment method.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(tr('ok')),
           ),
         ],
       ),
@@ -1692,7 +1693,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Secure Payment',
+                  tr('po_secure'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -1703,7 +1704,7 @@ class _PaymentOptionsScreenState extends ConsumerState<PaymentOptionsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Your payment information is encrypted and secure. We never store your payment details.',
+              tr('po_secure_msg'),
               style: TextStyle(
                 fontSize: 12,
                 color: isDarkMode ? const Color(0xFF94A3B8) : Colors.grey[600],

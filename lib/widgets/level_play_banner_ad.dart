@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
 import '../core/services/level_play_service.dart';
@@ -47,15 +49,27 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
   // GlobalKey is required by LevelPlayBannerAdView to call loadAd() / destroy()
   late final GlobalKey<LevelPlayBannerAdViewState> _bannerKey;
   bool _failed = false;
+  bool _loaded = false;
+  Timer? _loadTimeout;
 
   @override
   void initState() {
     super.initState();
     _bannerKey = GlobalKey<LevelPlayBannerAdViewState>();
+    // If the ad neither loads nor reports a failure (no internet, SDK not
+    // ready, no fill), treat it as failed so the parent collapses the empty slot.
+    _loadTimeout = Timer(const Duration(seconds: 5), _onLoadTimeout);
+  }
+
+  void _onLoadTimeout() {
+    if (!mounted || _loaded || _failed) return;
+    setState(() => _failed = true);
+    widget.onFailed?.call();
   }
 
   @override
   void dispose() {
+    _loadTimeout?.cancel();
     _bannerKey.currentState?.destroy();
     super.dispose();
   }
@@ -86,6 +100,8 @@ class _LevelPlayBannerAdState extends State<LevelPlayBannerAd>
   @override
   void onAdLoaded(LevelPlayAdInfo adInfo) {
     debugPrint('[LevelPlayBannerAd] Loaded: ${adInfo.adId}');
+    _loaded = true;
+    _loadTimeout?.cancel();
     if (mounted) setState(() {});
   }
 

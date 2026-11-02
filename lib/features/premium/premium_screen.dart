@@ -276,7 +276,7 @@ class _ActiveView extends StatelessWidget {
                   Expanded(
                     child: _ActionCard(
                       icon: Icons.receipt_long_outlined,
-                      label: 'Receipts',
+                      label: tr('receipts'),
                       isDark: isDark,
                       theme: theme,
                       onTap: () => showReceiptsSheet(context),
@@ -286,7 +286,7 @@ class _ActiveView extends StatelessWidget {
                   Expanded(
                     child: _ActionCard(
                       icon: Icons.local_offer_outlined,
-                      label: 'Voucher',
+                      label: tr('voucher'),
                       isDark: isDark,
                       theme: theme,
                       onTap: () {
@@ -773,7 +773,7 @@ String _fmtPrice(double v) => v.toStringAsFixed(2);
 
 String _planDuration(Map<String, dynamic> p) {
   final days = _planDays(p);
-  if (days == 0) return 'Lifetime';
+  if (days == 0) return tr('lifetime_plan');
   if (days % 365 == 0) {
     final y = days ~/ 365;
     return y == 1 ? '1 year' : '$y years';
@@ -1149,7 +1149,7 @@ class _PlanCard extends StatelessWidget {
                           ),
                         if (savePercent != null)
                           pill(
-                            'Save $savePercent%',
+                            tr('pr_save_pct', {'pct': '$savePercent'}),
                             const [Color(0xFF059669), Color(0xFF10B981)],
                           ),
                       ],
@@ -1335,7 +1335,7 @@ class _CancelInfoSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Cancel Subscription',
+            tr('ph_cancel_sub'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -1364,8 +1364,8 @@ class _CancelInfoSheet extends StatelessWidget {
                 ),
               ),
               onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Got it',
+              child: Text(
+                tr('pr_got_it'),
                 style: TextStyle(
                   color: Colors.white70,
                   fontWeight: FontWeight.w600,
@@ -1421,7 +1421,7 @@ class _CancelConfirmSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Cancel Subscription',
+            tr('ph_cancel_sub'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -1430,8 +1430,7 @@ class _CancelConfirmSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Are you sure you want to cancel your subscription?\n'
-                'You will keep access until the end of the current billing period.',
+            tr('pr_cancel_confirm'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -1452,8 +1451,8 @@ class _CancelConfirmSheet extends StatelessWidget {
                 ),
               ),
               onPressed: () => Navigator.pop(context, false),
-              child: const Text(
-                'Keep Subscription',
+              child: Text(
+                tr('pr_keep_sub'),
                 style: TextStyle(
                   color: Colors.white70,
                   fontWeight: FontWeight.w600,
@@ -1475,8 +1474,8 @@ class _CancelConfirmSheet extends StatelessWidget {
                 ),
               ),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text(
-                'Cancel Subscription',
+              child: Text(
+                tr('ph_cancel_sub'),
                 style: TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.w600,
@@ -1517,8 +1516,8 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
     // IAP subscriptions: direct to the store's subscription management
     if (_isIap) {
       final msg = widget.platform == 'app_store'
-          ? 'To cancel your App Store subscription, go to:\nSettings → Apple ID → Subscriptions.'
-          : 'To cancel your Google Play subscription, open the Play Store → Subscriptions.';
+          ? tr('pr_cancel_appstore')
+          : tr('pr_cancel_play');
       if (!mounted) return;
       await showModalBottomSheet(
         context: context,
@@ -1553,8 +1552,8 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
       await ref.read(subscriptionProvider.notifier).refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Subscription cancelled.'),
+        SnackBar(
+          content: Text(tr('pr_sub_cancelled')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -1562,7 +1561,7 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to cancel: $e'),
+          content: Text(tr('pr_cancel_failed', {'e': '$e'})),
           backgroundColor: Colors.red,
         ),
       );
@@ -1594,8 +1593,8 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
           ),
         )
             : const Icon(Icons.cancel_outlined, size: 18),
-        label: const Text(
-          'Cancel Subscription',
+        label: Text(
+          tr('ph_cancel_sub'),
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         onPressed: _cancelling ? null : _onCancel,
@@ -1627,7 +1626,7 @@ class _PlansUnavailable extends StatelessWidget {
             Icon(Icons.cloud_off_rounded, size: 48, color: theme),
             const SizedBox(height: 14),
             Text(
-              'Plans could not be loaded',
+              tr('pr_plans_failed'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -1637,7 +1636,7 @@ class _PlansUnavailable extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Check your connection and try again.',
+              tr('pr_check_conn'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
             ),
@@ -1645,7 +1644,7 @@ class _PlansUnavailable extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: Icon(Icons.refresh_rounded, color: theme),
-              label: Text('Retry', style: TextStyle(color: theme)),
+              label: Text(tr('pr_retry'), style: TextStyle(color: theme)),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: theme, width: 1.5),
                 shape: RoundedRectangleBorder(

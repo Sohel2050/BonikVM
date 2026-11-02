@@ -4,6 +4,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:intl/intl.dart';
 import '../core/api/api_service.dart';
 import '../providers/auth_providers.dart';
+import '../core/localization/app_localizations.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({Key? key}) : super(key: key);
@@ -35,7 +36,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) {
         setState(() {
-          _errorMessage = 'Please sign in to view payment history';
+          _errorMessage = tr('pay_hist_sign_in');
           _isLoading = false;
         });
         return;
@@ -62,7 +63,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
     } catch (e) {
 
       setState(() {
-        _errorMessage = 'Error loading payment history: $e';
+        _errorMessage = tr('pay_hist_error', {'e': '$e'});
         _isLoading = false;
       });
     }
@@ -82,7 +83,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ? const Color(0xFF0F172A)
           : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Payment History'),
+        title: Text(tr('pay_hist_title')),
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         foregroundColor: isDark ? Colors.white : Colors.black87,
         elevation: 0,
@@ -126,7 +127,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
             const SizedBox(height: 16),
             Text(
-              'Error Loading Payment History',
+              tr('pay_hist_error_title'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -149,7 +150,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Retry'),
+              child: Text(tr('pr_retry')),
             ),
           ],
         ),
@@ -170,7 +171,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No Payment History',
+              tr('pay_hist_none'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -179,7 +180,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your payment receipts will appear here',
+              tr('pay_hist_none_msg'),
               style: TextStyle(color: Colors.grey[600]),
             ),
           ],
@@ -209,7 +210,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   Widget _buildReceiptCard(Map<String, dynamic> receipt, bool isDark) {
     final amount = receipt['amount']?.toString() ?? '0.00';
     final currency = receipt['currency']?.toString() ?? 'USD';
-    final paymentMethod = receipt['payment_method']?.toString() ?? 'Unknown';
+    final paymentMethod = receipt['payment_method']?.toString() ?? tr('unknown');
     final planName = receipt['plan_name']?.toString() ?? 'VPN Subscription';
     final status = receipt['status']?.toString() ?? 'unknown';
     final createdAt = receipt['created_at']?.toString();
@@ -378,12 +379,12 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   String _formatPaymentMethod(String paymentMethod) {
     switch (paymentMethod.toLowerCase()) {
       case 'stripe':
-        return 'Credit Card';
+        return tr('pay_credit_card');
       case 'paypal':
         return 'PayPal';
       case 'iap':
       case 'in_app_purchase':
-        return 'In-App Purchase';
+        return tr('po_in_app');
       case 'voucher':
       case 'voucher code':
         return 'voucher';

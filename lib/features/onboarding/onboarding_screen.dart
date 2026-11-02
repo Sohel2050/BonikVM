@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/localization/app_localizations.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -126,8 +127,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           vertical: 8,
                         ),
                       ),
-                      child: const Text(
-                        'Skip',
+                      child: Text(
+                        tr('upd_skip'),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -209,7 +210,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              isLast ? 'Get Started' : 'Continue',
+                              isLast ? tr('ob_get_started') : tr('continue'),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,

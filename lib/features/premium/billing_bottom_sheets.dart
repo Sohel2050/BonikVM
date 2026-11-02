@@ -15,6 +15,7 @@ import '../../shared/providers/theme_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../screens/auth/sign_in_screen.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ─── PAYMENT METHOD SHEET ─────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pay for $name',
+                        tr('bb_pay_for', {'name': '$name'}),
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
@@ -162,7 +163,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Text(
-                'On iOS, purchases are processed through the App Store.',
+                tr('bb_ios_note'),
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
@@ -220,7 +221,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Center(
           child: Text(
-            'No payment methods are currently available.\nPlease contact support.',
+            tr('bb_no_methods'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -267,7 +268,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
             useSafeArea: false,
             builder: (_) => _WebViewSheet(
               url: result['checkout_url'] as String,
-              title: 'Stripe Checkout',
+              title: tr('bb_stripe_checkout'),
               successPattern: '/payment/success',
               cancelPattern: '/payment/cancel',
               onSuccess: (url) async {
@@ -286,8 +287,8 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         Navigator.pop(context);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment successful!'),
+          SnackBar(
+            content: Text(tr('bb_pay_ok')),
             backgroundColor: Colors.green,
           ),
         );
@@ -336,7 +337,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
             useSafeArea: false,
             builder: (_) => _WebViewSheet(
               url: result['approve_url'] as String,
-              title: 'PayPal Checkout',
+              title: tr('bb_paypal_checkout'),
               successPattern: '/payment/paypal/return',
               cancelPattern: '/payment/paypal/cancel',
               onSuccess: (url) async {
@@ -354,8 +355,8 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         Navigator.pop(context);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PayPal payment successful!'),
+          SnackBar(
+            content: Text(tr('bb_paypal_ok')),
             backgroundColor: Colors.green,
           ),
         );
@@ -399,7 +400,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
           setState(() {
             _loading = false;
             _error =
-                'Purchase completed but no receipt was returned. Please use "Restore Purchases" or contact support.';
+                tr('bb_no_receipt');
           });
           return;
         }
@@ -427,8 +428,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
           setState(() {
             _loading = false;
             _error =
-                'Your payment went through, but we could not confirm it with the server. '
-                'It will be retried automatically — please check back shortly or use "Restore Purchases".';
+                tr('bb_not_confirmed');
           });
           return;
         }
@@ -443,8 +443,8 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         Navigator.pop(context);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Purchase successful!'),
+          SnackBar(
+            content: Text(tr('bb_purchase_ok')),
             backgroundColor: Colors.green,
           ),
         );
@@ -452,7 +452,7 @@ class _PaymentMethodSheetState extends ConsumerState<_PaymentMethodSheet> {
         if (!mounted) return;
         setState(() {
           _loading = false;
-          _error = result.errorMessage ?? 'Purchase failed';
+          _error = result.errorMessage ?? tr('bb_purchase_failed');
         });
       }
       // pending: keep spinner
@@ -687,8 +687,8 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
         children: [
           _Handle(isDark: isDark),
           _SheetTitle(
-            title: 'Payment Receipts',
-            subtitle: 'Your subscription history',
+            title: tr('bb_receipts_title'),
+            subtitle: tr('bb_sub_history'),
             isDark: isDark,
           ),
           Flexible(
@@ -712,7 +712,7 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Sign in to view your receipts',
+                          tr('bb_sign_in_receipts'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 15,
@@ -722,7 +722,7 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Your purchase history is tied to your account.',
+                          tr('bb_tied_account'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
@@ -742,7 +742,7 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Text('Sign In'),
+                            child: Text(tr('sign_in')),
                           ),
                         ),
                       ],
@@ -765,7 +765,7 @@ class _ReceiptsSheetState extends ConsumerState<_ReceiptsSheet> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'No receipts yet.',
+                          tr('bb_no_receipts'),
                           style: TextStyle(
                             color: Colors.grey.shade400,
                             fontSize: 15,
@@ -872,7 +872,7 @@ class _ReceiptCard extends StatelessWidget {
               const Spacer(),
               if (expires != null)
                 Text(
-                  'exp ${_dtShort(expires.toString())}',
+                  tr('bb_exp', {'d': _dtShort(expires.toString())}),
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
             ],
@@ -881,7 +881,7 @@ class _ReceiptCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Purchased ${_dtShort(created.toString())}',
+                tr('bb_purchased', {'d': _dtShort(created.toString())}),
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
               ),
             ),
@@ -969,7 +969,7 @@ class _VoucherSheetState extends ConsumerState<_VoucherSheet> {
   Future<void> _redeem() async {
     final code = _ctrl.text.trim().toUpperCase();
     if (code.isEmpty) {
-      setState(() => _error = 'Please enter a voucher code.');
+      setState(() => _error = tr('bb_voucher_empty'));
       return;
     }
     setState(() {
@@ -1019,8 +1019,8 @@ class _VoucherSheetState extends ConsumerState<_VoucherSheet> {
           children: [
             _Handle(isDark: isDark),
             _SheetTitle(
-              title: 'Redeem Voucher',
-              subtitle: 'Enter your voucher code below',
+              title: tr('redeem_voucher'),
+              subtitle: tr('bb_voucher_enter'),
               isDark: isDark,
             ),
             if (_error != null)
@@ -1117,8 +1117,8 @@ class _VoucherSheetState extends ConsumerState<_VoucherSheet> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          'Redeem',
+                      : Text(
+                          tr('po_redeem'),
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
@@ -1216,7 +1216,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
   Future<void> _submitPayment() async {
     final tx = _txCtrl.text.trim();
     if (tx.isEmpty) {
-      setState(() => _error = 'Please enter the transaction hash.');
+      setState(() => _error = tr('bb_enter_hash'));
       return;
     }
     setState(() {
@@ -1233,7 +1233,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
       if (!mounted) return;
       if (res['success'] == true) {
         setState(() {
-          _success = 'Submitted! Admin will verify and activate within 24h.';
+          _success = tr('bb_submitted');
           _submit = false;
         });
       } else {
@@ -1270,7 +1270,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
           children: [
             _Handle(isDark: isDark),
             _SheetTitle(
-              title: 'Crypto Payment',
+              title: tr('bb_crypto_title'),
               subtitle: '$name${price.isNotEmpty ? " · \$$price" : ""}',
               isDark: isDark,
             ),
@@ -1288,7 +1288,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
               )
             else ...[
               // Coin picker
-              _SectionLabel(label: 'Select Coin', isDark: isDark),
+              _SectionLabel(label: tr('bb_select_coin'), isDark: isDark),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Row(
@@ -1336,15 +1336,15 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
               ),
               // Wallet address
               if (wallet.isNotEmpty) ...[
-                _SectionLabel(label: 'Send to $_coin Address', isDark: isDark),
+                _SectionLabel(label: tr('bb_send_to', {'coin': _coin}), isDark: isDark),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: wallet));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Address copied!'),
+                        SnackBar(
+                          content: Text(tr('bb_address_copied')),
                           duration: Duration(seconds: 2),
                         ),
                       );
@@ -1403,8 +1403,8 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
                       Expanded(
                         child: Text(
                           price.isNotEmpty
-                              ? 'Send exactly \$$price USD worth of $_coin to the address above.'
-                              : 'Send the correct amount to the wallet address above.',
+                              ? tr('bb_send_exact', {'price': '$price', 'coin': _coin})
+                              : tr('bb_send_correct'),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.amber,
@@ -1416,7 +1416,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
                 ),
               ),
               // TX Hash
-              _SectionLabel(label: 'Transaction Hash / TXID', isDark: isDark),
+              _SectionLabel(label: tr('bb_txid'), isDark: isDark),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: TextField(
@@ -1438,7 +1438,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
               ),
               // Proof image
               _SectionLabel(
-                label: 'Proof Screenshot (Optional)',
+                label: tr('bb_proof'),
                 isDark: isDark,
               ),
               Padding(
@@ -1476,7 +1476,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Tap to upload screenshot',
+                                tr('bb_tap_upload'),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade400,
@@ -1512,7 +1512,7 @@ class _CryptoSheetState extends ConsumerState<_CryptoSheet> {
                           )
                         : const Icon(Icons.send_rounded, color: Colors.white),
                     label: Text(
-                      _submit ? 'Submitting…' : 'Submit for Verification',
+                      _submit ? tr('bb_submitting') : tr('bb_submit_verify'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -1545,34 +1545,36 @@ class _MethodTile extends StatelessWidget {
   final bool isDark;
   final VoidCallback onTap;
 
-  static const _meta = {
+  // A getter (not a field) so tr() is re-read on every build and the labels
+  // follow the app language.
+  static Map<_Brand, (String, String, Color, IconData)> get _meta => {
     _Brand.stripe: (
-      'Pay with Stripe',
-      'Credit / Debit card',
+      tr('bb_pay_stripe'),
+      tr('bb_card_sub'),
       Color(0xFF6772E5),
       Icons.credit_card_rounded,
     ),
     _Brand.paypal: (
-      'Pay with PayPal',
-      'PayPal account or card',
+      tr('bb_pay_paypal'),
+      tr('bb_paypal_sub'),
       Color(0xFF003087),
       Icons.account_balance_wallet_rounded,
     ),
     _Brand.crypto: (
-      'Pay with Crypto',
+      tr('bb_pay_crypto'),
       'BTC / ETH / USDT',
       Color(0xFFF7931A),
       Icons.currency_bitcoin,
     ),
     _Brand.googlePlay: (
-      'Google Play In-App',
-      'Billed by Google Play',
+      tr('bb_play_inapp'),
+      tr('bb_billed_google'),
       Color(0xFF4CAF50),
       Icons.android_rounded,
     ),
     _Brand.appStore: (
-      'App Store In-App',
-      'Billed by Apple App Store',
+      tr('bb_appstore_inapp'),
+      tr('bb_billed_apple'),
       Color(0xFF007AFF),
       Icons.apple_rounded,
     ),

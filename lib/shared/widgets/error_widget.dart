@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
+import '../../core/localization/app_localizations.dart';
 
 class ErrorRetryWidget extends StatelessWidget {
   final String message;
@@ -44,7 +45,7 @@ class ErrorRetryWidget extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
+                  label: Text(tr('pr_retry')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3B82F6),
                     foregroundColor: Colors.white,
@@ -74,7 +75,7 @@ class NetworkErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ErrorRetryWidget(
-      message: 'No internet connection.\nPlease check your network settings.',
+      message: tr('er_no_internet'),
       icon: Icons.wifi_off,
       onRetry: onRetry,
     );
@@ -89,7 +90,7 @@ class ServerErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ErrorRetryWidget(
-      message: 'Server is temporarily unavailable.\nPlease try again later.',
+      message: tr('er_server_down'),
       icon: Icons.cloud_off,
       onRetry: onRetry,
     );

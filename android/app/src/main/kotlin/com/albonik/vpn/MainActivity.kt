@@ -9,7 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 import com.axevpn.flutter.openvpn.AxeVPNFlutterPlugin
 
 class MainActivity : FlutterFragmentActivity() {
-    private val CHANNEL = "axe_vpn/vpn_permission"
+    private val CHANNEL = "vpn_master/vpn_permission"
     private val VPN_REQUEST_CODE = 24
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

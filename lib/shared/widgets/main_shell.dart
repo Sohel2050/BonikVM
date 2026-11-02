@@ -10,6 +10,7 @@ import '../../features/about/about_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/privacy/privacy_policy_screen.dart';
 import '../../features/servers/servers_screen.dart';
+import '../../features/speedtest/speed_test_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/premium/premium_screen.dart';
 import '../../core/services/update_service.dart';
@@ -38,11 +39,19 @@ class _HomeNavItemSpec {
 class MainShell extends ConsumerStatefulWidget {
   final int initialIndex;
 
-  const MainShell({super.key, this.initialIndex = 0});
+  const MainShell({super.key, this.initialIndex = _homeIdx});
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
 }
+
+// Page order inside MainShell. The bottom bar shows Home | Test | Settings (Test
+// in the centre); Servers and Premium are hidden pages reached from Home.
+const int _homeIdx = 0;
+const int _speedIdx = 1;
+const int _settingsIdx = 2;
+const int _serversIdx = 3;
+const int _premiumIdx = 4;
 
 class _MainShellState extends ConsumerState<MainShell> {
   late int _currentIndex;
@@ -57,10 +66,11 @@ class _MainShellState extends ConsumerState<MainShell> {
   void initState() {
     super.initState();
     _screens = [
-      const HomeScreen(),
-      ServersScreen(key: serversScreenKey),
-      PremiumScreen(key: premiumScreenKey),
-      const SettingsScreen(),
+      const HomeScreen(), // 0 Home (default)
+      const SpeedTestScreen(embedded: true), // 1 Speed
+      const SettingsScreen(), // 2 Settings
+      ServersScreen(key: serversScreenKey), // 3 Servers (opened from Home)
+      PremiumScreen(key: premiumScreenKey), // 4 Premium
     ];
     // Ensure initialIndex is within bounds
     _currentIndex = widget.initialIndex.clamp(0, _screens.length - 1);
@@ -159,8 +169,8 @@ class _MainShellState extends ConsumerState<MainShell> {
             children: [
               Icon(Icons.exit_to_app, color: Colors.redAccent, size: 22),
               const SizedBox(width: 8),
-              const Text(
-                'Double Back To Exit',
+              Text(
+                tr('double_back_exit'),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
@@ -215,15 +225,15 @@ class _MainShellState extends ConsumerState<MainShell> {
         return PopScope(
           canPop: true,
           child: AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
                 Icon(Icons.star, color: Colors.amber, size: 28),
                 SizedBox(width: 8),
-                Text('Rate VPN MASTER'),
+                Text(tr('rate_app_title')),
               ],
             ),
-            content: const Text(
-              'Great! You\'re connected to VPN successfully. Would you like to rate our app and share your experience?',
+            content: Text(
+              tr('rate_app_msg'),
               style: TextStyle(fontSize: 16),
             ),
             actions: [
@@ -231,7 +241,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
-                child: const Text('Maybe Later'),
+                child: Text(tr('maybe_later')),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
@@ -249,7 +259,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   } catch (e) {}
                 },
                 icon: const Icon(Icons.star_rate),
-                label: const Text('Rate Now'),
+                label: Text(tr('rate_now')),
               ),
             ],
           ),
@@ -299,6 +309,11 @@ class _MainShellState extends ConsumerState<MainShell> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) {
+          // Back from any other tab goes to Home first; only Home asks to exit.
+          if (_currentIndex != _homeIdx) {
+            _onTabTapped(_homeIdx);
+            return;
+          }
           final shouldPop = await _onWillPop();
           if (shouldPop && context.mounted) {
             // Use SystemNavigator.pop() instead of Navigator.pop() to exit app
@@ -361,7 +376,13 @@ class _MainShellState extends ConsumerState<MainShell> {
       AppLocalizations localizations,
       ) {
     switch (currentIndex) {
-      case 0: // Home screen
+      case _speedIdx: // Speed Test
+        return ModernAppBar(
+          title: tr('speed_test'),
+          showBackButton: false, // main tab
+          actions: const [SpeedTestAppBarActions()],
+        );
+      case _homeIdx: // Home screen
         return Container(
           color: isDarkMode ? Colors.black : Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -388,7 +409,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     onPressed: () {
                       _scaffoldKey.currentState?.openDrawer();
                     },
-                    tooltip: 'Menu',
+                    tooltip: tr('menu'),
                   ),
                 ),
                 // App logo + app name.
@@ -440,7 +461,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                 ),
                 // Premium button remains on the right.
                 GestureDetector(
-                  onTap: () => _onTabTapped(2),
+                  onTap: () => _onTabTapped(_premiumIdx),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -479,10 +500,11 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           ),
         );
-      case 1: // Servers screen
+      case _serversIdx: // Servers screen
         return ModernAppBar(
-          title: 'Select Server',
-          showBackButton: false, // No back button for main screens
+          title: tr('select_server'),
+          showBackButton: true, // Servers is not in the bottom bar: go back to Home
+          onBackPressed: () => _onTabTapped(_homeIdx),
           actions: [
             IconButton(
               icon: Icon(
@@ -496,13 +518,13 @@ class _MainShellState extends ConsumerState<MainShell> {
                   final _ = ref.refresh(serversProvider);
                 } catch (e) {}
               },
-              tooltip: 'Refresh Servers',
+              tooltip: tr('refresh_servers'),
             ),
           ],
         );
-      case 2: // Premium screen
+      case _premiumIdx: // Premium screen
         return ModernAppBar(
-          title: 'SUBSCRIPTION',
+          title: tr('subscription_caps'),
           showBackButton: false, // Subscription is a main tab; hide back to avoid popping MainShell
           actions: [
             if (!isPremium)
@@ -512,16 +534,16 @@ class _MainShellState extends ConsumerState<MainShell> {
                   color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
                   size: 27,
                 ),
-                tooltip: 'Refresh Products',
+                tooltip: tr('refresh_products'),
                 onPressed: () {
                   premiumScreenKey.currentState?.refreshProducts();
                 },
               ),
           ],
         );
-      case 3: // Settings screen
+      case _settingsIdx: // Settings screen
         return ModernAppBar(
-          title: 'Settings',
+          title: tr('settings'),
           showBackButton: false, // No back button for main screens
         );
       default:
@@ -538,7 +560,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               onPressed: () {
                 _scaffoldKey.currentState?.openDrawer();
               },
-              tooltip: 'Menu',
+              tooltip: tr('menu'),
             ),
           ],
         );
@@ -563,19 +585,22 @@ class _MainShellState extends ConsumerState<MainShell> {
       _HomeNavItemSpec(
         icon: Icons.home_rounded,
         label: localizations.home,
-        index: 0,
+        index: _homeIdx,
       ),
       _HomeNavItemSpec(
-        icon: Icons.public_rounded,
-        label: localizations.servers,
-        index: 1,
+        icon: Icons.speed_rounded,
+        label: tr('speed_tab'),
+        index: _speedIdx,
       ),
       _HomeNavItemSpec(
         icon: Icons.settings_rounded,
         label: localizations.settings,
-        index: 3,
+        index: _settingsIdx,
       ),
     ];
+
+    final sidePad =
+        (MediaQuery.of(context).size.width * 0.025).clamp(6.0, 12.0).toDouble();
 
     return Container(
       decoration: BoxDecoration(
@@ -589,12 +614,23 @@ class _MainShellState extends ConsumerState<MainShell> {
         ],
       ),
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
+        // Small side margin that scales with the screen width, so Home sits a
+        // little further left and Settings a little further right.
+        left: sidePad,
+        right: sidePad,
         top: 10,
         bottom: 10 + MediaQuery.of(context).padding.bottom,
       ),
-      child: Row(
+      child: LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth;
+        // On very small screens the row is laid out at a minimum width and
+        // scaled down to fit, so nothing overflows; on bigger screens the
+        // three tabs spread evenly with a wide gap between them.
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: w < 380.0 ? 380.0 : w,
+            child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: items.map((item) {
           final selected = _currentIndex == item.index;
@@ -603,7 +639,7 @@ class _MainShellState extends ConsumerState<MainShell> {
             behavior: HitTestBehavior.opaque,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
                 color: selected ? selectedColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(24),
@@ -616,7 +652,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     children: [
                       Icon(
                         item.icon,
-                        size: 22,
+                        size: 25,
                         color: selected ? Colors.black87 : unselectedColor,
                       ),
                       if (item.badge)
@@ -638,7 +674,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   Text(
                     item.label,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                       color: selected ? Colors.black87 : unselectedColor,
                     ),
@@ -648,7 +684,10 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
           );
         }).toList(),
-      ),
+            ),
+          ),
+        );
+      }),
     );
   }
 
@@ -780,7 +819,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            isPremium ? 'PREMIUM' : 'FREE',
+                            isPremium ? 'PREMIUM' : tr('free_caps'),
                             style: TextStyle(
                               color: isPremium ? Colors.black : Colors.white,
                               fontSize: 10,
@@ -801,7 +840,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Fast & Secure VPN',
+                      tr('fast_secure_vpn'),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 13,
@@ -821,16 +860,16 @@ class _MainShellState extends ConsumerState<MainShell> {
                   _buildModernDrawerItem(
                     icon: Icons.home_rounded,
                     title: localizations.home,
-                    subtitle: 'Connection dashboard',
+                    subtitle: tr('connection_dashboard'),
 
-                    onTap: () => _navigateToTab(0),
+                    onTap: () => _navigateToTab(_homeIdx),
                     isDarkMode: isDarkMode,
                   ),
 
                   _buildModernDrawerItem(
                     icon: Icons.apps_rounded,
-                    title: 'More Apps',
-                    subtitle: 'Explore our other apps',
+                    title: tr('more_apps'),
+                    subtitle: tr('more_apps_sub'),
                     onTap: () async {
                       Navigator.pop(context);
                       final uri = Uri.parse(
@@ -848,8 +887,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
                   _buildModernDrawerItem(
                     icon: Icons.privacy_tip,
-                    title: 'Privacy Policy',
-                    subtitle: 'Read our privacy policy',
+                    title: tr('privacy_policy'),
+                    subtitle: tr('privacy_policy_sub'),
                     onTap: () {
                       Navigator.pop(context);
 
@@ -865,8 +904,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
                   _buildModernDrawerItem(
                     icon: Icons.description,
-                    title: 'Terms & Conditions',
-                    subtitle: 'Read our terms of service',
+                    title: tr('terms_conditions'),
+                    subtitle: tr('terms_sub'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -882,7 +921,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   _buildModernDrawerItem(
                     icon: Icons.share_rounded,
                     title: localizations.shareApp,
-                    subtitle: 'Tell your friends',
+                    subtitle: tr('tell_friends_sub'),
                     onTap: () => _shareApp(),
                     isDarkMode: isDarkMode,
                   ),
@@ -899,7 +938,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   /* _buildModernDrawerItem(
                     icon: Icons.info_rounded,
                     title: localizations.about,
-                    subtitle: 'App information',
+                    subtitle: tr('app_information_sub'),
                     onTap: () => _showAboutDialog(),
                     isDarkMode: isDarkMode,
                   ),
@@ -907,8 +946,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                   */
                   _buildModernDrawerItem(
                     icon: Icons.headset_mic,
-                    title: 'Support',
-                    subtitle: 'Get help with the app',
+                    title: tr('support'),
+                    subtitle: tr('support_sub'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -923,8 +962,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
                   _buildModernDrawerItem(
                     icon: Icons.info_outline,
-                    title: 'About',
-                    subtitle: 'App information and credits',
+                    title: tr('about'),
+                    subtitle: tr('about_sub'),
                     onTap: () {
                       Navigator.pop(context);
 
@@ -1136,15 +1175,14 @@ $appUrl
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Share VPN MASTER'),
-            content: const Text(
-              'Help us grow by sharing VPN MASTER with your friends and family!\n\n'
-                  'Search for "VPN MASTER" in your app store.',
+            title: Text(tr('share_vpn_title')),
+            content: Text(
+              tr('share_vpn_msg'),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(tr('ok_btn')),
               ),
             ],
           ),
@@ -1195,7 +1233,7 @@ $appUrl
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'VPN MASTER is a Premium VPN service that provides secure, fast, and private internet access. We use military-grade encryption to protect your data and maintain a strict no-logs policy.',
+                  tr('about_vpn_text'),
                   style: TextStyle(
                     color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
                     fontSize: 14,
@@ -1208,7 +1246,7 @@ $appUrl
                   children: [
                     _buildQuickAction(
                       icon: Icons.privacy_tip,
-                      label: 'Privacy Policy',
+                      label: tr('privacy_policy'),
                       onTap: () {
                         Navigator.of(context).pop();
                         Navigator.pushNamed(this.context, '/privacy');
@@ -1217,7 +1255,7 @@ $appUrl
                     ),
                     _buildQuickAction(
                       icon: Icons.gavel,
-                      label: 'Terms',
+                      label: tr('terms_short'),
                       onTap: () {
                         Navigator.of(context).pop();
                         Navigator.pushNamed(this.context, '/terms');
@@ -1226,7 +1264,7 @@ $appUrl
                     ),
                     _buildQuickAction(
                       icon: Icons.support,
-                      label: 'Support',
+                      label: tr('support'),
                       onTap: () {
                         Navigator.of(context).pop();
                         Navigator.pushNamed(this.context, '/support');
@@ -1241,7 +1279,7 @@ $appUrl
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Close', style: TextStyle(color: themeColor)),
+              child: Text(tr('close'), style: TextStyle(color: themeColor)),
             ),
           ],
         );

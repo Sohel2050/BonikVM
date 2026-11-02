@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/services/level_play_service.dart';
 import '../shared/providers/theme_provider.dart';
+import '../core/localization/app_localizations.dart';
 
 /// Bottom-sheet used when a free VPN connection has expired.
 /// Every successfully rewarded LevelPlay video adds [durationMinutes].
@@ -53,7 +54,7 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
             _showingAd = false;
             _activeSlot = null;
           });
-          _snack('Ad could not be shown. Please try again.');
+          _snack(tr('ad_cant_show'));
         },
         onAvailabilityChanged: (ready) {
           if (mounted) setState(() => _adReady = ready);
@@ -74,7 +75,7 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
     final ready = await LevelPlayService.instance.checkRewardedVideoAvailable();
     if (!ready) {
       if (mounted) setState(() => _adReady = false);
-      _snack('Video is loading. Please try again in a moment.');
+      _snack(tr('ad_video_loading'));
       return;
     }
 
@@ -173,7 +174,7 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Extend Server Time', style: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.w800)),
+                        Text(tr('ad_extend_title'), style: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.w800)),
                         const SizedBox(height: 3),
                         Text(widget.serverName, style: TextStyle(color: secondary, fontSize: 13)),
                       ],
@@ -200,7 +201,7 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
                     const SizedBox(width: 11),
                     Expanded(
                       child: Text(
-                        'Watch ${widget.adCount} short videos to unlock temporary access. Each video adds ${widget.durationMinutes} minutes.',
+                        tr('ad_extend_desc', {'n': '${widget.adCount}', 'm': '${widget.durationMinutes}'}),
                         style: TextStyle(color: accent, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -261,14 +262,14 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
                               children: [
                                 Text('AD-${i + 1}', style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w800)),
                                 const SizedBox(height: 4),
-                                Text(done ? 'Time added successfully' : '+ ${widget.durationMinutes} Minutes', style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w700)),
+                                Text(done ? tr('ad_time_added') : tr('ad_plus_min', {'m': '${widget.durationMinutes}'}), style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w700)),
                               ],
                             ),
                           ),
                           if (loading)
                             SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: accent))
                           else
-                            Text(done ? 'Watched' : (_adReady ? 'Watch Now' : 'Loading...'), style: TextStyle(color: done ? accent : text, fontSize: 13, fontWeight: FontWeight.w700)),
+                            Text(done ? tr('ad_watched') : (_adReady ? tr('watch_now') : tr('loading')), style: TextStyle(color: done ? accent : text, fontSize: 13, fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
@@ -290,7 +291,7 @@ class _ExtendServerTimePopupState extends ConsumerState<ExtendServerTimePopup> {
                     await widget.onSubscriptionPressed();
                   },
                   icon: const Icon(Icons.shopping_bag_rounded),
-                  label: const Text('BUY SUBSCRIPTION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  label: Text(tr('ad_buy_sub'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accent,
                     foregroundColor: Colors.white,

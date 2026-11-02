@@ -9,6 +9,7 @@ import 'package:in_app_update/in_app_update.dart';
 
 import '../api/api_service.dart';
 import '../navigation/app_navigator.dart';
+import '../localization/app_localizations.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
@@ -113,7 +114,7 @@ class UpdateService {
         } else if (showNoUpdateDialog && context != null && context.mounted) {
           _showNoUpdateDialog(
             context,
-            'You are using the latest version of VPN MASTER.',
+            tr('upd_latest'),
           );
         }
       }
@@ -124,7 +125,7 @@ class UpdateService {
       if (showNoUpdateDialog && context != null && context.mounted) {
         _showNoUpdateDialog(
           context,
-          'Failed to check for updates. Please try again later.',
+          tr('upd_check_failed'),
         );
       }
       return false;
@@ -159,7 +160,7 @@ class UpdateService {
       );
 
       if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
-        // The user chose "Update Later" recently: do not ask again yet
+        // The user chose tr('upd_later_btn') recently: do not ask again yet
         // (a manual check from Settings always shows the dialog).
         if (!showNoUpdateDialog && await _isUpdatePromptSnoozed()) {
           debugPrint('UpdateService: Optional update prompt is snoozed');
@@ -179,7 +180,7 @@ class UpdateService {
         if (showNoUpdateDialog && context != null && context.mounted) {
           _showNoUpdateDialog(
             context,
-            'You are using the latest version of VPN MASTER.',
+            tr('upd_latest'),
           );
         }
       }
@@ -224,9 +225,9 @@ class UpdateService {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Update Available',
+                  tr('upd_available'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -260,9 +261,9 @@ class UpdateService {
                       size: 16,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Update includes bug fixes and performance improvements',
+                        tr('upd_includes'),
                         style: TextStyle(fontSize: 14),
                       ),
                     ),
@@ -277,7 +278,7 @@ class UpdateService {
                 Navigator.pop(dialogContext);
                 await _snoozeUpdatePrompt();
               },
-              child: const Text('Update Later'),
+              child: Text(tr('upd_later_btn')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -289,7 +290,7 @@ class UpdateService {
                   await _openPlayStore();
                 }
               },
-              child: const Text('Update Now'),
+              child: Text(tr('upd_now')),
             ),
           ],
         );
@@ -383,7 +384,7 @@ class UpdateService {
         if (showNoUpdateDialog && context != null && context.mounted) {
           _showNoUpdateDialog(
             context,
-            'You are using the latest version of VPN MASTER.',
+            tr('upd_latest'),
           );
         }
       }
@@ -393,7 +394,7 @@ class UpdateService {
       if (showNoUpdateDialog && context != null && context.mounted) {
         _showNoUpdateDialog(
           context,
-          'Failed to check for updates. Please try again later.',
+          tr('upd_check_failed'),
         );
       }
     }
@@ -446,9 +447,9 @@ class UpdateService {
       return UpdateInfo(
         latestVersion: latestVersion,
         latestBuildNumber: 1,
-        releaseNotes: const [
-          'Bug fixes and performance improvements',
-          'Enhanced VPN connection stability',
+        releaseNotes: [
+          tr('upd_note1'),
+          tr('upd_note2'),
         ],
         downloadUrl: downloadUrl,
         isForceUpdate: isForceUpdate,
@@ -505,8 +506,8 @@ class UpdateService {
                 Expanded(
                   child: Text(
                     updateInfo.isForceUpdate
-                        ? 'Critical Update'
-                        : 'Update Available',
+                        ? tr('upd_critical')
+                        : tr('upd_available'),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -549,8 +550,8 @@ class UpdateService {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Current Version:',
+                          Text(
+                            tr('upd_current_ver'),
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Text(
@@ -563,8 +564,8 @@ class UpdateService {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'New Version:',
+                          Text(
+                            tr('upd_new_ver'),
                             style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Text(
@@ -630,10 +631,10 @@ class UpdateService {
                     }
 
                     if (context.mounted) {
-                      _showToast(context, 'Update skipped.');
+                      _showToast(context, tr('upd_skipped'));
                     }
                   },
-                  child: const Text('Skip'),
+                  child: Text(tr('upd_skip')),
                 ),
 
                 TextButton(
@@ -642,10 +643,10 @@ class UpdateService {
 
                     _showToast(
                       context,
-                      'Update reminder will appear again later.',
+                      tr('upd_reminder'),
                     );
                   },
-                  child: const Text('Later'),
+                  child: Text(tr('later')),
                 ),
               ],
 
@@ -676,7 +677,7 @@ class UpdateService {
                   ),
                 ),
                 child: Text(
-                  updateInfo.isForceUpdate ? 'Update Required' : 'Update Now',
+                  updateInfo.isForceUpdate ? tr('upd_required') : tr('upd_now'),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -700,11 +701,11 @@ class UpdateService {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.check_circle, color: Colors.green, size: 24),
               SizedBox(width: 12),
-              Text('Up to Date'),
+              Text(tr('upd_up_to_date')),
             ],
           ),
           content: Text(message),

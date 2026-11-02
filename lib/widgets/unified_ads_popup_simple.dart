@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/services/level_play_service.dart';
 import '../shared/providers/theme_provider.dart';
+import '../core/localization/app_localizations.dart';
 
 /// Backwards-compatible popup API, now powered exclusively by Unity LevelPlay.
 class UnifiedAdsPopupSimple extends ConsumerStatefulWidget {
@@ -55,7 +56,7 @@ class _UnifiedAdsPopupSimpleState extends ConsumerState<UnifiedAdsPopupSimple> {
             _showing = false;
             _active = null;
           });
-          _snack('Ad could not be shown. Please try again.');
+          _snack(tr('ad_cant_show'));
         },
         onAvailabilityChanged: (value) {
           if (mounted) setState(() => _ready = value);
@@ -75,7 +76,7 @@ class _UnifiedAdsPopupSimpleState extends ConsumerState<UnifiedAdsPopupSimple> {
     final ready = await LevelPlayService.instance.checkRewardedVideoAvailable();
     if (!ready) {
       if (mounted) setState(() => _ready = false);
-      _snack('Ad is loading. Please try again in a moment.');
+      _snack(tr('ad_ad_loading'));
       return;
     }
     setState(() => _active = index);
@@ -139,11 +140,11 @@ class _UnifiedAdsPopupSimpleState extends ConsumerState<UnifiedAdsPopupSimple> {
             Row(children: [
               Container(width: 54, height: 54, decoration: BoxDecoration(color: accent.withValues(alpha: .12), borderRadius: BorderRadius.circular(17)), child: Icon(Icons.play_circle_fill_rounded, color: accent, size: 29)),
               const SizedBox(width: 14),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.title ?? 'WATCH ADS TO ACCESS', style: TextStyle(color: text, fontSize: 19, fontWeight: FontWeight.w900)), if (widget.subtitle != null) ...[const SizedBox(height: 3), Text(widget.subtitle!, style: TextStyle(color: sub, fontSize: 13))]])),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.title ?? tr('ad_watch_to_access'), style: TextStyle(color: text, fontSize: 19, fontWeight: FontWeight.w900)), if (widget.subtitle != null) ...[const SizedBox(height: 3), Text(widget.subtitle!, style: TextStyle(color: sub, fontSize: 13))]])),
               IconButton(onPressed: () => Navigator.of(context).pop(false), icon: Icon(Icons.close_rounded, color: sub, size: 28)),
             ]),
             const SizedBox(height: 16),
-            Container(width: double.infinity, padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: accent.withValues(alpha: .09), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(Icons.info_outline_rounded, color: accent), const SizedBox(width: 10), Expanded(child: Text(widget.customText ?? 'Watch an ad to earn temporary access.', style: TextStyle(color: accent, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600)))])),
+            Container(width: double.infinity, padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: accent.withValues(alpha: .09), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(Icons.info_outline_rounded, color: accent), const SizedBox(width: 10), Expanded(child: Text(widget.customText ?? tr('ad_earn_access'), style: TextStyle(color: accent, fontSize: 13, height: 1.35, fontWeight: FontWeight.w600)))])),
             const SizedBox(height: 15),
             Row(children: List.generate(widget.adCount, (i) => Expanded(child: Container(height: 5, margin: EdgeInsets.only(right: i == widget.adCount - 1 ? 0 : 7), decoration: BoxDecoration(color: _watched[i] ? accent : Colors.grey.withValues(alpha: .22), borderRadius: BorderRadius.circular(10)))))),
             const SizedBox(height: 8),
@@ -158,14 +159,14 @@ class _UnifiedAdsPopupSimpleState extends ConsumerState<UnifiedAdsPopupSimple> {
                 child: InkWell(borderRadius: BorderRadius.circular(18), onTap: done || loading ? null : () => _showAd(i), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), child: Row(children: [
                   Container(width: 46, height: 46, decoration: BoxDecoration(color: accent.withValues(alpha: .10), shape: BoxShape.circle), child: Icon(done ? Icons.check_rounded : Icons.play_arrow_rounded, color: accent, size: 26)),
                   const SizedBox(width: 13),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('VIDEO AD ${i + 1}', style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(done ? 'Completed' : 'Watch to earn access', style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w700))])),
-                  if (loading) SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: accent)) else Text(done ? 'Watched' : (_ready ? 'Watch' : 'Loading...'), style: TextStyle(color: done ? accent : text, fontSize: 13, fontWeight: FontWeight.w700)),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(tr('ad_video_ad_caps', {'n': '${i + 1}'}), style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(done ? tr('ad_completed') : tr('ad_watch_earn'), style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w700))])),
+                  if (loading) SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: accent)) else Text(done ? tr('ad_watched') : (_ready ? tr('ad_watch') : tr('loading')), style: TextStyle(color: done ? accent : text, fontSize: 13, fontWeight: FontWeight.w700)),
                 ]))),
               );
             }),
             if (widget.showSubscribeButton) ...[
               const SizedBox(height: 5),
-              SizedBox(width: double.infinity, height: 56, child: OutlinedButton.icon(onPressed: () async { await widget.onAction('subscribe_clicked'); }, icon: const Icon(Icons.currency_exchange), label: const Text('OR GO PREMIUM — NO ADS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), style: OutlinedButton.styleFrom(foregroundColor: accent, side: BorderSide(color: accent, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))))),
+              SizedBox(width: double.infinity, height: 56, child: OutlinedButton.icon(onPressed: () async { await widget.onAction('subscribe_clicked'); }, icon: const Icon(Icons.currency_exchange), label: Text(tr('ad_go_premium'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)), style: OutlinedButton.styleFrom(foregroundColor: accent, side: BorderSide(color: accent, width: 1.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))))),
             ],
           ]),
         ),

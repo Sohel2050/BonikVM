@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_service.dart' show VpnServer;
 import '../../shared/widgets/flag_icon.dart';
 import 'third_party_servers.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Content of the "THIRD PARTY" tab on the servers screen: free public
 /// OpenVPN servers from VPN Gate, run by volunteers.
@@ -65,7 +66,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
             size: 40,
           ),
           title: Text(
-            'Third-party server',
+            tr('tp_title'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: dark ? Colors.white : const Color(0xFF111827),
@@ -74,10 +75,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
             ),
           ),
           content: Text(
-            'This server is run by an independent volunteer (VPN Gate), not '
-            'by us.\n\nThe operator may be able to see or log your traffic. '
-            'Do not use it for banking, passwords or other sensitive '
-            'activity.\n\nSpeed and stability can vary.',
+            tr('tp_warn_dialog'),
             style: TextStyle(
               color: dark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
               fontSize: 14,
@@ -89,7 +87,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Close'),
+              child: Text(tr('close')),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -97,7 +95,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
                 backgroundColor: const Color(0xFFF59E0B),
                 foregroundColor: Colors.black,
               ),
-              child: const Text('Connect anyway'),
+              child: Text(tr('tp_connect_anyway')),
             ),
           ],
         );
@@ -129,7 +127,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
           const SizedBox(height: 16),
           Center(
             child: Text(
-              'Checking servers...',
+              tr('tp_checking'),
               style: TextStyle(color: mutedColor, fontSize: 14),
             ),
           ),
@@ -145,7 +143,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              state.error ?? 'No servers found.',
+              state.error ?? tr('tp_none'),
               textAlign: TextAlign.center,
               style: TextStyle(color: mutedColor, fontSize: 15),
             ),
@@ -155,7 +153,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
             child: ElevatedButton.icon(
               onPressed: _refresh,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
+              label: Text(tr('pr_retry')),
             ),
           ),
         ],
@@ -179,7 +177,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Checking more servers...',
+                    tr('tp_checking_more'),
                     style: TextStyle(color: mutedColor, fontSize: 12),
                   ),
                 ],
@@ -223,9 +221,7 @@ class _ThirdPartyServersTabState extends ConsumerState<ThirdPartyServersTab> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'These servers are run by independent volunteers (VPN Gate), '
-                  'not by us. They may log or inspect your traffic. Do not use '
-                  'them for banking or passwords. Speed and availability vary.',
+                  tr('tp_banner'),
                   style: TextStyle(
                     color: dark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
                     fontSize: 12,
@@ -363,7 +359,7 @@ class _ServerCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'Third Party',
+                        tr('tp_tab'),
                         style: TextStyle(color: mutedColor, fontSize: 10),
                       ),
                     ),

@@ -62,12 +62,12 @@ class _PayPalWebViewScreenState extends State<PayPalWebViewScreen> {
     // Avoid broad checks like url.contains('success') which fire on intermediate PayPal pages.
     final isSuccess =
         url.contains('/payments/paypal/success') ||
-        url.contains('axevpn://payment/success') ||
+        url.contains('vpnmaster://payment/success') ||
         (url.contains('PayerID=') && !url.contains('cancel'));
 
     final isCancel =
         url.contains('/payments/paypal/cancel') ||
-        url.contains('axevpn://payment/cancel') ||
+        url.contains('vpnmaster://payment/cancel') ||
         url.contains('paypal.com/checkoutnow/error');
 
     if (isSuccess) {

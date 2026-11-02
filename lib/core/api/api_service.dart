@@ -47,7 +47,7 @@ class ApiService {
             'Accept': 'application/json',
             'X-API-Token': AppConfig.apiKey, // Add API token for authentication
             // Simple headers for better compatibility with all build types
-            'User-Agent': 'AxeVPN/3.0.0',
+            'User-Agent': 'VPNMaster/3.0.0',
             'X-App-Version': '3.0.0',
             // Add connection keep-alive
             'Connection': 'keep-alive',
@@ -1296,6 +1296,7 @@ class VpnServer {
   final int capacity; // Server capacity from backend
   final double loadPercentage; // Actual load percentage from backend
   final bool isFull; // Whether server is at full capacity
+  final bool isMaintenance; // Admin set the server to Maintenance (no new connections)
   final List<String>? protocols; // Supported protocols for this server
   final String
   vpnProtocolType; // 'openvpn', 'wireguard', 'v2ray', 'openconnect', or 'oneconnect'
@@ -1348,6 +1349,7 @@ class VpnServer {
     this.capacity = 100,
     this.loadPercentage = 0.0,
     this.isFull = false,
+    this.isMaintenance = false,
     this.protocols,
     this.vpnProtocolType = 'openvpn',
     this.provider = 'manual',
@@ -1409,6 +1411,7 @@ class VpnServer {
       capacity: newCapacity,
       loadPercentage: newLoadPct,
       isFull: newIsFull,
+      isMaintenance: isMaintenance,
       protocols: protocols,
       vpnProtocolType: vpnProtocolType,
       provider: provider,
@@ -1461,6 +1464,7 @@ class VpnServer {
       capacity: capacity,
       loadPercentage: loadPercentage,
       isFull: isFull,
+      isMaintenance: isMaintenance,
       protocols: protocols,
       vpnProtocolType: vpnProtocolType,
       provider: provider,
@@ -1589,6 +1593,9 @@ class VpnServer {
       capacity: capacity,
       loadPercentage: loadPercentage,
       isFull: isFull,
+      isMaintenance: json['is_maintenance'] == true ||
+          json['is_maintenance'] == 1 ||
+          json['status'] == 'Maintenance',
       protocols: json['protocols'] != null
           ? List<String>.from(json['protocols'])
           : null,
@@ -1685,6 +1692,9 @@ class VpnServer {
       capacity: capacity,
       loadPercentage: loadPercentage,
       isFull: isFull,
+      isMaintenance: json['is_maintenance'] == true ||
+          json['is_maintenance'] == 1 ||
+          json['status'] == 'Maintenance',
       protocols: supportedProtocols,
       vpnProtocolType: vpnProtocolType,
       provider: json['provider']?.toString() ?? 'manual',

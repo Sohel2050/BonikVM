@@ -17,6 +17,13 @@ import '../../services/ads_popup_config_service.dart';
 
 // Ads Popup Config Provider - fetches from API with auth token
 final adsPopupConfigProvider = FutureProvider<AdsPopupConfig>((ref) async {
+  // Re-read the admin panel every 2 minutes while someone is watching this
+  // provider, so a value that was missed once never stays stuck on screen.
+  final timer = Timer.periodic(
+    const Duration(minutes: 2),
+    (_) => ref.invalidateSelf(),
+  );
+  ref.onDispose(timer.cancel);
   return AdsPopupConfigService().getAdsPopupConfig(forceRefresh: true);
 });
 

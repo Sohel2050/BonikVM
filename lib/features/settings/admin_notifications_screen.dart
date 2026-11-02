@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/models/app_notification.dart';
+import '../../core/localization/app_localizations.dart';
 
 class AdminNotificationsScreen extends ConsumerStatefulWidget {
   const AdminNotificationsScreen({super.key});
@@ -56,7 +57,7 @@ class _AdminNotificationsScreenState
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load notifications: $e')),
+          SnackBar(content: Text(tr('nt_failed_load', {'e': '$e'}))),
         );
       }
     }
@@ -71,13 +72,13 @@ class _AdminNotificationsScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Notification deleted successfully')),
+          SnackBar(content: Text(tr('nt_deleted'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete notification: $e')),
+          SnackBar(content: Text(tr('nt_failed_delete', {'e': '$e'}))),
         );
       }
     }
@@ -87,19 +88,19 @@ class _AdminNotificationsScreenState
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete All Notifications'),
-        content: const Text(
-          'Are you sure you want to delete all notifications? This action cannot be undone.',
+        title: Text(tr('nt_delete_all_title')),
+        content: Text(
+          tr('nt_delete_all_msg'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete All'),
+            child: Text(tr('nt_delete_all')),
           ),
         ],
       ),
@@ -114,13 +115,13 @@ class _AdminNotificationsScreenState
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('All notifications deleted')),
+            SnackBar(content: Text(tr('nt_all_deleted'))),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete notifications: $e')),
+            SnackBar(content: Text(tr('nt_failed_delete_all', {'e': '$e'}))),
           );
         }
       }
@@ -137,7 +138,7 @@ class _AdminNotificationsScreenState
           ? const Color(0xFF0F172A)
           : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('App Notifications'),
+        title: Text(tr('nt_title')),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: isDarkMode ? Colors.white : Colors.black,
@@ -146,12 +147,12 @@ class _AdminNotificationsScreenState
             IconButton(
               icon: const Icon(Icons.delete_sweep),
               onPressed: _deleteAllNotifications,
-              tooltip: 'Delete All',
+              tooltip: tr('nt_delete_all'),
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadNotifications,
-            tooltip: 'Refresh',
+            tooltip: tr('ph_refresh'),
           ),
         ],
       ),
@@ -175,7 +176,7 @@ class _AdminNotificationsScreenState
           ),
           const SizedBox(height: 16),
           Text(
-            'No Notifications',
+            tr('nt_none'),
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -184,7 +185,7 @@ class _AdminNotificationsScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            'You don\'t have any notifications yet.',
+            tr('nt_none_msg'),
             style: TextStyle(
               fontSize: 16,
               color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
@@ -195,7 +196,7 @@ class _AdminNotificationsScreenState
           ElevatedButton.icon(
             onPressed: _loadNotifications,
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
+            label: Text(tr('ph_refresh')),
             style: ElevatedButton.styleFrom(
               backgroundColor: ref.watch(themeColorProvider),
               foregroundColor: Colors.white,
@@ -292,7 +293,7 @@ class _AdminNotificationsScreenState
                   IconButton(
                     icon: Icon(Icons.delete_outline, color: Colors.red[400]),
                     onPressed: () => _deleteNotification(notification.id),
-                    tooltip: 'Delete',
+                    tooltip: tr('delete'),
                   ),
                 ],
               ),
@@ -398,7 +399,7 @@ class _AdminNotificationsScreenState
     } else if (difference.inMinutes > 0) {
       return '${difference.inMinutes}m ago';
     } else {
-      return 'Just now';
+      return tr('nt_just_now');
     }
   }
 
@@ -538,7 +539,7 @@ class _NotificationDetailSheet extends StatelessWidget {
                   // Meta info
                   _MetaRow(
                     icon: Icons.access_time_rounded,
-                    label: 'Received',
+                    label: tr('nt_received'),
                     value: formatDateTime(notification.createdAt),
                     isDarkMode: isDarkMode,
                     themeColor: themeColor,
@@ -549,7 +550,7 @@ class _NotificationDetailSheet extends StatelessWidget {
                         ? Icons.mark_email_read_outlined
                         : Icons.mark_email_unread_outlined,
                     label: 'Status',
-                    value: notification.isRead ? 'Read' : 'Unread',
+                    value: notification.isRead ? tr('nt_read') : tr('nt_unread'),
                     isDarkMode: isDarkMode,
                     themeColor: themeColor,
                     valueColor: notification.isRead
@@ -560,7 +561,7 @@ class _NotificationDetailSheet extends StatelessWidget {
                       notification.data!.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Text(
-                      'Details',
+                      tr('nt_details'),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -601,7 +602,7 @@ class _NotificationDetailSheet extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: onDelete,
                     icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Delete Notification'),
+                    label: Text(tr('nt_delete_one')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red.shade400,
                       side: BorderSide(color: Colors.red.shade300),

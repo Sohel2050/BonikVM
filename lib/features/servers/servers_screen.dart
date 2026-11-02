@@ -486,7 +486,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
     final isAdUnlocked =
         server.premium &&
             (unlocks[server.id.toString()]?.isStillUnlocked ?? false);
-    final canConnect = !server.premium || isPremium || isAdUnlocked;
+    final canConnect =
+        !server.isMaintenance && (!server.premium || isPremium || isAdUnlocked);
     // Measured TCP-connect latency (null = not yet measured or unreachable)
     final latencies = ref.watch(serverLatencyProvider);
     final latencyMs = latencies[server.id];
@@ -495,7 +496,9 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         ? const Color(0xFF10B981)
         : (isDarkMode ? const Color(0xFF334155) : const Color(0xFFE5E7EB));
 
-    return Container(
+    return Opacity(
+      opacity: server.isMaintenance ? 0.5 : 1.0,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
@@ -521,7 +524,17 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: canConnect
+            onTap: server.isMaintenance
+                ? () => ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '${server.name} is under maintenance. Please select another server.',
+                        ),
+                        backgroundColor: Colors.orange,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    )
+                : canConnect
                 ? () => _connectToServer(server)
                 : (server.premium && !isPremium)
                 ? () => _showPremiumUnlockDialog(server)
@@ -577,6 +590,25 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                               ),
                             ),
                             const SizedBox(width: 8),
+                            if (server.isMaintenance)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  tr('sv_maintenance'),
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             // Protocol Badge
 
                           ],
@@ -786,6 +818,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -898,8 +931,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Free Time Expired',
+                    Text(
+                      tr('sv_time_expired'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -907,8 +940,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Your free connection time has expired.\nUpgrade to Premium to continue.',
+                    Text(
+                      tr('sv_time_expired_msg'),
                       style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                       textAlign: TextAlign.center,
                     ),
@@ -921,8 +954,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                           Icons.star_rounded,
                           color: Colors.white,
                         ),
-                        label: const Text(
-                          'Upgrade to Premium',
+                        label: Text(
+                          tr('sv_upgrade'),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -948,8 +981,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                       width: double.infinity,
                       child: TextButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text(
-                          'Cancel',
+                        child: Text(
+                          tr('cancel'),
                           style: TextStyle(
                             color: Color(0xFF6B7280),
                             fontSize: 15,
@@ -972,10 +1005,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         final adConfigForRewards = await AdConfigService.getAdConfig(server.id);
         // How many videos to ask for is controlled from the admin panel
         // (Admob settings > Extend Free Time > Number of Ads to Watch).
-        final extendAdCount =
-            (await AdsPopupConfigService().getAdsPopupConfig())
-                .extendTimeAdCount;
-        final defaultDurations = [300, 600, 1200]; // 5, 10, 20 minutes
+        final extendCfg = await AdsPopupConfigService().getAdsPopupConfig();
+        final extendAdCount = extendCfg.extendTimeAdCount;
+        // Used when the server has no per-ad duration of its own: the
+        // "minutes per ad" value from the admin panel.
+        final fallbackRewardSeconds = extendCfg.adRewardDuration * 60;
 
         // Show reward popup and wait for user action
         if (mounted) {
@@ -992,8 +1026,8 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
               ),
               child: UnifiedAdsPopupSimple(
                 adCount: extendAdCount,
-                title: 'Extend Free Time',
-                subtitle: 'Watch videos to continue',
+                title: tr('extend_free_time'),
+                subtitle: tr('watch_videos_continue'),
                 showSubscribeButton: true,
                 onAction: (action) async {
                   if (action == 'ad_watched') {
@@ -1004,17 +1038,16 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                         rewardIndex >= 0 &&
                         rewardIndex < adConfigForRewards!.ads.length
                         ? adConfigForRewards.ads[rewardIndex].durationSeconds
-                        : defaultDurations[rewardIndex.clamp(0, 2)];
+                        : fallbackRewardSeconds;
 
                     ref
                         .read(freeConnectionTimerProvider.notifier)
                         .addTime(rewardDurationSeconds);
 
                     // Keep daily reward state in sync for watch limits/UI.
-                    final videoIndex = rewardIndex.clamp(0, 2);
                     await ref
                         .read(rewardVideoProvider.notifier)
-                        .markVideoWatched(videoIndex);
+                        .markVideoWatched(rewardIndex);
 
                     debugPrint(
                       '✅ Added $rewardDurationSeconds seconds for watched ad #$watchedAdsInThisPopup',
@@ -1044,6 +1077,22 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
         }
       }
 
+      // Maintenance servers accept no new connections
+      if (server.isMaintenance) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${server.name} is under maintenance. Please select another server.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       // Check if server is full
       if (server.isFull) {
         if (mounted) {
@@ -1069,7 +1118,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Connecting to ${server.name}...'),
+            content: Text(tr('sv_connecting', {'name': server.name})),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 2),
           ),
@@ -1090,12 +1139,12 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Failed to connect to ${server.name.isNotEmpty ? server.name : server.country}. Please try again.',
+                tr('sv_connect_failed', {'name': server.name.isNotEmpty ? server.name : server.country}),
               ),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 4),
               action: SnackBarAction(
-                label: 'Retry',
+                label: tr('pr_retry'),
                 textColor: Colors.white,
                 onPressed: () {
                   _connectToServer(server);
@@ -1112,7 +1161,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
       }
 
       if (mounted) {
-        String errorMessage = 'Connection failed';
+        String errorMessage = tr('connection_failed');
         if (e is ServerFullException) {
           errorMessage = e.toString();
         } else if (e.toString().contains('OpenVPN need to be initialized')) {
@@ -1121,10 +1170,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
           errorMessage =
           'VPN permission required. Please grant permission in settings.';
         } else if (e.toString().contains('Premium subscription required')) {
-          errorMessage = 'This server requires a premium subscription.';
+          errorMessage = tr('sv_needs_premium');
         } else if (e.toString().contains('timeout')) {
           errorMessage =
-          'Connection timeout. Please check your internet connection.';
+          tr('sv_timeout');
         } else {
           errorMessage =
           'Failed to connect: ${e.toString().replaceAll('Exception: ', '')}';
@@ -1136,7 +1185,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
-              label: 'Retry',
+              label: tr('pr_retry'),
               textColor: Colors.white,
               onPressed: () {
                 _connectToServer(server);
@@ -1186,7 +1235,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
             return UnifiedAdsPopupSimple(
               customText: adsConfig.premiumUnlockText,
               adCount: adsConfig.premiumUnlockAdCount,
-              title: 'WATCH ADS TO ACCESS',
+              title: tr('ad_watch_to_access'),
               onAction: (action) async {
                 try {
                   debugPrint('🔔 onAction called with action: $action');
@@ -1362,7 +1411,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
 
   /// Format free connection time in minutes to a readable string
   String _formatFreeTime(int minutes) {
-    if (minutes <= 0) return 'Unlimited';
+    if (minutes <= 0) return tr('unlimited');
 
     if (minutes < 60) {
       return '${minutes}min';
@@ -1538,7 +1587,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                   const Divider(height: 16),
                   _buildInfoRow(
                     Icons.security,
-                    'Protocol',
+                    tr('protocol'),
                     server.protocol.toUpperCase(),
                     isDarkMode,
                   ),
@@ -1546,10 +1595,10 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                     const Divider(height: 16),
                     _buildInfoRow(
                       Icons.access_time,
-                      'Free Limit',
+                      tr('free_limit'),
                       server.freeConnectDuration > 0
                           ? '${server.freeConnectDuration} min'
-                          : 'Unlimited',
+                          : tr('unlimited'),
                       isDarkMode,
                     ),
                   ],
@@ -1575,7 +1624,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
                   ),
                 ),
                 child: Text(
-                  isConnected ? 'Currently Connected' : 'Connect to Server',
+                  isConnected ? tr('currently_connected') : tr('connect_to_server'),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -1729,7 +1778,7 @@ class _ServersScreenState extends ConsumerState<ServersScreen>
               TextField(
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'Enter server name or country...',
+                  hintText: tr('sv_search_hint'),
                   hintStyle: TextStyle(
                     color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
                   ),
@@ -2118,20 +2167,27 @@ class _ServersBannerSlotState extends State<_ServersBannerSlot> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_visible) return const SizedBox.shrink();
-    return Container(
-      height: 60,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      // No own fill: shows the page background (0F172A / F8F9FA) exactly.
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: LevelPlayBannerAd(
-          adUnitId: LevelPlayService.instance.bannerAdUnitId,
-          onFailed: () {
-            if (mounted) setState(() => _visible = false);
-          },
-        ),
-      ),
+    // If the ad fails, the slot collapses smoothly (no empty gap, no sudden jump).
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: !_visible
+          ? const SizedBox.shrink()
+          : Container(
+              height: 60,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              // No own fill: shows the page background (0F172A / F8F9FA) exactly.
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: LevelPlayBannerAd(
+                  adUnitId: LevelPlayService.instance.bannerAdUnitId,
+                  onFailed: () {
+                    if (mounted) setState(() => _visible = false);
+                  },
+                ),
+              ),
+            ),
     );
   }
 }
