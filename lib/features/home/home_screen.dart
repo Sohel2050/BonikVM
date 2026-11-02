@@ -18,8 +18,6 @@ import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../../widgets/subscription_banner.dart';
 import '../../widgets/level_play_banner_ad.dart';
-import '../../widgets/level_play_native_ad.dart';
-import '../../widgets/level_play_mrec_slot.dart';
 import '../../core/config/ad_layout_config.dart';
 import '../../widgets/ip_address_widget.dart';
 import '../../providers/ip_address_provider.dart';
@@ -1416,15 +1414,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Container(
       color: isDarkMode ? Colors.black : Colors.white,
       child: SafeArea(
+        top: false, // MainShell's app bar already covers the status bar
         child: Column(
           children: [
             // Subscription notification banner
             const SubscriptionBanner(),
-
-            // LevelPlay Banner stays in the Home BODY, directly
-            // below the MainShell AppBar. No fixed-height parent.
-            if (!isPremium && LevelPlayService.instance.adsEnabledByAdmin)
-              FadeInDown(child: const _HomeBannerSlot()),
 
             Expanded(
               child: vpnStateAsync.when(
@@ -1463,6 +1457,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
             ),
+
+            // LevelPlay Banner is pinned at the BOTTOM of the Home screen
+            // (above the bottom navigation bar). It collapses if the ad fails.
+            // When connected, the banner moves into the scroll area (between the
+            // duration timer and the free-time widget), so hide this one then.
+            if (!isPremium &&
+                LevelPlayService.instance.adsEnabledByAdmin &&
+                vpnStateAsync.valueOrNull != VpnState.connected)
+              const _HomeBannerSlot(bottomPadding: 44),
           ],
         ),
       ),
@@ -1484,11 +1487,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Small gap above the server selection button
+            const SizedBox(height: 12),
+
             // Location / selected server pill
             FadeInDown(
               delay: const Duration(milliseconds: 50),
@@ -1520,7 +1526,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
 
-            const SizedBox(height: 22),
+            const SizedBox(height: 2),
 
             // Connection Button Section
             FadeInDown(
@@ -1581,11 +1587,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 0),
 
             // Connection status shown BELOW the VPN button.
             if (isConnected) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 0),
               FadeInUp(
                 delay: const Duration(milliseconds: 200),
                 child: ConnectedPill(
@@ -1593,7 +1599,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   color: _getConnectionColor(vpnState, themeColor: themeColor),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               FadeInUp(
                 delay: const Duration(milliseconds: 250),
                 child: StreamBuilder<VpnStatus?>(
@@ -1614,7 +1620,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
             ] else if (isConnecting) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
               FadeInUp(
                 delay: const Duration(milliseconds: 200),
                 child: Text(
@@ -1628,7 +1634,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
             ] else ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
               FadeInUp(
                 delay: const Duration(milliseconds: 200),
                 child: Text(
@@ -1665,27 +1671,103 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      if (ipAsync.isLoading)
+                      // Shown right after a tap on Reload (and on first load).
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: themeColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Checking…',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : const Color(0xFF111827),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
                         ipAsync.when(
-                          data: (info) => info.ip,
-                          loading: () => '—',
-                          error: (_, __) => '—',
+                          data: (info) => Text(
+                            info.ip,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode
+                                  ? Colors.white
+                                  : const Color(0xFF111827),
+                            ),
+                          ),
+                          loading: () => const SizedBox.shrink(),
+                          // Failed: Reload button with a big tap area.
+                          error: (_, __) => GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              resetIpRetryBackoff();
+                              ref.invalidate(ipAddressProvider);
+                            },
+                            child: Container(
+                              constraints: const BoxConstraints(minHeight: 44),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 8,
+                              ),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: themeColor.withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.refresh_rounded,
+                                    size: 18,
+                                    color: themeColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Failed to load · Tap to reload',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: themeColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: isDarkMode ? Colors.white : const Color(0xFF111827),
-                        ),
-                      ),
                     ],
                   );
                 },
               ),
             ],
 
+            // Banner: right below the duration counter, above the free timer
+            if (isConnected &&
+                !isPremium &&
+                LevelPlayService.instance.adsEnabledByAdmin) ...[
+              const _HomeBannerSlot(topPadding: 2, bottomPadding: 20),
+            ],
+
             // Free Connection Timer
             if (isConnected && !isPremium) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 4),
               FadeInUp(
                 delay: const Duration(milliseconds: 400),
                 child: _buildFreeConnectionTimer(),
@@ -1700,46 +1782,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: const ConnectionStatsSection(),
               ),
             ],
-
-
-
-            // Ads
-            if (!isPremium && LevelPlayService.instance.adsEnabledByAdmin) ...[
-              if (useNativeAds) const SizedBox(height: 16),
-              FadeInUp(
-                delay: const Duration(milliseconds: 550),
-                child: !useNativeAds
-                    ? const LevelPlayMrecSlot(
-                  // The 16px top gap lives inside the slot so it collapses
-                  // together with the ad when the ad fails to load.
-                  margin: EdgeInsets.fromLTRB(6, 16, 6, 0),
-                  radius: 20,
-                )
-                    : Container(
-                  height: 300,
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
-                  // No fill color and no border here: while the ad has not
-                  // loaded yet this card is fully invisible against the page
-                  // (LevelPlayNativeAdPlacement paints its own maskColor —
-                  // matching the page background below — over the native
-                  // platform view during load). Once the ad loads, its own
-                  // content fills this space, so no fixed decoration is
-                  // needed here either way.
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: LevelPlayNativeAdPlacement(
-                      maskColor: isDarkMode ? Colors.black : Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-
-
-
-
-
-
           ],
         ),
       ),
@@ -1802,7 +1844,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1810,7 +1852,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Colors.red.withValues(alpha: 0.08),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: Colors.orange.withValues(alpha: 0.3),
           width: 1,
@@ -1829,14 +1871,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.orange.withValues(alpha: 0.2),
                 ),
-                child: Icon(Icons.access_time, color: Colors.orange, size: 16),
+                child: Icon(Icons.access_time, color: Colors.orange, size: 14),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1849,7 +1891,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         color: isDarkMode ? Colors.white : Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 0),
                     Text(
                       tr('hm_remaining', {'t': timerState.formattedTime}),
                       style: TextStyle(
@@ -1883,7 +1925,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Progress bar
           ClipRRect(
@@ -1898,11 +1940,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ? Colors.orange
                     : Colors.red,
               ),
-              minHeight: 6,
+              minHeight: 4,
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Action buttons
           Row(
@@ -1920,24 +1962,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                   child: TextButton.icon(
                     onPressed: _showRewardedAdForTime,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      minimumSize: const Size(0, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     icon: const Icon(
                       Icons.play_circle_outline,
-                      size: 18,
+                      size: 16,
                       color: Colors.green,
                     ),
                     label: Text(
-                      () {
+                          () {
                         // valueOrNull keeps the previous admin value while
                         // reloading; before any value exists show no number
                         // instead of a made-up one.
                         final cfg = ref
-                                .watch(adsPopupConfigProvider)
-                                .valueOrNull ??
+                            .watch(adsPopupConfigProvider)
+                            .valueOrNull ??
                             AdsPopupConfigService().getCachedConfig();
                         return cfg == null
                             ? tr('hm_watch_ad_plain')
                             : tr('hm_watch_ad_min',
-                                {'n': '${cfg.adRewardDuration}'});
+                            {'n': '${cfg.adRewardDuration}'});
                       }(),
                       style: const TextStyle(
                         fontSize: 12,
@@ -1964,7 +2012,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     onPressed: () {
                       appNavigatorKey.currentState?.pushNamed('/premium');
                     },
-                    icon: Icon(Icons.star, size: 18, color: themeColor),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      minimumSize: const Size(0, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: Icon(Icons.star, size: 16, color: themeColor),
                     label: Text(
                       AppLocalizations.of(context).goPremium,
                       style: TextStyle(
@@ -1986,11 +2040,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
 }
 
-/// Top banner slot for Home. It keeps a fixed 50px slot while the ad loads or
+/// Bottom banner slot for Home. It keeps a fixed 50px slot while the ad loads or
 /// shows; if the ad fails, the slot collapses with a smooth animation, so there
 /// is neither a leftover empty gap nor a sudden jump of the content below.
 class _HomeBannerSlot extends StatefulWidget {
-  const _HomeBannerSlot();
+  const _HomeBannerSlot({this.topPadding = 6, this.bottomPadding = 18});
+
+  final double topPadding;
+  final double bottomPadding;
 
   @override
   State<_HomeBannerSlot> createState() => _HomeBannerSlotState();
@@ -2008,17 +2065,20 @@ class _HomeBannerSlotState extends State<_HomeBannerSlot> {
       child: _failed
           ? const SizedBox.shrink()
           : Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: SizedBox(
-                height: 50,
-                child: LevelPlayBannerAd(
-                  adUnitId: LevelPlayService.instance.bannerAdUnitId,
-                  onFailed: () {
-                    if (mounted) setState(() => _failed = true);
-                  },
-                ),
-              ),
-            ),
+        padding: EdgeInsets.only(
+          top: widget.topPadding,
+          bottom: widget.bottomPadding, // larger = banner sits higher above the nav bar
+        ),
+        child: SizedBox(
+          height: 50,
+          child: LevelPlayBannerAd(
+            adUnitId: LevelPlayService.instance.bannerAdUnitId,
+            onFailed: () {
+              if (mounted) setState(() => _failed = true);
+            },
+          ),
+        ),
+      ),
     );
   }
 }

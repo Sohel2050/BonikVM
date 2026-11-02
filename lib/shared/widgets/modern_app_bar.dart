@@ -41,6 +41,7 @@ class ModernAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ? const Color(0xFF0F172A).withValues(alpha: 0.95)
           : Colors.white.withValues(alpha: 0.95),
       foregroundColor: isDarkMode ? Colors.white : Colors.black87,
+      toolbarHeight: 44,
       elevation: elevation,
       shadowColor: isDarkMode
           ? Colors.black.withValues(alpha: 0.3)
@@ -113,7 +114,7 @@ class ModernAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 2);
+  Size get preferredSize => const Size.fromHeight(44);
 }
 
 // Custom AppBar for main navigation screens (Home, Servers, Settings, etc.)

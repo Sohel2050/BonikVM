@@ -385,7 +385,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       case _homeIdx: // Home screen
         return Container(
           color: isDarkMode ? Colors.black : Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           child: SafeArea(
             bottom: false,
             child: Row(

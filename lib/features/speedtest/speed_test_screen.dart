@@ -1304,8 +1304,6 @@ class _SpeedTestScreenState extends ConsumerState<SpeedTestScreen> {
                 ],
               ),
             ),
-            const _AdBanner(),
-            const SizedBox(height: 4),
           ],
         ),
       ),
@@ -1593,7 +1591,8 @@ class _AdBannerState extends ConsumerState<_AdBanner> {
       return const SizedBox.shrink();
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      // Slightly more space ABOVE the banner than below it.
+      padding: const EdgeInsets.only(top: 20, bottom: 12),
       child: Center(
         child: SizedBox(
           width: 320,

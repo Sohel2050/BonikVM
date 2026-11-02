@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dio/io.dart';
@@ -1190,79 +1191,125 @@ class ApiService {
     }
   }
 
-  /// Get public IP address from external service (fallback)
+  /// Get public IP address from external services.
+  ///
+  /// The services are tried as a STAGGERED RACE instead of one after another:
+  /// the first service starts at once, the next ones start 1.2 s apart if nobody
+  /// has answered yet, and the first valid answer wins. Before, a slow/blocked
+  /// first service made the user wait up to 25 s (5 x 5 s) with no IP shown.
   Future<Map<String, dynamic>> getPublicIp() async {
-    final externalDio = Dio();
-    // 1st: ipinfo.io — reliable, works with VPN/datacenter IPs, 50k req/month free
-    try {
-      final response = await externalDio
-          .get('https://ipinfo.io/json')
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = Map<String, dynamic>.from(response.data as Map);
-        if (data['ip'] != null) {
-          // ipinfo.io returns org like "AS12345 Provider Name" — map to isp
-          data['isp'] = data['org'] ?? data['isp'];
-          // ipinfo.io returns country as a bare 2-letter code (e.g. "DE") in
-          // the `country` field — IpAddressInfo expects that in
-          // `countryCode`/`country_code`, so mirror it there for the flag.
-          data['countryCode'] = data['country'];
-          return data;
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 6),
+      receiveTimeout: const Duration(seconds: 6),
+      // Read every answer as plain text and decode it ourselves. Some services
+      // send JSON with a wrong content-type (or plain text), which Dio would
+      // not decode into a Map, so a perfectly good answer was thrown away.
+      responseType: ResponseType.plain,
+      headers: {'Accept': 'application/json, text/plain, */*'},
+    ));
+
+    final ipRe = RegExp(
+      r'^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F:]{3,45})$',
+    );
+
+    Map<String, dynamic>? decode(String body) {
+      body = body.trim();
+      if (body.isEmpty) return null;
+      // 1) JSON
+      try {
+        final j = jsonDecode(body);
+        if (j is Map) return Map<String, dynamic>.from(j);
+      } catch (_) {}
+      // 2) key=value lines (Cloudflare /cdn-cgi/trace)
+      if (body.contains('ip=')) {
+        final m = <String, dynamic>{};
+        for (final line in body.split('\n')) {
+          final i = line.indexOf('=');
+          if (i > 0) m[line.substring(0, i).trim()] = line.substring(i + 1).trim();
         }
+        if (m['ip'] != null) return m;
       }
-    } catch (_) {}
-    // 2nd: ipwho.is (free, HTTPS, good VPN support)
-    try {
-      final response = await externalDio
-          .get('https://ipwho.is/')
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = Map<String, dynamic>.from(response.data as Map);
-        if (data['ip'] != null) {
-          // Normalize isp field from nested connection object
-          if (data['connection'] is Map) {
-            data['isp'] =
-                (data['connection'] as Map)['isp'] ??
-                    (data['connection'] as Map)['org'];
-          }
-          return data;
+      // 3) bare IP address
+      if (ipRe.hasMatch(body)) return {'ip': body};
+      return null;
+    }
+
+    Future<Map<String, dynamic>?> get(
+        String url,
+        Map<String, dynamic>? Function(Map<String, dynamic> d) parse,
+        ) async {
+      try {
+        final response =
+        await dio.get<String>(url).timeout(const Duration(seconds: 6));
+        if (response.statusCode == 200) {
+          final map = decode(response.data ?? '');
+          if (map != null) return parse(map);
+        } else {
+          debugPrint('IP source $url -> HTTP ${response.statusCode}');
         }
+      } catch (e) {
+        debugPrint('IP source failed $url: $e');
       }
-    } catch (_) {}
-    // 3rd: ipapi.co (may rate-limit on VPN IPs but try as last resort)
-    try {
-      final response = await externalDio
-          .get('https://ipapi.co/json/')
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = Map<String, dynamic>.from(response.data as Map);
-        if (data['ip'] != null && data['error'] == null) return data;
-      }
-    } catch (_) {}
-    // 4th: api.myip.com (IP + country, very light)
-    try {
-      final response = await externalDio
-          .get('https://api.myip.com')
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = Map<String, dynamic>.from(response.data as Map);
-        if (data['ip'] != null) {
-          data['countryCode'] = data['cc'];
-          return data;
+      return null;
+    }
+
+    final sources = <Future<Map<String, dynamic>?> Function()>[
+      // ipinfo.io: reliable with VPN/datacenter IPs
+          () => get('https://ipinfo.io/json', (d) {
+        if (d['ip'] == null) return null;
+        d['isp'] = d['org'] ?? d['isp'];
+        d['countryCode'] = d['country']; // bare 2-letter code
+        return d;
+      }),
+      // ipwho.is: free, HTTPS, good VPN support
+          () => get('https://ipwho.is/', (d) {
+        if (d['ip'] == null || d['success'] == false) return null;
+        if (d['connection'] is Map) {
+          final c = d['connection'] as Map;
+          d['isp'] = c['isp'] ?? c['org'];
         }
-      }
-    } catch (_) {}
-    // 5th: ipify (IP only, but almost never blocked)
-    try {
-      final response = await externalDio
-          .get('https://api.ipify.org?format=json')
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200 && response.data is Map) {
-        final data = Map<String, dynamic>.from(response.data as Map);
-        if (data['ip'] != null) return data;
-      }
-    } catch (_) {}
-    throw Exception('Failed to get IP address');
+        return d;
+      }),
+      // Cloudflare: almost never blocked, answers from the nearest edge
+          () => get('https://www.cloudflare.com/cdn-cgi/trace', (d) {
+        if (d['ip'] == null) return null;
+        d['countryCode'] = d['loc'];
+        return d;
+      }),
+      // ipapi.co: may rate-limit
+          () => get('https://ipapi.co/json/',
+              (d) => d['ip'] != null && d['error'] == null ? d : null),
+      // api.myip.com: IP + country, very light
+          () => get('https://api.myip.com', (d) {
+        if (d['ip'] == null) return null;
+        d['countryCode'] = d['cc'];
+        return d;
+      }),
+      // ipify: IP only
+          () => get('https://api.ipify.org?format=json',
+              (d) => d['ip'] != null ? d : null),
+      // Plain-text IP services (last resort, IP only)
+          () => get('https://checkip.amazonaws.com',
+              (d) => d['ip'] != null ? d : null),
+          () => get('https://icanhazip.com',
+              (d) => d['ip'] != null ? d : null),
+    ];
+
+    final completer = Completer<Map<String, dynamic>>();
+    var finished = 0;
+    for (var i = 0; i < sources.length; i++) {
+      () async {
+        await Future.delayed(Duration(milliseconds: 1000 * i));
+        if (completer.isCompleted) return; // already have an answer
+        final data = await sources[i]();
+        if (data != null && !completer.isCompleted) completer.complete(data);
+        finished++;
+        if (finished == sources.length && !completer.isCompleted) {
+          completer.completeError(Exception('Failed to get IP address'));
+        }
+      }();
+    }
+    return completer.future;
   }
 
   /// Delete user account

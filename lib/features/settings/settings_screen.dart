@@ -12,7 +12,6 @@ import '../../core/services/purchase_service.dart';
 import '../about/about_screen.dart';
 import '../support/support_screen.dart';
 import 'admin_notifications_screen.dart';
-import '../speedtest/speed_test_screen.dart';
 import '../../screens/profile/purchase_history_screen.dart';
 import '../../screens/auth/sign_in_screen.dart';
 import '../../widgets/level_play_banner_ad.dart';
@@ -46,7 +45,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Container(
       color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -212,21 +211,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AdminNotificationsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDivider(isDarkMode),
-                _buildSettingTile(
-                  title: tr('speed_test'),
-                  subtitle: tr('speed_test_sub'),
-                  icon: Icons.speed,
-                  isDarkMode: isDarkMode,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SpeedTestScreen(),
                       ),
                     );
                   },
@@ -1612,7 +1596,7 @@ class _SettingsBannerSlotState extends State<_SettingsBannerSlot> {
       child: hidden
           ? const SizedBox(width: double.infinity)
           : Padding(
-              padding: const EdgeInsets.only(top: 24),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Container(
                 height: 60,
                 decoration: BoxDecoration(

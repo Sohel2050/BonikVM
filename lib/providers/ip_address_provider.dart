@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/api_service.dart';
 
@@ -32,22 +34,35 @@ class IpAddressInfo {
 }
 
 // IP Address Provider
+//
+// Never gives up for good: if every service fails (no internet yet, VPN interface
+// still settling, a blocked service), it tries again by itself after a growing
+// pause (6 s, 12 s, 24 s ... max 60 s) and the screen fills in as soon as one
+// attempt works. The pause resets after a success.
+int _ipFailStreak = 0;
+
+/// Called by the manual Reload button so a tap starts a fresh attempt at once.
+void resetIpRetryBackoff() => _ipFailStreak = 0;
+
 final ipAddressProvider = FutureProvider<IpAddressInfo>((ref) async {
   final apiService = ApiService.instance;
+  Timer? retryTimer;
+  ref.onDispose(() => retryTimer?.cancel());
 
-  int retries = 4;
-  while (retries > 0) {
+  for (var attempt = 0; attempt < 2; attempt++) {
     try {
       final response = await apiService.getPublicIp();
+      _ipFailStreak = 0;
       return IpAddressInfo.fromJson(response);
-    } catch (e) {
-      retries--;
-      if (retries == 0) {
-        throw Exception('Failed to get IP address');
-      }
-      await Future.delayed(const Duration(milliseconds: 1500));
+    } catch (_) {
+      if (attempt == 0) await Future.delayed(const Duration(seconds: 1));
     }
   }
+
+  final shift = _ipFailStreak > 4 ? 4 : _ipFailStreak;
+  final pause = math.min(6 * (1 << shift), 60);
+  _ipFailStreak++;
+  retryTimer = Timer(Duration(seconds: pause), ref.invalidateSelf);
   throw Exception('Failed to get IP address');
 });
 
