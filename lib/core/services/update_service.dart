@@ -30,6 +30,28 @@ class UpdateService {
 
   bool _isCheckingForUpdates = false;
 
+  // An optional (non-force) update prompt is shown at most ONCE per app
+  // session. The splash screen and the home shell both run a check on
+  // startup, so without this the dialog popped up a second time right after
+  // the user tapped "Update later".
+  bool _optionalPromptShownThisSession = false;
+
+  /// True when an optional update prompt must NOT be shown now: already shown
+  /// this session, or the user chose "Update later" in the last 24 hours.
+  /// A manual check from Settings ([manual] = true) always shows it.
+  Future<bool> _shouldSkipOptionalPrompt({required bool manual}) async {
+    if (manual) return false;
+    if (_optionalPromptShownThisSession) {
+      debugPrint('UpdateService: Optional prompt already shown this session');
+      return true;
+    }
+    if (await _isUpdatePromptSnoozed()) {
+      debugPrint('UpdateService: Optional update prompt is snoozed');
+      return true;
+    }
+    return false;
+  }
+
   // ============================================================
   // INITIALIZE
 
@@ -108,7 +130,11 @@ class UpdateService {
         await _checkGooglePlayUpdate(context, showNoUpdateDialog);
       } else {
         if (adminUpdate != null && adminUpdate.shouldUpdate) {
+          if (await _shouldSkipOptionalPrompt(manual: showNoUpdateDialog)) {
+            return false;
+          }
           if (context != null && context.mounted) {
+            _optionalPromptShownThisSession = true;
             await _showUpdateDialog(context, adminUpdate);
           }
         } else if (showNoUpdateDialog && context != null && context.mounted) {
@@ -162,12 +188,12 @@ class UpdateService {
       if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
         // The user chose tr('upd_later_btn') recently: do not ask again yet
         // (a manual check from Settings always shows the dialog).
-        if (!showNoUpdateDialog && await _isUpdatePromptSnoozed()) {
-          debugPrint('UpdateService: Optional update prompt is snoozed');
+        if (await _shouldSkipOptionalPrompt(manual: showNoUpdateDialog)) {
           return;
         }
 
         if (context != null && context.mounted) {
+          _optionalPromptShownThisSession = true;
           await _showPlayStoreUpdateDialog(context, updateInfo);
         } else {
           // Optional update with no screen to show a dialog on: never start
@@ -275,8 +301,10 @@ class UpdateService {
           actions: [
             TextButton(
               onPressed: () async {
-                Navigator.pop(dialogContext);
+                // Save the snooze FIRST, then close the dialog, so the next
+                // check (home screen) already sees it.
                 await _snoozeUpdatePrompt();
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: Text(tr('upd_later_btn')),
             ),
@@ -376,7 +404,12 @@ class UpdateService {
       final updateInfo = await _checkAdminForceUpdate();
 
       if (updateInfo != null && updateInfo.shouldUpdate) {
+        if (!updateInfo.isForceUpdate &&
+            await _shouldSkipOptionalPrompt(manual: showNoUpdateDialog)) {
+          return;
+        }
         if (context != null && context.mounted) {
+          if (!updateInfo.isForceUpdate) _optionalPromptShownThisSession = true;
           await _showUpdateDialog(context, updateInfo);
         }
       } else {
@@ -638,8 +671,13 @@ class UpdateService {
                 ),
 
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
+                  onPressed: () async {
+                    // Snooze 24h (saved before closing) so it does not
+                    // reappear right away.
+                    await _snoozeUpdatePrompt();
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
 
                     _showToast(
                       context,

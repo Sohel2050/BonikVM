@@ -317,6 +317,73 @@ class ApiService {
     }
   }
 
+  /// App-wide maintenance switch (admin panel > App Config > Maintenance Mode).
+  /// Returns the message to show while maintenance is ON, or null when the app
+  /// is open (also null on any error, so a network hiccup never blocks users).
+  Future<String?> getAppMaintenanceMessage() async {
+    try {
+      _ensureInitialized();
+      final response = await _dio.get(
+        '/api/${AppConfig.apiVersion}/app/version',
+        options: Options(
+          sendTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
+        ),
+      );
+      final body = response.data;
+      final data = body is Map ? body['data'] : null;
+      if (data is Map) {
+        final v = data['maintenance_mode'];
+        final on = v == true || v == 1 || v == '1' || v == 'true';
+        if (on) {
+          final m = data['maintenance_message']?.toString().trim() ?? '';
+          return m.isEmpty
+              ? 'App is under maintenance. Please try again later.'
+              : m;
+        }
+      }
+    } catch (e) {
+      debugPrint('[Maintenance] app check failed: $e');
+    }
+    return null;
+  }
+
+  /// Live check right before connecting: is this server in maintenance NOW?
+  /// Uses the load-status poll if it carries maintenance info, otherwise
+  /// re-reads the server list once. Fails open (returns false) on any error so
+  /// a network hiccup never blocks a connection.
+  Future<bool> isServerUnderMaintenanceNow(String serverId) async {
+    try {
+      final live = await getServerLoadStatus([serverId]);
+      final st = live[serverId];
+      if (st != null) {
+        if (VpnServer._statusHasMaintenanceInfo(st) ||
+            parseMaintenanceFlag(st)) {
+          return parseMaintenanceFlag(st);
+        }
+      }
+      _ensureInitialized();
+      final response = await _dio.get(
+        '/api/${AppConfig.apiVersion}/servers/protocols',
+        options: Options(
+          sendTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
+        ),
+      );
+      final List<dynamic> data = response.data is List
+          ? response.data
+          : response.data['data'] ?? [];
+      for (final e in data) {
+        if (e is Map && e['id']?.toString() == serverId) {
+          return parseMaintenanceFlag(e);
+        }
+      }
+    } catch (e) {
+      debugPrint('[Maintenance] live check failed: $e');
+    }
+    return false;
+  }
+
   // Get all servers - using correct API endpoint with retry logic and TLS fallback
   Future<List<VpnServer>> getServers() async {
     int retryCount = 0;
@@ -533,6 +600,15 @@ class ApiService {
           data is Map &&
           data['error'] == 'premium_required') {
         throw Exception('Premium subscription required to access this server');
+      }
+      if (e.response?.statusCode == 423 &&
+          data is Map &&
+          (data['error'] == 'server_maintenance' ||
+              data['error'] == 'app_maintenance')) {
+        throw Exception(
+          data['message']?.toString() ??
+              'This server is under maintenance. Please select another server.',
+        );
       }
       return null;
     } catch (_) {
@@ -1341,6 +1417,31 @@ class ApiService {
 }
 
 // Data Models
+/// Reads the "server is under maintenance" flag from an API / saved-JSON map.
+/// Accepts true/1/"1"/"true"/"yes" in any of the usual key names, and a
+/// status text like "Maintenance" / "maintenance" / "Under Maintenance".
+bool parseMaintenanceFlag(Map<dynamic, dynamic> json) {
+  bool truthy(dynamic v) {
+    if (v == null) return false;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final t = v.toString().trim().toLowerCase();
+    return t == '1' || t == 'true' || t == 'yes' || t == 'on';
+  }
+
+  for (final k in const [
+    'is_maintenance',
+    'maintenance',
+    'under_maintenance',
+    'maintenance_mode',
+    'is_under_maintenance',
+  ]) {
+    if (truthy(json[k])) return true;
+  }
+  final status = json['status']?.toString().toLowerCase() ?? '';
+  return status.contains('maint');
+}
+
 class VpnServer {
   final String id;
   final String name;
@@ -1448,6 +1549,11 @@ class VpnServer {
   /// Returns a copy of this server with just the live load fields replaced
   /// (used by the auto-refresh poll so we don't re-fetch the whole server
   /// object — name, credentials, flags, etc — every few seconds).
+  static bool _statusHasMaintenanceInfo(Map<String, dynamic> status) =>
+      status.containsKey('is_maintenance') ||
+          status.containsKey('maintenance') ||
+          status.containsKey('under_maintenance');
+
   VpnServer copyWithLoadStatus(Map<String, dynamic> status) {
     final newCapacity = (status['capacity'] as num?)?.toInt() ?? capacity;
     final newConnected =
@@ -1481,7 +1587,9 @@ class VpnServer {
       capacity: newCapacity,
       loadPercentage: newLoadPct,
       isFull: newIsFull,
-      isMaintenance: isMaintenance,
+      isMaintenance: _statusHasMaintenanceInfo(status)
+          ? parseMaintenanceFlag(status)
+          : (isMaintenance || parseMaintenanceFlag(status)),
       protocols: protocols,
       vpnProtocolType: vpnProtocolType,
       provider: provider,
@@ -1663,9 +1771,7 @@ class VpnServer {
       capacity: capacity,
       loadPercentage: loadPercentage,
       isFull: isFull,
-      isMaintenance: json['is_maintenance'] == true ||
-          json['is_maintenance'] == 1 ||
-          json['status'] == 'Maintenance',
+      isMaintenance: parseMaintenanceFlag(json),
       protocols: json['protocols'] != null
           ? List<String>.from(json['protocols'])
           : null,
@@ -1762,9 +1868,7 @@ class VpnServer {
       capacity: capacity,
       loadPercentage: loadPercentage,
       isFull: isFull,
-      isMaintenance: json['is_maintenance'] == true ||
-          json['is_maintenance'] == 1 ||
-          json['status'] == 'Maintenance',
+      isMaintenance: parseMaintenanceFlag(json),
       protocols: supportedProtocols,
       vpnProtocolType: vpnProtocolType,
       provider: json['provider']?.toString() ?? 'manual',
@@ -2079,6 +2183,7 @@ class VpnServer {
       'capacity': capacity,
       'load_percentage': loadPercentage,
       'is_full': isFull,
+      'is_maintenance': isMaintenance,
       'protocol': protocol,
       'tcp_port': tcpPort,
       'udp_port': udpPort,

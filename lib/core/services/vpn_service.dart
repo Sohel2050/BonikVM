@@ -615,7 +615,7 @@ class VpnService {
       // server (also enforces premium/ad-unlock on the backend).
       if (!server.isThirdParty) {
         final withSecrets =
-            await ApiService.instance.fetchServerSecrets(server.id);
+        await ApiService.instance.fetchServerSecrets(server.id);
         if (withSecrets != null) {
           server = server.copyWithSecrets(withSecrets);
         }
@@ -650,6 +650,21 @@ class VpnService {
       // (hard block) when log-connect/download is called, so this is a
       // fast pre-check for a clean error message, not the only guard.
       if (server.isMaintenance) {
+        throw Exception(
+          '${server.name} is under maintenance. Please select another server.',
+        );
+      }
+
+      // App-wide maintenance (admin toggle): block NEW connections only.
+      final appMaintenance = await ApiService.instance.getAppMaintenanceMessage();
+      if (appMaintenance != null) {
+        throw Exception(appMaintenance);
+      }
+
+      // Live maintenance check: the server object may be stale (list loaded or
+      // saved before the admin switched maintenance on).
+      if (!server.isThirdParty &&
+          await ApiService.instance.isServerUnderMaintenanceNow(server.id)) {
         throw Exception(
           '${server.name} is under maintenance. Please select another server.',
         );
@@ -868,10 +883,10 @@ class VpnService {
       // when the config does not define any DNS itself.
       if (server.isOneConnect &&
           !RegExp(r'^\s*dhcp-option\s+DNS6?\b',
-                  multiLine: true, caseSensitive: false)
+              multiLine: true, caseSensitive: false)
               .hasMatch(finalConfig)) {
         finalConfig =
-            '${finalConfig.trimRight()}\ndhcp-option DNS 1.1.1.1\ndhcp-option DNS 8.8.8.8\n';
+        '${finalConfig.trimRight()}\ndhcp-option DNS 1.1.1.1\ndhcp-option DNS 8.8.8.8\n';
       }
 
       // Check for certificate authentication issues
@@ -1487,8 +1502,8 @@ pull
     final timeout = _currentServer?.isThirdParty == true
         ? const Duration(seconds: 25)
         : (_currentServer?.vpnProtocolType == 'wireguard'
-            ? const Duration(seconds: 40)
-            : const Duration(seconds: 60));
+        ? const Duration(seconds: 40)
+        : const Duration(seconds: 60));
 
     _connectionTimer = Timer(timeout, () {
       if (_vpnState == VpnState.connecting ||

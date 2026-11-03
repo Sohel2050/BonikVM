@@ -21,7 +21,7 @@ final adsPopupConfigProvider = FutureProvider<AdsPopupConfig>((ref) async {
   // provider, so a value that was missed once never stays stuck on screen.
   final timer = Timer.periodic(
     const Duration(minutes: 2),
-    (_) => ref.invalidateSelf(),
+        (_) => ref.invalidateSelf(),
   );
   ref.onDispose(timer.cancel);
   return AdsPopupConfigService().getAdsPopupConfig(forceRefresh: true);
@@ -1024,4 +1024,11 @@ final serverLoadStatusProvider = StateNotifierProvider.autoDispose<
   // (e.g. the user navigates away from the servers screen).
   ref.onDispose(() => notifier.stopPolling());
   return notifier;
+});
+
+
+/// Message while the admin has app-wide maintenance ON, otherwise null.
+/// Refresh with ref.invalidate(appMaintenanceProvider).
+final appMaintenanceProvider = FutureProvider.autoDispose<String?>((ref) async {
+  return ApiService.instance.getAppMaintenanceMessage();
 });

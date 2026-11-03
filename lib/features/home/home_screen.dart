@@ -1420,6 +1420,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // Subscription notification banner
             const SubscriptionBanner(),
 
+            // App-wide maintenance notice (admin toggle). Existing connections
+            // keep running; only new connections are blocked.
+            Builder(builder: (context) {
+              final msg = ref.watch(appMaintenanceProvider).valueOrNull;
+              if (msg == null) return const SizedBox.shrink();
+              return GestureDetector(
+                onTap: () => ref.invalidate(appMaintenanceProvider),
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.build_circle_outlined,
+                          color: Colors.orange, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          msg,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode
+                                ? Colors.orange.shade200
+                                : Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+
             Expanded(
               child: vpnStateAsync.when(
                 loading: () => _buildConnectionSection(
@@ -1762,7 +1806,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (isConnected &&
                 !isPremium &&
                 LevelPlayService.instance.adsEnabledByAdmin) ...[
-              const _HomeBannerSlot(topPadding: 2, bottomPadding: 20),
+              const _HomeBannerSlot(topPadding: 2, bottomPadding: 10),
             ],
 
             // Free Connection Timer
