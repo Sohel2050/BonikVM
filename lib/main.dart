@@ -15,6 +15,7 @@ import 'core/router/app_router.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/services/vpn_notification_service.dart';
 import 'core/services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/services/level_play_service.dart';
 import 'core/services/vpn_service.dart';
 import 'core/services/purchase_service.dart';
@@ -44,6 +45,14 @@ void main() async {
   OneSignal.Notifications.addClickListener((event) {
     debugPrint('Notification clicked: ${event.notification.additionalData}');
   });
+
+  // Lets silent pushes (admin "Verify reachable") be answered while the app is
+  // in the background. Must be registered before runApp.
+  try {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('Background message handler not registered: $e');
+  }
 
   runApp(const ProviderScope(child: VpnMasterApp()));
 }

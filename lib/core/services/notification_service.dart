@@ -71,6 +71,8 @@ class NotificationService {
   static const _secureStorage = FlutterSecureStorage();
 
   bool _isInitialized = false;
+  bool _heartbeatObserverAdded = false;
+  DateTime? _lastHeartbeat;
   String? _currentToken;
   String? _userId;
 
@@ -86,6 +88,7 @@ class NotificationService {
 
     try {
       _userId = userId;
+      unawaited(_cachePingConfig());
 
       // Check admin settings first
       await _checkAdminSettings();
@@ -117,10 +120,62 @@ class NotificationService {
       // Set up message handlers
       _setupMessageHandlers();
 
+      // Keep "last seen" fresh for long-lived sessions (see sendHeartbeat).
+      if (!_heartbeatObserverAdded) {
+        WidgetsBinding.instance.addObserver(_HeartbeatObserver(this));
+        _heartbeatObserverAdded = true;
+      }
+
       _isInitialized = true;
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Re-registers the FCM token so the server's "last active" time stays
+  /// current. The admin recipient estimate counts only devices seen recently,
+  /// and registration used to happen only on a cold start, so people who keep
+  /// the app in memory for days looked inactive. Runs on app resume, at most
+  /// once per [minGap] (default 6 hours).
+  Future<void> sendHeartbeat({
+    bool force = false,
+    Duration minGap = const Duration(hours: 6),
+  }) async {
+    try {
+      if (!_isInitialized) return;
+      final last = _lastHeartbeat;
+      if (!force && last != null && DateTime.now().difference(last) < minGap) {
+        return;
+      }
+      final token = _currentToken ?? await _firebaseMessaging.getToken();
+      if (token == null || token.isEmpty) return;
+
+      _lastHeartbeat = DateTime.now();
+      final deviceInfo = await _getDeviceInfo();
+      final deviceId = deviceInfo['device_id'] ?? 'unknown';
+      await ApiService.instance.registerFcmToken(
+        token,
+        deviceId,
+        userId: FirebaseAuth.instance.currentUser?.uid,
+      );
+    } catch (_) {
+      // Best effort only.
+    }
+  }
+
+  static const String _pingBaseUrlKey = 'ping_base_url_v1';
+  static const String _pingApiKeyKey = 'ping_api_key_v1';
+
+  /// The background isolate that answers silent pushes starts with an empty
+  /// environment (no .env). Keep what it needs in SharedPreferences.
+  Future<void> _cachePingConfig() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final base = AppConfig.apiBaseUrl;
+      final key = AppConfig.apiKey;
+      if (base.isNotEmpty) await prefs.setString(_pingBaseUrlKey, base);
+      if (key.isNotEmpty) await prefs.setString(_pingApiKeyKey, key);
+    } catch (_) {}
   }
 
   /// Check admin notification settings
@@ -278,6 +333,7 @@ class NotificationService {
             deviceId,
             userId: userId,
           );
+          _lastHeartbeat = DateTime.now();
         } catch (e) {}
       }
 
@@ -334,6 +390,11 @@ class NotificationService {
 
   /// Handle foreground messages
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    // Silent "are you there?" check from the admin panel: answer it and stop.
+    if (message.data['type'] == 'reach_ping') {
+      unawaited(answerReachPing(message.data));
+      return;
+    }
     // Report delivery to the admin panel (notification stats)
     unawaited(_trackEvent(message.data, 'delivered'));
     try {
@@ -725,4 +786,73 @@ class NotificationService {
 
 /// Background message handler (must be top-level function)
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Runs in a separate isolate while the app is in the background/closed.
+  if (message.data['type'] == 'reach_ping') {
+    await answerReachPing(message.data);
+  }
+}
+
+/// Tells the server "this device received the check" (admin: Verify reachable).
+/// Runs in the background isolate too, so it relies only on SharedPreferences
+/// and plain HTTP (no .env, no app state). Never throws.
+Future<void> answerReachPing(Map<String, dynamic> data) async {
+  try {
+    final pingId = data['ping_id']?.toString();
+    if (pingId == null || pingId.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload(); // this isolate may hold an older copy
+
+    var baseUrl = prefs.getString('ping_base_url_v1') ?? '';
+    var apiKey = prefs.getString('ping_api_key_v1') ?? '';
+    if (baseUrl.isEmpty || apiKey.isEmpty) {
+      // Fall back to .env (works when the main isolate is running).
+      try {
+        if (baseUrl.isEmpty) baseUrl = AppConfig.apiBaseUrl;
+        if (apiKey.isEmpty) apiKey = AppConfig.apiKey;
+      } catch (_) {}
+    }
+    if (baseUrl.isEmpty) baseUrl = 'https://vm.albonik.com';
+
+    final deviceId = await DeviceIdentity.id();
+    final deviceToken = prefs.getString('device_token_v1');
+
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
+        sendTimeout: const Duration(seconds: 8),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          if (apiKey.isNotEmpty) 'X-API-Token': apiKey,
+          if (deviceToken != null && deviceToken.isNotEmpty)
+            'X-Device-Token': deviceToken,
+        },
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    );
+    await dio.post(
+      '/api/${AppConfig.apiVersion}/device/ack',
+      data: {'ping_id': pingId, 'device_id': deviceId},
+    );
+  } catch (_) {
+    // Best effort only.
+  }
+}
+
+/// Calls [NotificationService.sendHeartbeat] whenever the app returns to the
+/// foreground.
+class _HeartbeatObserver with WidgetsBindingObserver {
+  _HeartbeatObserver(this._service);
+  final NotificationService _service;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _service.sendHeartbeat();
+    }
+  }
+}
